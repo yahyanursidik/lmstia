@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="cf09b512-b38b-471b-8d4a-35c8347c0ff1"></script>
+</head>
+<body>
+<x-dc>
+
+<helmet data-dc-atomics="">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+<style>/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("2de7c701-9fe0-4c77-b4a4-77386926cdd6") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("5a0f64f6-322a-4578-b1e0-84bd0e305f53") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("a8066e23-b187-43c8-a7ac-582ad5ae9040") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("1ae7b344-f62f-4cb3-b57c-cf1827a9e691") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("97e36f2c-52b1-456e-b617-dce65b8cb688") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* cyrillic-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("01f7889f-23f8-4ffc-b97f-0ab79779b114") format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+/* cyrillic */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("706db302-ecfc-43dd-958c-2758b8f21569") format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("a9c1f830-9291-4fb0-b9dd-4bdc7b720f00") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("ded43e9b-3b53-4ca7-847b-eaf61fd64170") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("8e2c839a-c421-46a4-a6d2-d8851a011e57") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Karla';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("cc316071-a54e-4352-84d3-724cd0f5e2cc") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Karla';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("5c0029fc-a719-4141-b230-e6ad91e8b09b") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 300 500;
+  font-display: swap;
+  src: url("9ae30fca-0b87-4286-97e4-6651013c53f0") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 300 500;
+  font-display: swap;
+  src: url("729f8752-c6dd-46d6-8ab7-5da2122a9c3e") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: italic;
+  font-weight: 300 500;
+  font-display: swap;
+  src: url("61fa9224-8aa4-487c-9544-9418232d8142") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* vietnamese */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("709a11f8-6944-4460-906b-33d2a49157f5") format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+0128-0129, U+0168-0169, U+01A0-01A1, U+01AF-01B0, U+0300-0301, U+0303-0304, U+0308-0309, U+0323, U+0329, U+1EA0-1EF9, U+20AB;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("5ff16944-da0e-4d9c-9465-c4ac0f57358d") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Newsreader';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url("75e06428-4466-436c-9ea4-6fb3855cc7db") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+/* arabic */
+@font-face {
+  font-family: 'Noto Naskh Arabic';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("3a19049a-b67f-46ff-be96-cc81f1062b74") format('woff2');
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF, U+200C-200E, U+2010-2011, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC, U+102E0-102FB, U+10E60-10E7E, U+10EC2-10EC4, U+10EFC-10EFF, U+1EE00-1EE03, U+1EE05-1EE1F, U+1EE21-1EE22, U+1EE24, U+1EE27, U+1EE29-1EE32, U+1EE34-1EE37, U+1EE39, U+1EE3B, U+1EE42, U+1EE47, U+1EE49, U+1EE4B, U+1EE4D-1EE4F, U+1EE51-1EE52, U+1EE54, U+1EE57, U+1EE59, U+1EE5B, U+1EE5D, U+1EE5F, U+1EE61-1EE62, U+1EE64, U+1EE67-1EE6A, U+1EE6C-1EE72, U+1EE74-1EE77, U+1EE79-1EE7C, U+1EE7E, U+1EE80-1EE89, U+1EE8B-1EE9B, U+1EEA1-1EEA3, U+1EEA5-1EEA9, U+1EEAB-1EEBB, U+1EEF0-1EEF1;
+}
+/* math */
+@font-face {
+  font-family: 'Noto Naskh Arabic';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("d668129d-43d1-4bd0-9f48-6e478f7ba40b") format('woff2');
+  unicode-range: U+0302-0303, U+0305, U+0307-0308, U+0310, U+0312, U+0315, U+031A, U+0326-0327, U+032C, U+032F-0330, U+0332-0333, U+0338, U+033A, U+0346, U+034D, U+0391-03A1, U+03A3-03A9, U+03B1-03C9, U+03D1, U+03D5-03D6, U+03F0-03F1, U+03F4-03F5, U+2016-2017, U+2034-2038, U+203C, U+2040, U+2043, U+2047, U+2050, U+2057, U+205F, U+2070-2071, U+2074-208E, U+2090-209C, U+20D0-20DC, U+20E1, U+20E5-20EF, U+2100-2112, U+2114-2115, U+2117-2121, U+2123-214F, U+2190, U+2192, U+2194-21AE, U+21B0-21E5, U+21F1-21F2, U+21F4-2211, U+2213-2214, U+2216-22FF, U+2308-230B, U+2310, U+2319, U+231C-2321, U+2336-237A, U+237C, U+2395, U+239B-23B7, U+23D0, U+23DC-23E1, U+2474-2475, U+25AF, U+25B3, U+25B7, U+25BD, U+25C1, U+25CA, U+25CC, U+25FB, U+266D-266F, U+27C0-27FF, U+2900-2AFF, U+2B0E-2B11, U+2B30-2B4C, U+2BFE, U+3030, U+FF5B, U+FF5D, U+1D400-1D7FF, U+1EE00-1EEFF;
+}
+/* symbols */
+@font-face {
+  font-family: 'Noto Naskh Arabic';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("c42936a1-1d7d-46e1-bb07-6e2cc8de136f") format('woff2');
+  unicode-range: U+0001-000C, U+000E-001F, U+007F-009F, U+20DD-20E0, U+20E2-20E4, U+2150-218F, U+2190, U+2192, U+2194-2199, U+21AF, U+21E6-21F0, U+21F3, U+2218-2219, U+2299, U+22C4-22C6, U+2300-243F, U+2440-244A, U+2460-24FF, U+25A0-27BF, U+2800-28FF, U+2921-2922, U+2981, U+29BF, U+29EB, U+2B00-2BFF, U+4DC0-4DFF, U+FFF9-FFFB, U+10140-1018E, U+10190-1019C, U+101A0, U+101D0-101FD, U+102E0-102FB, U+10E60-10E7E, U+1D2C0-1D2D3, U+1D2E0-1D37F, U+1F000-1F0FF, U+1F100-1F1AD, U+1F1E6-1F1FF, U+1F30D-1F30F, U+1F315, U+1F31C, U+1F31E, U+1F320-1F32C, U+1F336, U+1F378, U+1F37D, U+1F382, U+1F393-1F39F, U+1F3A7-1F3A8, U+1F3AC-1F3AF, U+1F3C2, U+1F3C4-1F3C6, U+1F3CA-1F3CE, U+1F3D4-1F3E0, U+1F3ED, U+1F3F1-1F3F3, U+1F3F5-1F3F7, U+1F408, U+1F415, U+1F41F, U+1F426, U+1F43F, U+1F441-1F442, U+1F444, U+1F446-1F449, U+1F44C-1F44E, U+1F453, U+1F46A, U+1F47D, U+1F4A3, U+1F4B0, U+1F4B3, U+1F4B9, U+1F4BB, U+1F4BF, U+1F4C8-1F4CB, U+1F4D6, U+1F4DA, U+1F4DF, U+1F4E3-1F4E6, U+1F4EA-1F4ED, U+1F4F7, U+1F4F9-1F4FB, U+1F4FD-1F4FE, U+1F503, U+1F507-1F50B, U+1F50D, U+1F512-1F513, U+1F53E-1F54A, U+1F54F-1F5FA, U+1F610, U+1F650-1F67F, U+1F687, U+1F68D, U+1F691, U+1F694, U+1F698, U+1F6AD, U+1F6B2, U+1F6B9-1F6BA, U+1F6BC, U+1F6C6-1F6CF, U+1F6D3-1F6D7, U+1F6E0-1F6EA, U+1F6F0-1F6F3, U+1F6F7-1F6FC, U+1F700-1F7FF, U+1F800-1F80B, U+1F810-1F847, U+1F850-1F859, U+1F860-1F887, U+1F890-1F8AD, U+1F8B0-1F8BB, U+1F8C0-1F8C1, U+1F900-1F90B, U+1F93B, U+1F946, U+1F984, U+1F996, U+1F9E9, U+1FA00-1FA6F, U+1FA70-1FA7C, U+1FA80-1FA89, U+1FA8F-1FAC6, U+1FACE-1FADC, U+1FADF-1FAE9, U+1FAF0-1FAF8, U+1FB00-1FBFF;
+}
+/* latin-ext */
+@font-face {
+  font-family: 'Noto Naskh Arabic';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("872d7a5f-427c-4231-823b-f583d5d44fc2") format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+/* latin */
+@font-face {
+  font-family: 'Noto Naskh Arabic';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url("58f1fc67-208c-4251-bc71-f0627e07369e") format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+</style>
+<style>
+html,body{margin:0;padding:0}
+body{background:#f6f2ea;color:#1c1a17;font-family:Karla,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#1f3d34;text-decoration:none}
+a:hover{color:#3b6b58}
+::selection{background:#1f3d34;color:#f6f2ea}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#f6f2ea">
+
+<div style="position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;gap:24px;padding:0 28px;height:56px;background:rgba(247,244,238,.92);backdrop-filter:blur(10px);border-bottom:1px solid #e4ded2">
+  <div style="display:flex;align-items:center;gap:11px">
+    <div style="width:26px;height:26px;border-radius:50%;border:1.5px solid #1f3d34;display:flex;align-items:center;justify-content:center;font-family:Newsreader,serif;font-size:13px;font-weight:500;color:#1f3d34">ت</div>
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6d675e">Tarbiyah Sunnah Islamic Academy</div>
+  </div>
+  <div style="display:flex;gap:4px;padding:3px;background:#eee9df;border-radius:8px">
+    <button sc-camel-on-click="{{ goLanding }}" style="{{ tabLanding }}">Landing Page</button>
+    <button sc-camel-on-click="{{ goPeserta }}" style="{{ tabPeserta }}">Dasbor Peserta</button>
+    <button sc-camel-on-click="{{ goUnit }}" style="{{ tabUnit }}">Unit Belajar</button>
+    <button sc-camel-on-click="{{ goAdmin }}" style="{{ tabAdmin }}">Dasbor Admin</button>
+  </div>
+</div>
+
+<sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Landing Page">
+
+  <section style="max-width:1180px;margin:0 auto;padding:88px 40px 64px;display:grid;grid-template-columns:1.25fr .85fr;gap:64px;align-items:start">
+    <div>
+      <div style="display:inline-flex;align-items:center;gap:8px;padding:5px 12px 5px 8px;border:1px solid #d8d0c1;border-radius:100px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#6d675e;margin-bottom:30px">
+        <span style="width:5px;height:5px;border-radius:50%;background:#b0793a"></span>Pendaftaran Caturwulan 1 dibuka
+      </div>
+      <h1 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:66px;line-height:1.04;letter-spacing:-.022em;color:#1c1a17;text-wrap:pretty">Satu caturwulan.<br>Satu fokus.<br><span style="font-style:italic;color:#1f3d34">Satu tahap tuntas.</span></h1>
+      <p style="margin:30px 0 0;max-width:560px;font-size:18.5px;line-height:1.62;color:#4a453e;text-wrap:pretty">Menuntut ilmu adalah perjalanan panjang. Namun perjalanan panjang tidak harus terasa berat sejak langkah pertama. Di TIA, pembelajaran dibagi ke dalam caturwulan yang singkat dan terarah — Anda cukup menyelesaikan satu tahap terlebih dahulu, lalu melanjutkan ketika siap.</p>
+      <div style="display:flex;flex-wrap:wrap;gap:12px;margin-top:38px">
+        <a href="#daftar" style="display:inline-flex;align-items:center;gap:10px;padding:15px 26px;background:#1f3d34;color:#f6f2ea;border-radius:6px;font-size:15px;font-weight:600;letter-spacing:.005em" style-hover="background:#2b5245">Daftar Caturwulan 1 <span style="opacity:.6">→</span></a>
+        <a href="#roadmap" style="display:inline-flex;align-items:center;padding:15px 24px;border:1px solid #d3cabb;border-radius:6px;font-size:15px;font-weight:600;color:#3d3a34" style-hover="border-color:#1f3d34;color:#1f3d34">Lihat Perjalanan Belajar TIA</a>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:26px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.03em;color:#807a70">
+        <span>4–6 JAM / PEKAN</span><span style="color:#cfc7b8">·</span><span>KOMITMEN PER CATURWULAN</span><span style="color:#cfc7b8">·</span><span>UNTUK MUSLIM DEWASA</span>
+      </div>
+    </div>
+
+    <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:28px;box-shadow:0 1px 2px rgba(28,26,23,.04),0 12px 32px -18px rgba(28,26,23,.16)">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding-bottom:18px;border-bottom:1px solid #ece6da">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:#8a8478">Marhalah I'dad</div>
+          <div style="font-family:Newsreader,serif;font-size:27px;line-height:1.2;margin-top:6px;color:#1c1a17">Caturwulan 1</div>
+        </div>
+        <div style="padding:5px 10px;background:#eaefe9;border-radius:5px;font-size:11px;font-weight:700;color:#1f3d34;white-space:nowrap">1 CAWU</div>
+      </div>
+      <div style="font-size:13.5px;line-height:1.55;color:#4a453e;margin:18px 0 20px">Tema akademik: <strong style="color:#1c1a17">Membangun Fondasi Menuntut Ilmu</strong></div>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-top:1px solid #f0ebe0">
+          <div style="width:30px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#b0a897;padding-top:2px">01</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;color:#1c1a17">Bahasa Arab 01</div>
+            <div style="font-size:13px;line-height:1.5;color:#6d675e;margin-top:3px">Membangun alat — membaca, menulis, kosakata, struktur dasar.</div>
+          </div>
+          <div style="flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#1f3d34;padding-top:3px">INTENSIF</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-top:1px solid #f0ebe0">
+          <div style="width:30px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#b0a897;padding-top:2px">02</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;color:#1c1a17">Aqidah 01</div>
+            <div style="font-size:13px;line-height:1.5;color:#6d675e;margin-top:3px">Membangun keyakinan — tauhid dan tujuan kehidupan.</div>
+          </div>
+          <div style="flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8a8478;padding-top:3px">FONDASI</div>
+        </div>
+        <div style="display:flex;align-items:flex-start;gap:14px;padding:14px 0;border-top:1px solid #f0ebe0">
+          <div style="width:30px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#b0a897;padding-top:2px">03</div>
+          <div style="flex:1">
+            <div style="font-size:15px;font-weight:700;color:#1c1a17">Adab Menuntut Ilmu</div>
+            <div style="font-size:13px;line-height:1.5;color:#6d675e;margin-top:3px">Membangun sikap — 1 materi pendek per pekan, 8–15 menit.</div>
+          </div>
+          <div style="flex:none;font-size:10.5px;font-weight:700;letter-spacing:.06em;color:#8a8478;padding-top:3px">MANDIRI</div>
+        </div>
+      </div>
+      <div style="margin-top:20px;padding:14px 16px;background:#f6f2ea;border-radius:8px;font-size:12.5px;line-height:1.55;color:#5c564d">Setelah selesai, peserta dapat memutuskan untuk melanjutkan ke Caturwulan 2. Tidak ada komitmen bertahun-tahun.</div>
+    </div>
+  </section>
+
+  <section style="border-top:1px solid #e4ded2;border-bottom:1px solid #e4ded2;background:#fffcf6">
+    <div style="max-width:1180px;margin:0 auto;padding:0 40px;display:grid;grid-template-columns:repeat(4,1fr)">
+      <div style="padding:36px 30px 36px 0">
+        <div style="font-family:Newsreader,serif;font-size:19px;color:#1f3d34;margin-bottom:9px">Bertahap</div>
+        <div style="font-size:13.5px;line-height:1.6;color:#5c564d">Tidak masuk ke pembahasan lanjutan sebelum fondasi cukup.</div>
+      </div>
+      <div style="padding:36px 30px;border-left:1px solid #ece6da">
+        <div style="font-family:Newsreader,serif;font-size:19px;color:#1f3d34;margin-bottom:9px">Menguatkan Fondasi</div>
+        <div style="font-size:13.5px;line-height:1.6;color:#5c564d">Materi dipilih dari fondasi terpenting di setiap tahap.</div>
+      </div>
+      <div style="padding:36px 30px;border-left:1px solid #ece6da">
+        <div style="font-family:Newsreader,serif;font-size:19px;color:#1f3d34;margin-bottom:9px">Ilmu Terhubung</div>
+        <div style="font-size:13.5px;line-height:1.6;color:#5c564d">Bahasa Arab, Aqidah, Fiqh, Hadits, dan Adab saling menguatkan.</div>
+      </div>
+      <div style="padding:36px 0 36px 30px;border-left:1px solid #ece6da">
+        <div style="font-family:Newsreader,serif;font-size:19px;color:#1f3d34;margin-bottom:9px">Menjaga Istiqamah</div>
+        <div style="font-size:13.5px;line-height:1.6;color:#5c564d">Beban belajar realistis dan sesuai kehidupan orang dewasa.</div>
+      </div>
+    </div>
+  </section>
+
+  <section style="max-width:1180px;margin:0 auto;padding:80px 40px;display:grid;grid-template-columns:.9fr 1.1fr;gap:70px;align-items:start">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#8a8478;margin-bottom:20px">Cara belajarnya</div>
+      <h2 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:40px;line-height:1.14;letter-spacing:-.015em;color:#1c1a17;text-wrap:pretty">Ilmu → Faham → Latihan → Murojaah → Amal</h2>
+      <p style="margin:24px 0 0;font-size:16px;line-height:1.65;color:#4a453e;text-wrap:pretty">TIA bukan sekadar kumpulan kajian, melainkan jalur belajar yang memiliki struktur, jenjang, target, evaluasi, pendampingan, dan rekam jejak belajar.</p>
+      <div style="margin-top:32px;padding:22px 24px;border-left:2px solid #1f3d34;background:#fffcf6;font-family:Newsreader,serif;font-size:19px;line-height:1.5;font-style:italic;color:#1f3d34">Memulai dari fondasi → memahami tahap yang sedang dipelajari → melanjutkan ke tahap berikutnya.</div>
+    </div>
+    <div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#e4ded2;border:1px solid #e4ded2;border-radius:10px;overflow:hidden">
+        <div style="padding:24px;background:#f2ebdf">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#a09788;margin-bottom:14px">POLA YANG DIHINDARI</div>
+          <div style="display:flex;flex-direction:column;gap:9px;font-size:13.5px;color:#8a8478;line-height:1.4">
+            <div>Semangat tinggi</div><div>Beban menumpuk</div><div>Tertinggal</div><div>Merasa gagal</div><div>Bosan</div><div style="text-decoration:line-through">Berhenti</div>
+          </div>
+        </div>
+        <div style="padding:24px;background:#fffcf6">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#1f3d34;margin-bottom:14px">POLA YANG DIBANGUN TIA</div>
+          <div style="display:flex;flex-direction:column;gap:9px;font-size:13.5px;color:#2f2c27;line-height:1.4;font-weight:600">
+            <div>Mulai</div><div>Belajar</div><div>Berlatih</div><div>Murojaah</div><div>Menyelesaikan</div><div>Beristirahat</div><div style="color:#1f3d34">Melanjutkan</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:18px;display:flex;gap:12px;align-items:flex-start;padding:16px 18px;background:#eaefe9;border-radius:8px">
+        <div style="flex:none;font-size:13px;font-weight:700;color:#1f3d34;font-family:'IBM Plex Mono',monospace">JEDA</div>
+        <div style="font-size:13px;line-height:1.55;color:#3d5a4e">Cawu selesai → jeda 1–2 pekan → cawu berikutnya dimulai. Jeda adalah bagian dari desain pembelajaran, bukan waktu kosong.</div>
+      </div>
+    </div>
+  </section>
+
+  <section style="background:#1f3d34;color:#eaefe9">
+    <div style="max-width:1180px;margin:0 auto;padding:76px 40px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:70px;align-items:center">
+        <div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:rgba(238,242,238,.5);margin-bottom:20px">Ritme mingguan</div>
+          <h2 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:38px;line-height:1.16;letter-spacing:-.015em">Anda tidak perlu kelas <span style="font-style:italic">setiap hari</span>.</h2>
+          <p style="margin:22px 0 0;font-size:16px;line-height:1.65;color:rgba(238,242,238,.72);max-width:420px">Dua kelas online, satu praktik tatap muka pekanan, dan belajar mandiri melalui LMS sepanjang pekan. Sekali sebulan, Majlis Ta'sil untuk pendalaman Aqidah.</p>
+          <div style="display:flex;gap:34px;margin-top:36px;padding-top:26px;border-top:1px solid rgba(238,242,238,.16)">
+            <div><div style="font-family:Newsreader,serif;font-size:34px;line-height:1">4–6</div><div style="font-size:11.5px;color:rgba(238,242,238,.55);margin-top:5px;letter-spacing:.04em">JAM / PEKAN</div></div>
+            <div><div style="font-family:Newsreader,serif;font-size:34px;line-height:1">12</div><div style="font-size:11.5px;color:rgba(238,242,238,.55);margin-top:5px;letter-spacing:.04em">PEKAN / CAWU</div></div>
+            <div><div style="font-family:Newsreader,serif;font-size:34px;line-height:1">3</div><div style="font-size:11.5px;color:rgba(238,242,238,.55);margin-top:5px;letter-spacing:.04em">MATA PELAJARAN</div></div>
+          </div>
+        </div>
+        <div style="background:rgba(255,253,249,.05);border:1px solid rgba(238,242,238,.14);border-radius:10px;padding:8px">
+          <div style="display:flex;align-items:center;gap:16px;padding:15px 18px;border-bottom:1px solid rgba(238,242,238,.1)">
+            <div style="width:74px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(238,242,238,.5)">SENIN</div>
+            <div style="flex:1;font-size:14.5px">Bahasa Arab — Kelas Materi</div>
+            <div style="font-size:11px;color:rgba(238,242,238,.5)">Online</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;padding:15px 18px;border-bottom:1px solid rgba(238,242,238,.1)">
+            <div style="width:74px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(238,242,238,.5)">RABU</div>
+            <div style="flex:1;font-size:14.5px">Bahasa Arab — Kelas Latihan</div>
+            <div style="font-size:11px;color:rgba(238,242,238,.5)">Online</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;padding:15px 18px;border-bottom:1px solid rgba(238,242,238,.1)">
+            <div style="width:74px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(238,242,238,.5)">SAB/AHAD</div>
+            <div style="flex:1;font-size:14.5px">Praktik dan Penguatan</div>
+            <div style="font-size:11px;color:#c9d8cf">Tatap muka</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;padding:15px 18px;border-bottom:1px solid rgba(238,242,238,.1)">
+            <div style="width:74px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(238,242,238,.5)">PEKANAN</div>
+            <div style="flex:1;font-size:14.5px">Aqidah &amp; Adab Menuntut Ilmu</div>
+            <div style="font-size:11px;color:rgba(238,242,238,.5)">LMS mandiri</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:16px;padding:15px 18px">
+            <div style="width:74px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:rgba(238,242,238,.5)">BULANAN</div>
+            <div style="flex:1;font-size:14.5px">Majlis Ta'sil Aqidah</div>
+            <div style="font-size:11px;color:#c9d8cf">Tatap muka</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roadmap" style="max-width:1180px;margin:0 auto;padding:80px 40px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:30px;flex-wrap:wrap;margin-bottom:34px">
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.13em;text-transform:uppercase;color:#8a8478;margin-bottom:16px">Perjalanan belajar</div>
+        <h2 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:38px;line-height:1.15;letter-spacing:-.015em;color:#1c1a17">Anda mulai dari sini</h2>
+      </div>
+      <button sc-camel-on-click="{{ toggleRoadmap }}" style="padding:11px 18px;border:1px solid #d3cabb;background:#fffcf6;border-radius:6px;font-family:Karla,sans-serif;font-size:13.5px;font-weight:600;color:#3d3a34;cursor:pointer" style-hover="border-color:#1f3d34;color:#1f3d34">{{ roadmapBtnLabel }}</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:20px">
+      <div style="background:#fffcf6;border:1px solid #1f3d34;border-radius:10px;padding:26px">
+        <div style="display:flex;align-items:center;gap:9px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#1f3d34;margin-bottom:14px"><span style="width:6px;height:6px;border-radius:50%;background:#1f3d34"></span>SEDANG DIJALANI</div>
+        <div style="font-family:Newsreader,serif;font-size:26px;color:#1c1a17;margin-bottom:4px">Caturwulan 1 — Marhalah I'dad</div>
+        <div style="font-size:14px;color:#6d675e;margin-bottom:20px">Membangun Fondasi Menuntut Ilmu</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <span style="padding:7px 13px;background:#eaefe9;border-radius:5px;font-size:13px;font-weight:600;color:#1f3d34">Bahasa Arab 01</span>
+          <span style="padding:7px 13px;background:#eaefe9;border-radius:5px;font-size:13px;font-weight:600;color:#1f3d34">Aqidah 01</span>
+          <span style="padding:7px 13px;background:#eaefe9;border-radius:5px;font-size:13px;font-weight:600;color:#1f3d34">Adab Menuntut Ilmu</span>
+        </div>
+      </div>
+      <div style="background:#f2ebdf;border:1px solid #e0d5c1;border-radius:10px;padding:26px;display:flex;flex-direction:column;justify-content:center">
+        <div style="display:flex;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#a07c46;margin-bottom:14px"><span style="width:5px;height:5px;border-radius:50%;background:#b0793a"></span>BERIKUTNYA</div>
+        <div style="font-family:Newsreader,serif;font-size:22px;color:#3d3a34">Caturwulan 2 — Membangun Fondasi Ibadah</div>
+        <div style="font-size:13.5px;color:#807a70;margin-top:10px;line-height:1.55">Bahasa Arab 02 • Fiqh 01 • Adab Ibadah. Dibuka setelah Anda menyelesaikan Caturwulan 1.</div>
+      </div>
+    </div>
+
+    <sc-if value="{{ roadmapOpen }}" hint-placeholder-val="{{ false }}">
+    <div style="margin-top:20px;border:1px solid #e4ded2;border-radius:10px;overflow:hidden;background:#fffcf6">
+      <div style="display:grid;grid-template-columns:120px 110px 1fr;gap:0;padding:13px 22px;background:#f2ebdf;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;color:#8a8478">
+        <div>MARHALAH</div><div>CAWU</div><div>MATA PELAJARAN</div>
+      </div>
+      <sc-for list="{{ roadmap }}" as="r" hint-placeholder-count="7">
+        <div style="display:grid;grid-template-columns:120px 110px 1fr;gap:0;padding:15px 22px;border-top:1px solid #f0ebe0;font-size:14px;align-items:center">
+          <div style="font-weight:700;color:#1f3d34">{{ r.marhalah }}</div>
+          <div style="color:#6d675e;font-family:'IBM Plex Mono',monospace;font-size:12.5px">{{ r.cawu }}</div>
+          <div style="color:#3d3a34">{{ r.mapel }}</div>
+        </div>
+      </sc-for>
+      <div style="padding:16px 22px;border-top:1px solid #f0ebe0;font-size:12.5px;color:#807a70;line-height:1.55">Roadmap ini terutama berfungsi bagi tim kurikulum dan peserta yang ingin melihat perjalanan ke depan. Anda cukup berkomitmen satu caturwulan.</div>
+    </div>
+    </sc-if>
+  </section>
+
+  <section style="border-top:1px solid #e4ded2;background:#fffcf6">
+    <div style="max-width:1180px;margin:0 auto;padding:76px 40px">
+      <h2 style="margin:0 0 38px;font-family:Newsreader,serif;font-weight:400;font-size:34px;letter-spacing:-.015em;color:#1c1a17">Untuk siapa program ini</h2>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:20px">
+        <sc-for list="{{ segmen }}" as="s" hint-placeholder-count="4">
+          <div style="padding:24px;border:1px solid #e8e2d6;border-radius:10px;background:#f6f2ea">
+            <div style="font-size:16px;font-weight:700;color:#1c1a17;line-height:1.35">{{ s.nama }}</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#a09788;margin-top:6px">{{ s.usia }}</div>
+            <div style="font-size:13.5px;line-height:1.6;color:#5c564d;margin-top:14px">{{ s.butuh }}</div>
+            <div style="margin-top:14px;padding-top:14px;border-top:1px solid #e8e2d6;font-size:13px;line-height:1.55;color:#1f3d34;font-weight:600">{{ s.nilai }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </section>
+
+  <section id="daftar" style="max-width:1180px;margin:0 auto;padding:84px 40px">
+    <div style="display:grid;grid-template-columns:1fr .8fr;gap:60px;align-items:center">
+      <div>
+        <h2 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:44px;line-height:1.1;letter-spacing:-.02em;color:#1c1a17;text-wrap:pretty">Mari selesaikan <span style="font-style:italic;color:#1f3d34">Caturwulan 1</span> terlebih dahulu.</h2>
+        <p style="margin:24px 0 0;font-size:16.5px;line-height:1.65;color:#4a453e;max-width:480px">Mulai dari fondasi. Belajar dengan tertib. Jaga istiqamah. Setiap caturwulan diakhiri dengan evaluasi, laporan capaian, dan Syahadah Penyelesaian.</p>
+        <a href="#daftar" style="display:inline-flex;align-items:center;gap:10px;margin-top:32px;padding:16px 28px;background:#1f3d34;color:#f6f2ea;border-radius:6px;font-size:15.5px;font-weight:600" style-hover="background:#2b5245">Daftar Caturwulan 1 <span style="opacity:.6">→</span></a>
+      </div>
+      <div style="border:1px solid #e4ded2;border-radius:10px;background:#fffcf6;overflow:hidden">
+        <div style="padding:14px 22px;background:#f2ebdf;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.11em;color:#8a8478">INFORMASI PENDAFTARAN</div>
+        <div style="display:flex;justify-content:space-between;gap:18px;padding:15px 22px;border-top:1px solid #f0ebe0;font-size:14px"><span style="color:#807a70">Program</span><span style="font-weight:700;color:#1c1a17">TIA — Caturwulan 1</span></div>
+        <div style="display:flex;justify-content:space-between;gap:18px;padding:15px 22px;border-top:1px solid #f0ebe0;font-size:14px"><span style="color:#807a70">Marhalah</span><span style="font-weight:700;color:#1c1a17">I'dad</span></div>
+        <div style="display:flex;justify-content:space-between;gap:18px;padding:15px 22px;border-top:1px solid #f0ebe0;font-size:14px"><span style="color:#807a70">Durasi</span><span style="font-weight:700;color:#1c1a17">1 caturwulan · 12 pekan</span></div>
+        <div style="display:flex;justify-content:space-between;gap:18px;padding:15px 22px;border-top:1px solid #f0ebe0;font-size:14px"><span style="color:#807a70">Beban belajar</span><span style="font-weight:700;color:#1c1a17">4–6 jam / pekan</span></div>
+        <div style="padding:15px 22px;border-top:1px solid #f0ebe0;font-size:13px;line-height:1.55;color:#5c564d;background:#f6f2ea">Kelanjutan: peserta dapat melanjutkan ke Caturwulan 2 setelah selesai.</div>
+      </div>
+    </div>
+  </section>
+
+  <footer style="border-top:1px solid #e4ded2;background:#fffcf6">
+    <div style="max-width:1180px;margin:0 auto;padding:40px;display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center">
+      <div style="font-family:Newsreader,serif;font-style:italic;font-size:17px;color:#1f3d34">Belajar bertahap. Selesaikan satu tahap. Lanjutkan ketika siap.</div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.1em;color:#a09788">TARBIYAH SUNNAH ISLAMIC ACADEMY</div>
+    </div>
+  </footer>
+</div>
+</sc-if>
+
+<sc-if value="{{ isPeserta }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Dasbor Peserta" style="max-width:1180px;margin:0 auto;padding:44px 40px 80px">
+
+  <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:30px;flex-wrap:wrap;margin-bottom:30px">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.12em;color:#8a8478;margin-bottom:10px">ASSALAMU'ALAIKUM</div>
+      <h1 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:36px;letter-spacing:-.015em;color:#1c1a17">Abdurrahman</h1>
+    </div>
+    <div style="display:flex;align-items:center;gap:14px;padding:12px 18px;background:#fffcf6;border:1px solid #e4ded2;border-radius:8px">
+      <div style="font-size:13px;color:#6d675e">Caturwulan 1 · Marhalah I'dad</div>
+      <div style="width:1px;height:18px;background:#e4ded2"></div>
+      <div style="font-size:13px;font-weight:700;color:#1f3d34">Pekan 8 dari 12</div>
+    </div>
+  </div>
+
+  <div style="background:#1f3d34;border-radius:12px;padding:30px 32px;color:#eaefe9;display:grid;grid-template-columns:1fr auto;gap:36px;align-items:center;margin-bottom:20px">
+    <div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:rgba(238,242,238,.55);margin-bottom:12px">LANGKAH BERIKUTNYA</div>
+      <div style="font-family:Newsreader,serif;font-size:29px;line-height:1.2">Bahasa Arab 01 — Pekan 8: Kelas Latihan</div>
+      <div style="font-size:14px;color:rgba(238,242,238,.7);margin-top:10px">Latihan membaca kalimat sederhana &amp; koreksi kesalahan · Rabu 19.30 · Online 45–60 menit</div>
+      <div style="display:flex;gap:10px;margin-top:22px">
+        <button sc-camel-on-click="{{ goUnit }}" style="padding:13px 22px;background:#eaefe9;color:#1f3d34;border:none;border-radius:6px;font-family:Karla,sans-serif;font-size:14px;font-weight:700;cursor:pointer">Buka unit pekan ini →</button>
+        <button style="padding:13px 22px;background:transparent;color:#eaefe9;border:1px solid rgba(238,242,238,.3);border-radius:6px;font-family:Karla,sans-serif;font-size:14px;font-weight:600;cursor:pointer">Tambah ke kalender</button>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
+      <div style="display:flex;gap:4px">
+        <sc-for list="{{ pekan }}" as="p" hint-placeholder-count="12">
+          <div style="width:15px;height:44px;border-radius:3px;background:{{ p.bg }}"></div>
+        </sc-for>
+      </div>
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:rgba(238,242,238,.5);margin-top:6px">12 PEKAN CATURWULAN 1</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:20px">
+    <div style="display:flex;flex-direction:column;gap:20px">
+
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;overflow:hidden">
+        <div style="padding:20px 24px;border-bottom:1px solid #ece6da;display:flex;justify-content:space-between;align-items:baseline">
+          <div style="font-family:Newsreader,serif;font-size:21px;color:#1c1a17">Unit Pekan Ini</div>
+          <div style="font-size:12.5px;color:#807a70">4 dari 7 bagian selesai</div>
+        </div>
+        <sc-for list="{{ unitSteps }}" as="u" hint-placeholder-count="7">
+          <div style="display:flex;align-items:center;gap:16px;padding:15px 24px;border-bottom:1px solid #f2ede3">
+            <div style="width:22px;height:22px;flex:none;border-radius:50%;border:1.5px solid {{ u.ring }};background:{{ u.fill }};display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:{{ u.tick }}">{{ u.mark }}</div>
+            <div style="flex:1">
+              <div style="font-size:14.5px;font-weight:600;color:{{ u.nameColor }}">{{ u.nama }}</div>
+              <div style="font-size:12.5px;color:#8a8478;margin-top:2px">{{ u.ket }}</div>
+            </div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#a09788">{{ u.durasi }}</div>
+          </div>
+        </sc-for>
+        <div style="padding:18px 24px;background:#f6f2ea">
+          <button sc-camel-on-click="{{ goUnit }}" style="padding:12px 20px;background:#1f3d34;color:#f6f2ea;border:none;border-radius:6px;font-family:Karla,sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">Lanjutkan di bagian Latihan →</button>
+        </div>
+      </div>
+
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:24px">
+        <div style="font-family:Newsreader,serif;font-size:21px;color:#1c1a17;margin-bottom:18px">Mata Pelajaran Caturwulan 1</div>
+        <sc-for list="{{ mapel }}" as="m" hint-placeholder-count="3">
+          <div style="padding:16px 0;border-top:1px solid #f0ebe0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;gap:16px">
+              <div style="font-size:15px;font-weight:700;color:#1c1a17">{{ m.nama }}</div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:#6d675e">{{ m.label }}</div>
+            </div>
+            <div style="font-size:12.5px;color:#8a8478;margin-top:4px">{{ m.peran }}</div>
+            <div style="height:5px;border-radius:3px;background:#ece6da;margin-top:12px;overflow:hidden">
+              <div style="height:5px;border-radius:3px;background:#1f3d34;width:{{ m.pct }}"></div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:24px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8a8478;margin-bottom:14px">MAJLIS TA'SIL BERIKUTNYA</div>
+        <div style="font-family:Newsreader,serif;font-size:20px;line-height:1.3;color:#1c1a17">02 — Hanya kepada Allah Kita Beribadah</div>
+        <div style="font-size:13px;color:#6d675e;margin-top:10px;line-height:1.55">Ahad, 6 September · Tatap muka · Murojaah, tanya jawab, dan pembahasan dalil.</div>
+        <div style="margin-top:16px;padding-top:16px;border-top:1px solid #f0ebe0;font-size:12.5px;color:#807a70">Bulan 2 · Tema: Hanya kepada Allah Kita Beribadah</div>
+      </div>
+
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:24px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8a8478;margin-bottom:16px">ADAB PEKAN INI</div>
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="width:34px;height:34px;flex:none;border-radius:8px;background:#eaefe9;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:12px;font-weight:600;color:#1f3d34">08</div>
+          <div>
+            <div style="font-size:15px;font-weight:700;color:#1c1a17;line-height:1.35">Tidak tergesa-gesa dalam menuntut ilmu</div>
+            <div style="font-size:12.5px;color:#8a8478;margin-top:5px">Audio 11 menit + refleksi singkat</div>
+          </div>
+        </div>
+        <div style="height:1px;background:#f0ebe0;margin:18px 0"></div>
+        <div style="font-size:12.5px;color:#807a70;line-height:1.55">Sudah selesai: 7 dari 12 materi pendamping.</div>
+      </div>
+
+      <div style="background:#f2ebdf;border:1px solid #e4ded2;border-radius:12px;padding:24px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8a8478;margin-bottom:16px">CATATAN MUROJAAH</div>
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div style="display:flex;justify-content:space-between;gap:14px;font-size:13.5px"><span style="color:#3d3a34">Kosakata Pekan 5–6</span><span style="font-weight:700;color:#1f3d34">Sudah Dikuasai</span></div>
+          <div style="display:flex;justify-content:space-between;gap:14px;font-size:13.5px"><span style="color:#3d3a34">Menulis huruf bersambung</span><span style="font-weight:700;color:#96702e">Perlu Murojaah</span></div>
+          <div style="display:flex;justify-content:space-between;gap:14px;font-size:13.5px"><span style="color:#3d3a34">Tauhid rububiyah &amp; uluhiyah</span><span style="font-weight:700;color:#1f3d34">Sudah Dikuasai</span></div>
+        </div>
+        <div style="margin-top:18px;padding:14px 16px;background:#fffcf6;border-radius:8px;font-size:12.5px;line-height:1.55;color:#5c564d">Ada 1 latihan tertinggal. Tersedia <strong style="color:#1f3d34">Jalur Mengejar Ketertinggalan</strong>: 1 video inti, 1 PDF ringkas, 1 latihan wajib, 1 cek pemahaman.</div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isUnit }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Unit Belajar" style="max-width:1180px;margin:0 auto;padding:32px 40px 80px">
+  <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:#807a70;margin-bottom:24px">
+    <button sc-camel-on-click="{{ goPeserta }}" style="background:none;border:none;padding:0;font-family:Karla,sans-serif;font-size:12.5px;color:#1f3d34;cursor:pointer;font-weight:600">Dasbor</button>
+    <span style="color:#c9c1b2">/</span><span>Caturwulan 1</span><span style="color:#c9c1b2">/</span><span>Bahasa Arab 01</span><span style="color:#c9c1b2">/</span><span style="color:#1c1a17;font-weight:600">Pekan 8</span>
+  </div>
+
+  <div style="display:grid;grid-template-columns:280px 1fr;gap:28px;align-items:start">
+    <div style="position:sticky;top:80px;display:flex;flex-direction:column;gap:16px">
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:8px">
+        <div style="padding:14px 16px 12px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.11em;color:#8a8478">PEKAN 8</div>
+          <div style="font-family:Newsreader,serif;font-size:19px;line-height:1.25;color:#1c1a17;margin-top:6px">Untuk Siapa Kita Beribadah?</div>
+        </div>
+        <sc-for list="{{ unitSteps }}" as="u" hint-placeholder-count="7">
+          <div style="display:flex;align-items:center;gap:12px;padding:11px 16px;border-radius:8px;background:{{ u.navBg }}">
+            <div style="width:18px;height:18px;flex:none;border-radius:50%;border:1.5px solid {{ u.ring }};background:{{ u.fill }};display:flex;align-items:center;justify-content:center;font-size:9.5px;font-weight:700;color:{{ u.tick }}">{{ u.mark }}</div>
+            <div style="flex:1;font-size:13.5px;font-weight:600;color:{{ u.nameColor }}">{{ u.nama }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#f2ebdf;border:1px solid #e4ded2;border-radius:12px;padding:20px">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.11em;color:#8a8478;margin-bottom:12px">TUJUAN PEMBELAJARAN</div>
+        <div style="display:flex;flex-direction:column;gap:9px;font-size:13px;line-height:1.5;color:#3d3a34">
+          <div>Membaca dan menulis kalimat Arab sederhana.</div>
+          <div>Mengenali kosakata inti tentang ibadah.</div>
+          <div>Menghubungkan makna niat dengan tauhid.</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:20px">
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;overflow:hidden">
+        <div style="padding:24px 28px 20px;border-bottom:1px solid #ece6da">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#1f3d34;margin-bottom:12px">02 · MATERI UTAMA</div>
+          <h1 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:32px;line-height:1.18;letter-spacing:-.015em;color:#1c1a17">Kalimat Sederhana dan Kosakata Ibadah</h1>
+          <div style="font-size:14px;color:#6d675e;margin-top:10px">Video 18 menit · PDF ringkas 6 halaman</div>
+        </div>
+        <div style="padding:20px 28px 28px">
+          <div style="aspect-ratio:16/9;border-radius:10px;border:1px solid #e4ded2;background-image:repeating-linear-gradient(135deg,#f2ede3 0 10px,#f6f2ea 10px 20px);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+            <div style="width:46px;height:46px;border-radius:50%;background:#1f3d34;display:flex;align-items:center;justify-content:center;color:#f6f2ea;font-size:15px">▶</div>
+            <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#8a8478">REKAMAN KELAS MATERI — PEKAN 8</div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap">
+            <div style="display:flex;align-items:center;gap:9px;padding:11px 15px;border:1px solid #e4ded2;border-radius:7px;font-size:13.5px;color:#3d3a34"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a09788">PDF</span> Ringkasan Materi Pekan 8</div>
+            <div style="display:flex;align-items:center;gap:9px;padding:11px 15px;border:1px solid #e4ded2;border-radius:7px;font-size:13.5px;color:#3d3a34"><span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#a09788">PDF</span> Lembar Kosakata</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:26px 28px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:20px">
+          <div style="font-family:Newsreader,serif;font-size:22px;color:#1c1a17">Kosakata Pekan Ini</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#a09788">5 KATA</div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px">
+          <sc-for list="{{ kosakata }}" as="k" hint-placeholder-count="5">
+            <div style="padding:18px 14px;border:1px solid #e8e2d6;border-radius:10px;background:#f6f2ea;text-align:center">
+              <div style="font-family:'Noto Naskh Arabic',serif;font-size:28px;line-height:1.5;color:#1f3d34" dir="rtl">{{ k.ar }}</div>
+              <div style="font-size:12.5px;font-style:italic;color:#8a8478;margin-top:6px">{{ k.tr }}</div>
+              <div style="font-size:13px;font-weight:700;color:#1c1a17;margin-top:4px">{{ k.id }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div style="background:#eaefe9;border:1px solid #d6e0d8;border-radius:12px;padding:26px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#1f3d34;margin-bottom:14px">04 · WORKSHEET</div>
+          <div style="display:flex;flex-direction:column;gap:14px">
+            <div style="font-family:Newsreader,serif;font-size:18px;line-height:1.4;color:#1c1a17">"Mengapa ibadah harus ditujukan hanya kepada Allah?"</div>
+            <div style="font-family:Newsreader,serif;font-size:18px;line-height:1.4;color:#1c1a17">"Apa hubungan niat dengan tauhid?"</div>
+          </div>
+          <div style="margin-top:20px;padding:14px 16px;background:#fffcf6;border-radius:8px;font-size:12.5px;line-height:1.55;color:#5c564d">Worksheet menghubungkan materi Aqidah, kosakata Bahasa Arab, dan pembahasan Adab pekan ini.</div>
+        </div>
+        <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:26px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8a8478;margin-bottom:14px">06 · CEK PEMAHAMAN</div>
+          <div style="font-size:14.5px;line-height:1.6;color:#3d3a34">5 pertanyaan singkat. Tidak dinilai sebagai ujian — hanya untuk melihat bagian mana yang perlu murojaah.</div>
+          <button style="margin-top:20px;padding:12px 20px;background:#1f3d34;color:#f6f2ea;border:none;border-radius:6px;font-family:Karla,sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">Mulai cek pemahaman</button>
+          <div style="margin-top:20px;padding-top:18px;border-top:1px solid #f0ebe0;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8a8478;margin-bottom:10px">07 · REFLEKSI</div>
+          <div style="font-size:13px;color:#807a70;line-height:1.55">Catat satu hal yang Anda pahami dan satu hal yang masih perlu diperjelas.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ isAdmin }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Dasbor Admin" style="display:grid;grid-template-columns:220px 1fr;min-height:calc(100vh - 56px)">
+  <div style="border-right:1px solid #e4ded2;background:#fffcf6;padding:26px 16px;display:flex;flex-direction:column;gap:4px">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.13em;color:#a09788;padding:0 12px 14px">AKADEMIK</div>
+    <sc-for list="{{ adminNav }}" as="n" hint-placeholder-count="7">
+      <div style="padding:10px 12px;border-radius:7px;background:{{ n.bg }};font-size:13.5px;font-weight:600;color:{{ n.color }};display:flex;justify-content:space-between;gap:10px">
+        <span>{{ n.nama }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;opacity:.55">{{ n.badge }}</span>
+      </div>
+    </sc-for>
+    <div style="margin-top:auto;padding:14px 12px;border-top:1px solid #f0ebe0;font-size:12px;line-height:1.5;color:#807a70">Cawu 1 · Pekan 8 dari 12<br><span style="color:#1f3d34;font-weight:700">Pekan Murojaah: pekan 11</span></div>
+  </div>
+
+  <div style="padding:36px 36px 70px;max-width:1240px">
+    <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:28px">
+      <div>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:#8a8478;margin-bottom:10px">MARHALAH I'DAD · CATURWULAN 1</div>
+        <h1 style="margin:0;font-family:Newsreader,serif;font-weight:400;font-size:32px;letter-spacing:-.015em;color:#1c1a17">Keberlangsungan Belajar</h1>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button style="padding:11px 17px;border:1px solid #d3cabb;background:#fffcf6;border-radius:6px;font-family:Karla,sans-serif;font-size:13px;font-weight:600;color:#3d3a34;cursor:pointer">Ekspor laporan cawu</button>
+        <button style="padding:11px 17px;border:none;background:#1f3d34;color:#f6f2ea;border-radius:6px;font-family:Karla,sans-serif;font-size:13px;font-weight:700;cursor:pointer">Buka registrasi Cawu 2</button>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:20px">
+      <sc-for list="{{ kpi }}" as="k" hint-placeholder-count="4">
+        <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:10px;padding:20px">
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.11em;color:#8a8478">{{ k.label }}</div>
+          <div style="font-family:Newsreader,serif;font-size:36px;line-height:1.1;color:#1c1a17;margin-top:12px">{{ k.nilai }}</div>
+          <div style="font-size:12.5px;color:{{ k.deltaColor }};margin-top:8px">{{ k.delta }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:20px;margin-bottom:20px">
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:24px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:22px">
+          <div style="font-family:Newsreader,serif;font-size:21px;color:#1c1a17">Keterlibatan per Pekan</div>
+          <div style="font-size:12px;color:#807a70">Kehadiran &amp; penyelesaian latihan</div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:10px;height:170px">
+          <sc-for list="{{ chart }}" as="c" hint-placeholder-count="12">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:8px">
+              <div style="width:100%;display:flex;gap:2px;align-items:flex-end;height:150px">
+                <div style="flex:1;border-radius:3px 3px 0 0;background:#1f3d34;height:{{ c.h1 }}"></div>
+                <div style="flex:1;border-radius:3px 3px 0 0;background:#c2cfc5;height:{{ c.h2 }}"></div>
+              </div>
+              <div style="font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:#a09788">{{ c.w }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="display:flex;gap:20px;margin-top:20px;padding-top:16px;border-top:1px solid #f0ebe0;font-size:12px;color:#6d675e">
+          <div style="display:flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:2px;background:#1f3d34"></span>Kehadiran</div>
+          <div style="display:flex;align-items:center;gap:7px"><span style="width:9px;height:9px;border-radius:2px;background:#c2cfc5"></span>Latihan &amp; worksheet</div>
+        </div>
+      </div>
+
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:24px">
+        <div style="font-family:Newsreader,serif;font-size:21px;color:#1c1a17;margin-bottom:6px">Kategori Hasil Belajar</div>
+        <div style="font-size:12.5px;color:#807a70;margin-bottom:22px">64 peserta aktif · Cawu 1</div>
+        <sc-for list="{{ kategori }}" as="g" hint-placeholder-count="3">
+          <div style="margin-bottom:18px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:13.5px;margin-bottom:8px">
+              <span style="font-weight:700;color:#1c1a17">{{ g.nama }}</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#6d675e">{{ g.n }}</span>
+            </div>
+            <div style="height:8px;border-radius:4px;background:#ece6da;overflow:hidden"><div style="height:8px;border-radius:4px;background:{{ g.color }};width:{{ g.pct }}"></div></div>
+            <div style="font-size:12px;color:#8a8478;margin-top:7px;line-height:1.5">{{ g.tindak }}</div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;overflow:hidden">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 24px;border-bottom:1px solid #ece6da">
+        <div style="font-family:Newsreader,serif;font-size:21px;color:#1c1a17">Peserta yang Perlu Pendampingan</div>
+        <div style="display:flex;gap:6px">
+          <div style="padding:7px 13px;background:#1f3d34;color:#f6f2ea;border-radius:5px;font-size:12px;font-weight:700">Perlu tindak lanjut</div>
+          <div style="padding:7px 13px;border:1px solid #e4ded2;border-radius:5px;font-size:12px;font-weight:600;color:#6d675e">Semua peserta</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1.4fr .9fr .8fr .8fr 1.1fr 110px;gap:0;padding:12px 24px;background:#f6f2ea;font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;color:#8a8478">
+        <div>PESERTA</div><div>SEGMEN</div><div>KEHADIRAN</div><div>LATIHAN</div><div>STATUS</div><div>AKSI</div>
+      </div>
+      <sc-for list="{{ peserta }}" as="p" hint-placeholder-count="6">
+        <div style="display:grid;grid-template-columns:1.4fr .9fr .8fr .8fr 1.1fr 110px;gap:0;padding:15px 24px;border-top:1px solid #f2ede3;align-items:center;font-size:13.5px">
+          <div>
+            <div style="font-weight:700;color:#1c1a17">{{ p.nama }}</div>
+            <div style="font-size:11.5px;color:#a09788;margin-top:2px">{{ p.kelas }}</div>
+          </div>
+          <div style="color:#6d675e;font-size:12.5px">{{ p.segmen }}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#3d3a34">{{ p.hadir }}</div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:#3d3a34">{{ p.latihan }}</div>
+          <div><span style="display:inline-block;padding:5px 10px;border-radius:5px;background:{{ p.statusBg }};font-size:11.5px;font-weight:700;color:{{ p.statusFg }}">{{ p.status }}</span></div>
+          <div><button style="padding:7px 12px;border:1px solid #d3cabb;background:#f6f2ea;border-radius:5px;font-family:Karla,sans-serif;font-size:12px;font-weight:600;color:#3d3a34;cursor:pointer">{{ p.aksi }}</button></div>
+        </div>
+      </sc-for>
+      <div style="padding:16px 24px;border-top:1px solid #f2ede3;background:#f6f2ea;font-size:12.5px;color:#5c564d;line-height:1.55">Peserta berstatus <strong>Perlu Murojaah</strong> otomatis ditawarkan Jalur Mengejar Ketertinggalan: 1 video inti, 1 PDF ringkas, 1 latihan wajib, 1 cek pemahaman.</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px">
+      <div style="background:#fffcf6;border:1px solid #e4ded2;border-radius:12px;padding:24px">
+        <div style="font-family:Newsreader,serif;font-size:21px;color:#1c1a17;margin-bottom:18px">Kesiapan Konten Pekan 9–12</div>
+        <sc-for list="{{ konten }}" as="k" hint-placeholder-count="4">
+          <div style="display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid #f0ebe0">
+            <div style="width:52px;flex:none;font-family:'IBM Plex Mono',monospace;font-size:11px;color:#a09788">{{ k.pekan }}</div>
+            <div style="flex:1;font-size:13.5px;color:#1c1a17">{{ k.judul }}</div>
+            <div style="font-size:11.5px;font-weight:700;color:{{ k.statusFg }}">{{ k.status }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="background:#1f3d34;border-radius:12px;padding:26px;color:#eaefe9">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:rgba(238,242,238,.55);margin-bottom:14px">PENUTUPAN CATURWULAN</div>
+        <div style="font-family:Newsreader,serif;font-size:23px;line-height:1.3">Materi Inti → Pekan Murojaah → Evaluasi Akhir → Umpan Balik</div>
+        <div style="display:flex;flex-direction:column;gap:11px;margin-top:22px;padding-top:20px;border-top:1px solid rgba(238,242,238,.16);font-size:13.5px">
+          <div style="display:flex;justify-content:space-between;gap:14px"><span style="color:rgba(238,242,238,.7)">Kehadiran &amp; keterlibatan</span><span style="font-weight:700">20%</span></div>
+          <div style="display:flex;justify-content:space-between;gap:14px"><span style="color:rgba(238,242,238,.7)">Latihan &amp; worksheet</span><span style="font-weight:700">30%</span></div>
+          <div style="display:flex;justify-content:space-between;gap:14px"><span style="color:rgba(238,242,238,.7)">Quiz / cek pemahaman</span><span style="font-weight:700">20%</span></div>
+          <div style="display:flex;justify-content:space-between;gap:14px"><span style="color:rgba(238,242,238,.7)">Evaluasi akhir</span><span style="font-weight:700">30%</span></div>
+        </div>
+        <button style="margin-top:24px;padding:12px 20px;background:#eaefe9;color:#1f3d34;border:none;border-radius:6px;font-family:Karla,sans-serif;font-size:13.5px;font-weight:700;cursor:pointer">Terbitkan Syahadah Cawu 1</button>
+      </div>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;view&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;landing&quot;,&quot;peserta&quot;,&quot;unit&quot;,&quot;admin&quot;],&quot;default&quot;:&quot;landing&quot;,&quot;tsType&quot;:&quot;'landing'|'peserta'|'unit'|'admin'&quot;,&quot;section&quot;:&quot;Tampilan&quot;},&quot;showFullRoadmap&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Landing Page&quot;}}">
+class Component extends DCLogic {
+  state = { view: null, roadmapOpen: false };
+
+  get view() { return this.state.view || this.props.view || 'landing'; }
+
+  tab(id, label) {
+    const on = this.view === id;
+    return 'padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-family:Karla,sans-serif;font-size:12.5px;font-weight:' +
+      (on ? '700' : '500') + ';background:' + (on ? '#fffcf6' : 'transparent') +
+      ';color:' + (on ? '#1f3d34' : '#7a746a') + ';box-shadow:' + (on ? '0 1px 2px rgba(28,26,23,.08)' : 'none');
+  }
+
+  go = (v) => { this.setState({ view: v }); window.scrollTo(0, 0); };
+
+  renderVals() {
+    const v = this.view;
+    const steps = [
+      { nama: 'Sebelum Belajar', ket: 'Pengantar dan tujuan pekan ini', durasi: '3 mnt', done: true },
+      { nama: 'Materi Utama', ket: 'Video 18 menit + PDF ringkas', durasi: '25 mnt', done: true, current: true },
+      { nama: 'Latihan', ket: 'Membaca dan menulis kalimat sederhana', durasi: '30 mnt', done: true },
+      { nama: 'Worksheet', ket: 'Menghubungkan niat, ibadah, dan tauhid', durasi: '20 mnt', done: true },
+      { nama: 'Murojaah', ket: 'Kosakata dan struktur pekan 5–7', durasi: '15 mnt', done: false },
+      { nama: 'Cek Pemahaman', ket: '5 pertanyaan singkat', durasi: '10 mnt', done: false },
+      { nama: 'Refleksi', ket: 'Catatan pemahaman dan penerapan', durasi: '5 mnt', done: false }
+    ];
+    const unitSteps = steps.map(s => ({
+      nama: s.nama, ket: s.ket, durasi: s.durasi,
+      mark: s.done ? '✓' : '',
+      ring: s.done ? '#1f3d34' : '#d3cabb',
+      fill: s.done ? '#1f3d34' : 'transparent',
+      tick: '#f6f2ea',
+      nameColor: s.done ? '#1c1a17' : '#8a8478',
+      navBg: s.current ? '#eaefe9' : 'transparent'
+    }));
+
+    return {
+      isLanding: v === 'landing', isPeserta: v === 'peserta', isUnit: v === 'unit', isAdmin: v === 'admin',
+      goLanding: () => this.go('landing'), goPeserta: () => this.go('peserta'),
+      goUnit: () => this.go('unit'), goAdmin: () => this.go('admin'),
+      tabLanding: this.tab('landing'), tabPeserta: this.tab('peserta'),
+      tabUnit: this.tab('unit'), tabAdmin: this.tab('admin'),
+
+      roadmapOpen: this.state.roadmapOpen || !!this.props.showFullRoadmap,
+      roadmapBtnLabel: (this.state.roadmapOpen || !!this.props.showFullRoadmap) ? 'Sembunyikan roadmap lengkap' : 'Lihat roadmap lengkap',
+      toggleRoadmap: () => this.setState(s => ({ roadmapOpen: !s.roadmapOpen })),
+
+      roadmap: [
+        { marhalah: "I'dad", cawu: 'Cawu 1', mapel: 'Bahasa Arab 01 • Aqidah 01 • Adab Menuntut Ilmu' },
+        { marhalah: "I'dad", cawu: 'Cawu 2', mapel: 'Bahasa Arab 02 • Fiqh 01 • Adab Ibadah' },
+        { marhalah: "I'dad", cawu: 'Cawu 3', mapel: 'Bahasa Arab 03 • Hadits 01 • Adab dan Akhlak' },
+        { marhalah: "Ta'sis", cawu: 'Cawu 4', mapel: 'Bahasa Arab 04 • Aqidah 02' },
+        { marhalah: "Ta'sis", cawu: 'Cawu 5', mapel: 'Bahasa Arab 05 • Fiqh 02' },
+        { marhalah: "Ta'sis", cawu: 'Cawu 6', mapel: 'Bahasa Arab 06 • Hadits 02' },
+        { marhalah: 'Tanmiyah', cawu: 'Lanjutan', mapel: 'Bahasa Arab lanjutan • Pembacaan teks • Kajian kitab sederhana' }
+      ],
+
+      segmen: [
+        { nama: 'Profesional Muslim', usia: '± 25–45 TAHUN', butuh: 'Belajar terstruktur yang kompatibel dengan pekerjaan dan keluarga.', nilai: 'Ritme realistis dan fleksibel.' },
+        { nama: 'Mahasiswa Muslim', usia: 'KAMPUS', butuh: "Fondasi Bahasa Arab dan ilmu syar'i yang runtut.", nilai: 'Jalur bertahap dengan target jelas.' },
+        { nama: 'Ibu Rumah Tangga & Orang Tua', usia: 'DARI RUMAH', butuh: 'Fleksibilitas belajar dari rumah dengan arah yang jelas.', nilai: 'LMS mandiri dan penguatan terjadwal.' },
+        { nama: 'Returning Learner', usia: 'MEMULAI KEMBALI', butuh: 'Menata kembali pengalaman dari banyak kajian yang belum runtut.', nilai: 'Kesempatan memulai kembali dari fondasi.' }
+      ],
+
+      pekan: Array.from({ length: 12 }, (_, i) => ({
+        bg: i < 7 ? '#eaefe9' : (i === 7 ? '#a9c4b5' : 'rgba(238,242,238,.16)')
+      })),
+
+      unitSteps,
+
+      mapel: [
+        { nama: 'Bahasa Arab 01', peran: 'Membangun alat · intensif', label: 'PEKAN 8 / 12', pct: '66%' },
+        { nama: 'Aqidah 01', peran: 'Membangun keyakinan · fondasi', label: 'BULAN 2 / 3', pct: '58%' },
+        { nama: 'Adab Menuntut Ilmu', peran: 'Membangun sikap · mandiri', label: '7 / 12 MATERI', pct: '58%' }
+      ],
+
+      kosakata: [
+        { ar: 'الله', tr: 'Allāh', id: 'Allah' },
+        { ar: 'رَبّ', tr: 'Rabb', id: 'Tuhan' },
+        { ar: 'عَبْد', tr: "'abd", id: 'Hamba' },
+        { ar: 'عِبَادَة', tr: "'ibādah", id: 'Ibadah' },
+        { ar: 'نِيَّة', tr: 'niyyah', id: 'Niat' }
+      ],
+
+      adminNav: [
+        { nama: 'Ringkasan Cawu', badge: '', bg: '#eaefe9', color: '#1f3d34' },
+        { nama: 'Peserta', badge: '64', bg: 'transparent', color: '#4a453e' },
+        { nama: 'Kelas & Jadwal', badge: '6', bg: 'transparent', color: '#4a453e' },
+        { nama: 'Unit & Konten', badge: '36', bg: 'transparent', color: '#4a453e' },
+        { nama: 'Penilaian', badge: '', bg: 'transparent', color: '#4a453e' },
+        { nama: "Majlis Ta'sil", badge: '3', bg: 'transparent', color: '#4a453e' },
+        { nama: 'Registrasi Cawu 2', badge: '', bg: 'transparent', color: '#4a453e' }
+      ],
+
+      kpi: [
+        { label: 'PESERTA AKTIF', nilai: '64', delta: 'dari 71 terdaftar', deltaColor: '#807a70' },
+        { label: 'KEHADIRAN PEKAN 8', nilai: '86%', delta: '+4% dari pekan lalu', deltaColor: '#1f3d34' },
+        { label: 'LATIHAN SELESAI', nilai: '73%', delta: '−6% dari pekan lalu', deltaColor: '#96702e' },
+        { label: 'BERISIKO BERHENTI', nilai: '7', delta: 'perlu pendampingan', deltaColor: '#96702e' }
+      ],
+
+      chart: [96, 92, 90, 88, 84, 80, 82, 86, 0, 0, 0, 0].map((h, i) => ({
+        w: 'P' + (i + 1),
+        h1: h ? Math.round(h * 1.45) + 'px' : '3px',
+        h2: h ? Math.round((h - 12) * 1.35) + 'px' : '3px'
+      })),
+
+      kategori: [
+        { nama: 'Sudah Dikuasai', n: '38 peserta', pct: '59%', color: '#1f3d34', tindak: 'Lanjutkan dan pertahankan melalui murojaah.' },
+        { nama: 'Perlu Murojaah', n: '19 peserta', pct: '30%', color: '#b08833', tindak: 'Ulangi bagian penting dan perbaiki latihan.' },
+        { nama: 'Belum Dikuasai', n: '7 peserta', pct: '11%', color: '#a5553f', tindak: 'Ikuti penguatan dan pendampingan.' }
+      ],
+
+      peserta: [
+        { nama: 'Fauzan H.', kelas: "I'dad A · Bahasa Arab 01", segmen: 'Profesional', hadir: '5/8', latihan: '4/8', status: 'Perlu Murojaah', statusBg: '#f6eddb', statusFg: '#8a6a25', aksi: 'Kirim jalur' },
+        { nama: 'Ummu Salamah', kelas: "I'dad B · Bahasa Arab 01", segmen: 'Ibu Rumah Tangga', hadir: '4/8', latihan: '3/8', status: 'Belum Dikuasai', statusBg: '#f7e6e0', statusFg: '#8d4632', aksi: 'Jadwalkan' },
+        { nama: 'Ridwan A.', kelas: "I'dad A · Bahasa Arab 01", segmen: 'Mahasiswa', hadir: '7/8', latihan: '4/8', status: 'Perlu Murojaah', statusBg: '#f6eddb', statusFg: '#8a6a25', aksi: 'Kirim jalur' },
+        { nama: 'Hafizh N.', kelas: "I'dad C · Bahasa Arab 01", segmen: 'Returning', hadir: '3/8', latihan: '2/8', status: 'Belum Dikuasai', statusBg: '#f7e6e0', statusFg: '#8d4632', aksi: 'Jadwalkan' },
+        { nama: 'Aisyah R.', kelas: "I'dad B · Bahasa Arab 01", segmen: 'Profesional', hadir: '6/8', latihan: '5/8', status: 'Perlu Murojaah', statusBg: '#f6eddb', statusFg: '#8a6a25', aksi: 'Kirim jalur' },
+        { nama: 'Zulfikar M.', kelas: "I'dad A · Bahasa Arab 01", segmen: 'Profesional', hadir: '5/8', latihan: '5/8', status: 'Perlu Murojaah', statusBg: '#f6eddb', statusFg: '#8a6a25', aksi: 'Kirim jalur' }
+      ],
+
+      konten: [
+        { pekan: 'PEKAN 9', judul: 'Bahasa Arab 01 — Struktur kalimat lanjutan', status: 'Siap', statusFg: '#1f3d34' },
+        { pekan: 'PEKAN 10', judul: 'Aqidah 01 — Ikhlas dan mengikuti Rasulullah', status: 'Siap', statusFg: '#1f3d34' },
+        { pekan: 'PEKAN 11', judul: 'Pekan Murojaah — tanpa materi baru', status: 'Perlu review', statusFg: '#8a6a25' },
+        { pekan: 'PEKAN 12', judul: 'Evaluasi Akhir Caturwulan + Muhasabah', status: 'Draf', statusFg: '#8d4632' }
+      ]
+    };
+  }
+}
+</script>
+
+
+</body></html>

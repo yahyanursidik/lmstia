@@ -1,0 +1,7 @@
+node_modules
+dist
+.extracted
+*.local
+tsconfig.tsbuildinfo
+.env
+.env.local

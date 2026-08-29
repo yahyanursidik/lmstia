@@ -1,0 +1,473 @@
+/**
+ * Drizzle schema — Neon PostgreSQL.
+ *
+ * Content hierarchy (5 levels):
+ *
+ *   Program
+ *   └── Tahapan / Tingkatan        (banyak per program)
+ *       └── Mata Pelajaran         (bisa lebih dari 2 per tahapan)
+ *           └── Pertemuan          (banyak per mata pelajaran)
+ *               ├── Materi         (bisa lebih dari 1; PDF/audio/YouTube/Drive)
+ *               ├── link live/hybrid
+ *               └── Kuis / Ujian
+ *
+ * Migration-first: edit here, then `npm run db:generate` and `npm run db:migrate`.
+ */
+
+import { relations } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  pgEnum,
+  pgTable,
+  primaryKey,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+/* --- enums ----------------------------------------------------- */
+
+export const roleEnum = pgEnum("role", ["student", "instructor", "academic_admin", "super_admin"]);
+
+export const publishStatusEnum = pgEnum("publish_status", ["draft", "review", "published"]);
+
+export const programStatusEnum = pgEnum("program_status", ["draft", "active", "archived"]);
+
+export const tahapanStatusEnum = pgEnum("tahapan_status", ["draft", "open", "running", "closed"]);
+
+/** Peran mata pelajaran dalam satu tahapan. */
+export const subjectRoleEnum = pgEnum("subject_role", ["INTENSIVE", "FOUNDATION", "COMPANION"]);
+
+/** Bagaimana satu pertemuan dijalankan. */
+export const meetingModeEnum = pgEnum("meeting_mode", ["online", "offline", "hybrid", "mandiri"]);
+
+export const meetingTypeEnum = pgEnum("meeting_type", [
+  "ORIENTATION",
+  "REGULAR",
+  "REVIEW",
+  "ASSESSMENT",
+  "BREAK",
+]);
+
+/** Sumber materi yang didukung, termasuk tautan eksternal. */
+export const materialTypeEnum = pgEnum("material_type", [
+  "pdf",
+  "audio",
+  "video",
+  "youtube",
+  "gdrive",
+  "article",
+  "link",
+]);
+
+export const assessmentKindEnum = pgEnum("assessment_kind", ["kuis", "ujian", "latihan"]);
+
+export const enrollmentStatusEnum = pgEnum("enrollment_status", [
+  "registered",
+  "approved",
+  "active",
+  "completed",
+  "withdrawn",
+]);
+
+export const progressStatusEnum = pgEnum("progress_status", [
+  "not_started",
+  "in_progress",
+  "completed",
+  "needs_review",
+]);
+
+export const attendanceStatusEnum = pgEnum("attendance_status", ["hadir", "izin", "sakit", "alpa"]);
+
+export const engagementStatusEnum = pgEnum("engagement_status", [
+  "on_track",
+  "needs_attention",
+  "at_risk",
+  "inactive",
+]);
+
+export const competencyEnum = pgEnum("competency_status", [
+  "sudah_dikuasai",
+  "perlu_murojaah",
+  "belum_dikuasai",
+]);
+
+/* --- identity --------------------------------------------------- */
+
+export const users = pgTable(
+  "users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    role: roleEnum("role").notNull().default("student"),
+    /** scrypt digest stored as `salt:hash`. Never leaves the server. */
+    passwordHash: text("password_hash"),
+    isDemo: boolean("is_demo").notNull().default(false),
+    avatarUrl: text("avatar_url"),
+    segment: text("segment"),
+    lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("users_email_idx").on(t.email)],
+);
+
+export const authSessions = pgTable(
+  "auth_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    token: text("token").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("auth_sessions_token_idx").on(t.token),
+    index("auth_sessions_user_idx").on(t.userId),
+  ],
+);
+
+/* --- 1. Program -------------------------------------------------- */
+
+export const programs = pgTable(
+  "programs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description"),
+    status: programStatusEnum("status").notNull().default("draft"),
+    sequence: integer("sequence").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("programs_slug_idx").on(t.slug)],
+);
+
+/* --- 2. Tahapan / Tingkatan -------------------------------------- */
+
+export const tahapan = pgTable(
+  "tahapan",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => programs.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    /** Tema akademik tahapan, mis. "Membangun Fondasi Menuntut Ilmu". */
+    title: text("title"),
+    subtitle: text("subtitle"),
+    description: text("description"),
+    startDate: timestamp("start_date", { withTimezone: true }),
+    endDate: timestamp("end_date", { withTimezone: true }),
+    registrationStart: timestamp("registration_start", { withTimezone: true }),
+    registrationEnd: timestamp("registration_end", { withTimezone: true }),
+    durationWeeks: integer("duration_weeks").notNull().default(12),
+    status: tahapanStatusEnum("status").notNull().default("draft"),
+    isPublic: boolean("is_public").notNull().default(false),
+    sequence: integer("sequence").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("tahapan_slug_idx").on(t.slug),
+    index("tahapan_program_seq_idx").on(t.programId, t.sequence),
+  ],
+);
+
+/* --- 3. Mata Pelajaran ------------------------------------------- */
+
+export const subjects = pgTable(
+  "subjects",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tahapanId: uuid("tahapan_id")
+      .notNull()
+      .references(() => tahapan.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    slug: text("slug").notNull(),
+    name: text("name").notNull(),
+    description: text("description"),
+    role: subjectRoleEnum("role").notNull().default("FOUNDATION"),
+    deliveryModel: text("delivery_model"),
+    weeklyLoad: text("weekly_load"),
+    instructorId: uuid("instructor_id").references(() => users.id, { onDelete: "set null" }),
+    sequence: integer("sequence").notNull().default(1),
+    isActive: boolean("is_active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("subjects_slug_idx").on(t.slug),
+    index("subjects_tahapan_seq_idx").on(t.tahapanId, t.sequence),
+  ],
+);
+
+/* --- 4. Pertemuan ------------------------------------------------ */
+
+export const meetings = pgTable(
+  "meetings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    number: integer("number").notNull(),
+    title: text("title").notNull(),
+    description: text("description"),
+    objectives: text("objectives"),
+    type: meetingTypeEnum("type").notNull().default("REGULAR"),
+
+    /** Live teaching / hybrid. */
+    mode: meetingModeEnum("mode").notNull().default("mandiri"),
+    liveUrl: text("live_url"),
+    livePlatform: text("live_platform"),
+    startsAt: timestamp("starts_at", { withTimezone: true }),
+    endsAt: timestamp("ends_at", { withTimezone: true }),
+    location: text("location"),
+    mapUrl: text("map_url"),
+    recordingUrl: text("recording_url"),
+    attendanceEnabled: boolean("attendance_enabled").notNull().default(false),
+
+    durationMinutes: integer("duration_minutes").notNull().default(0),
+    sequence: integer("sequence").notNull(),
+    isLocked: boolean("is_locked").notNull().default(false),
+    publishStatus: publishStatusEnum("publish_status").notNull().default("draft"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex("meetings_subject_number_idx").on(t.subjectId, t.number),
+    index("meetings_subject_seq_idx").on(t.subjectId, t.sequence),
+    index("meetings_starts_at_idx").on(t.startsAt),
+  ],
+);
+
+/* --- 5. Materi --------------------------------------------------- */
+
+export const materials = pgTable(
+  "materials",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    meetingId: uuid("meeting_id")
+      .notNull()
+      .references(() => meetings.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    type: materialTypeEnum("type").notNull(),
+    /** Tautan sumber: file PDF/audio, YouTube, atau Google Drive. */
+    url: text("url"),
+    /** Konten inline untuk tipe `article`. */
+    content: text("content"),
+    /** Gambar pratinjau; bila kosong, klien menurunkannya dari `url`. */
+    thumbnailUrl: text("thumbnail_url"),
+    fileSizeKb: integer("file_size_kb"),
+    durationMinutes: integer("duration_minutes").notNull().default(0),
+    sequence: integer("sequence").notNull(),
+    isRequired: boolean("is_required").notNull().default(true),
+    /** Bagian dari Jalur Mengejar Ketertinggalan. */
+    isEssential: boolean("is_essential").notNull().default(false),
+    publishStatus: publishStatusEnum("publish_status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("materials_meeting_seq_idx").on(t.meetingId, t.sequence)],
+);
+
+/* --- Kuis / Ujian (per pertemuan) -------------------------------- */
+
+export const assessments = pgTable(
+  "assessments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    meetingId: uuid("meeting_id")
+      .notNull()
+      .references(() => meetings.id, { onDelete: "cascade" }),
+    kind: assessmentKindEnum("kind").notNull().default("kuis"),
+    title: text("title").notNull(),
+    description: text("description"),
+    questionCount: integer("question_count").notNull().default(0),
+    durationMinutes: integer("duration_minutes").notNull().default(0),
+    passingScore: integer("passing_score"),
+    weight: integer("weight"),
+    maxAttempts: integer("max_attempts").notNull().default(0),
+    publishStatus: publishStatusEnum("publish_status").notNull().default("draft"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("assessments_meeting_idx").on(t.meetingId)],
+);
+
+export const assessmentQuestions = pgTable(
+  "assessment_questions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => assessments.id, { onDelete: "cascade" }),
+    prompt: text("prompt").notNull(),
+    /** JSON array of options for multiple choice. */
+    options: text("options"),
+    answer: text("answer"),
+    explanation: text("explanation"),
+    sequence: integer("sequence").notNull().default(1),
+  },
+  (t) => [index("assessment_questions_seq_idx").on(t.assessmentId, t.sequence)],
+);
+
+/* --- enrolment and progress -------------------------------------- */
+
+export const enrollments = pgTable(
+  "enrollments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** Pendaftaran selalu per tahapan, tidak pernah per program. */
+    tahapanId: uuid("tahapan_id")
+      .notNull()
+      .references(() => tahapan.id, { onDelete: "cascade" }),
+    status: enrollmentStatusEnum("status").notNull().default("registered"),
+    engagement: engagementStatusEnum("engagement").notNull().default("on_track"),
+    competency: competencyEnum("competency"),
+    className: text("class_name"),
+    registeredAt: timestamp("registered_at", { withTimezone: true }).defaultNow().notNull(),
+    approvedAt: timestamp("approved_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    progress: integer("progress").notNull().default(0),
+    lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("enrollments_user_tahapan_idx").on(t.userId, t.tahapanId)],
+);
+
+export const materialProgress = pgTable(
+  "material_progress",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    materialId: uuid("material_id")
+      .notNull()
+      .references(() => materials.id, { onDelete: "cascade" }),
+    status: progressStatusEnum("status").notNull().default("not_started"),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    response: text("response"),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("material_progress_user_material_idx").on(t.userId, t.materialId)],
+);
+
+export const attendance = pgTable(
+  "attendance",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    meetingId: uuid("meeting_id")
+      .notNull()
+      .references(() => meetings.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: attendanceStatusEnum("status").notNull().default("alpa"),
+    note: text("note"),
+    recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("attendance_meeting_user_idx").on(t.meetingId, t.userId)],
+);
+
+/* --- notes, bookmarks, announcements ----------------------------- */
+
+export const notes = pgTable(
+  "notes",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    materialId: uuid("material_id").references(() => materials.id, { onDelete: "cascade" }),
+    body: text("body").notNull(),
+    isPrivate: boolean("is_private").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("notes_user_idx").on(t.userId)],
+);
+
+export const bookmarks = pgTable(
+  "bookmarks",
+  {
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    materialId: uuid("material_id")
+      .notNull()
+      .references(() => materials.id, { onDelete: "cascade" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.userId, t.materialId] })],
+);
+
+export const announcements = pgTable("announcements", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  tahapanId: uuid("tahapan_id").references(() => tahapan.id, { onDelete: "cascade" }),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  audience: text("audience").notNull().default("Semua"),
+  status: publishStatusEnum("status").notNull().default("draft"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  actorId: uuid("actor_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  entity: text("entity").notNull(),
+  entityId: text("entity_id"),
+  meta: text("meta"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+});
+
+/* --- relations ---------------------------------------------------- */
+
+export const programsRelations = relations(programs, ({ many }) => ({
+  tahapan: many(tahapan),
+}));
+
+export const tahapanRelations = relations(tahapan, ({ one, many }) => ({
+  program: one(programs, { fields: [tahapan.programId], references: [programs.id] }),
+  subjects: many(subjects),
+  enrollments: many(enrollments),
+}));
+
+export const subjectsRelations = relations(subjects, ({ one, many }) => ({
+  tahapan: one(tahapan, { fields: [subjects.tahapanId], references: [tahapan.id] }),
+  instructor: one(users, { fields: [subjects.instructorId], references: [users.id] }),
+  meetings: many(meetings),
+}));
+
+export const meetingsRelations = relations(meetings, ({ one, many }) => ({
+  subject: one(subjects, { fields: [meetings.subjectId], references: [subjects.id] }),
+  materials: many(materials),
+  assessments: many(assessments),
+  attendance: many(attendance),
+}));
+
+export const materialsRelations = relations(materials, ({ one, many }) => ({
+  meeting: one(meetings, { fields: [materials.meetingId], references: [meetings.id] }),
+  progress: many(materialProgress),
+}));
+
+export const assessmentsRelations = relations(assessments, ({ one, many }) => ({
+  meeting: one(meetings, { fields: [assessments.meetingId], references: [meetings.id] }),
+  questions: many(assessmentQuestions),
+}));

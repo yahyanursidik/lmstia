@@ -1,0 +1,432 @@
+/**
+ * Seed untuk hierarki konten lima tingkat:
+ * Program → Tahapan → Mata Pelajaran → Pertemuan → Materi (+ kuis, link live).
+ *
+ * Idempoten: mengosongkan tabel yang dimilikinya lalu mengisi ulang.
+ * Jalankan dengan `npm run db:seed`.
+ */
+
+import "dotenv/config";
+import { eq } from "drizzle-orm";
+import { db } from "./client";
+import * as s from "./schema";
+
+const TOTAL_MEETINGS = 12;
+const CURRENT_MEETING = 8;
+
+/* --- judul pertemuan per mata pelajaran ------------------------- */
+
+const ARAB = [
+  "Orientasi dan Pengenalan Huruf",
+  "Huruf Hijaiyah dan Bunyi Dasar",
+  "Harakat dan Membaca Suku Kata",
+  "Menulis Huruf Bersambung",
+  "Kata Benda dan Kata Tunjuk",
+  "Kosakata Kehidupan Sehari-hari",
+  "Kalimat Nominal Sederhana",
+  "Dhamir dan Kepemilikan",
+  "Untuk Siapa Kita Beribadah?",
+  "Struktur Kalimat Lanjutan",
+  "Membaca Paragraf Pendek",
+  "Pekan Murojaah",
+  "Evaluasi Akhir Tahapan",
+];
+
+const AQIDAH = [
+  "Orientasi Aqidah 01",
+  "Mengapa Mempelajari Agama",
+  "Tujuan Penciptaan Manusia",
+  "Mengenal Allah sebagai Rabb",
+  "Makna Ibadah",
+  "Pengertian Tauhid",
+  "Tauhid Rububiyah",
+  "Tauhid Uluhiyah",
+  "Hanya kepada Allah Kita Beribadah",
+  "Ikhlas dan Mengikuti Rasulullah",
+  "Ilmu, Iman, dan Amal",
+  "Pekan Murojaah",
+  "Evaluasi Akhir Tahapan",
+];
+
+const ADAB = [
+  "Orientasi Adab Menuntut Ilmu",
+  "Meluruskan niat dalam menuntut ilmu",
+  "Keutamaan ilmu syar'i",
+  "Ilmu sebelum ucapan dan amal",
+  "Adab kepada Allah dalam menuntut ilmu",
+  "Adab kepada guru",
+  "Adab mendengar dan mencatat ilmu",
+  "Adab bertanya",
+  "Tidak tergesa-gesa dalam menuntut ilmu",
+  "Murojaah dan menjaga ilmu",
+  "Mengamalkan ilmu",
+  "Menjaga istiqamah",
+  "Muhasabah perjalanan menuntut ilmu",
+];
+
+function meetingType(n: number) {
+  if (n === 0) return "ORIENTATION" as const;
+  if (n === 11) return "REVIEW" as const;
+  if (n === 12) return "ASSESSMENT" as const;
+  return "REGULAR" as const;
+}
+
+/** Materi contoh per pertemuan — menunjukkan keempat sumber yang didukung. */
+function materialsFor(subjectIdx: number, n: number, title: string) {
+  const base: {
+    title: string;
+    type: "pdf" | "audio" | "video" | "youtube" | "gdrive" | "article";
+    url: string | null;
+    minutes: number;
+    essential: boolean;
+  }[] = [];
+
+  if (subjectIdx === 0) {
+    // Bahasa Arab — rekaman kelas + ringkasan + lembar latihan.
+    base.push(
+      { title: `Rekaman Kelas Materi — ${title}`, type: "youtube", url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ", minutes: 18, essential: true },
+      { title: `Ringkasan Materi Pertemuan ${n}`, type: "pdf", url: "https://drive.google.com/file/d/1TIAringkasan/view", minutes: 8, essential: true },
+      { title: `Lembar Kosakata Pertemuan ${n}`, type: "gdrive", url: "https://drive.google.com/file/d/1TIAkosakata/view", minutes: 6, essential: false },
+    );
+  } else if (subjectIdx === 1) {
+    // Aqidah — bacaan + audio penguatan.
+    base.push(
+      { title: `Bacaan: ${title}`, type: "article", url: null, minutes: 12, essential: true },
+      { title: `Audio Penguatan — ${title}`, type: "audio", url: "https://cdn.tia.id/audio/aqidah-" + n + ".mp3", minutes: 14, essential: true },
+      { title: `Catatan Dalil Pertemuan ${n}`, type: "pdf", url: "https://drive.google.com/file/d/1TIAdalil/view", minutes: 5, essential: false },
+    );
+  } else {
+    // Adab — materi pendek mandiri.
+    base.push(
+      { title: `Audio: ${title}`, type: "audio", url: "https://cdn.tia.id/audio/adab-" + n + ".mp3", minutes: 11, essential: true },
+      { title: `Lembar Refleksi Pertemuan ${n}`, type: "gdrive", url: "https://drive.google.com/file/d/1TIArefleksi/view", minutes: 5, essential: false },
+    );
+  }
+  return base;
+}
+
+async function reset() {
+  await db.delete(s.assessmentQuestions);
+  await db.delete(s.assessments);
+  await db.delete(s.attendance);
+  await db.delete(s.bookmarks);
+  await db.delete(s.notes);
+  await db.delete(s.materialProgress);
+  await db.delete(s.materials);
+  await db.delete(s.meetings);
+  await db.delete(s.enrollments);
+  await db.delete(s.announcements);
+  await db.delete(s.subjects);
+  await db.delete(s.tahapan);
+  await db.delete(s.programs);
+  await db.delete(s.auditLogs);
+  await db.delete(s.authSessions);
+  await db.delete(s.users);
+}
+
+async function main() {
+  console.log("→ mengosongkan data lama…");
+  await reset();
+
+  console.log("→ users");
+  const instructors = await db
+    .insert(s.users)
+    .values([
+      { name: "Ustadz Abu Hudzaifah", email: "abu.hudzaifah@tia.id", role: "instructor" },
+      { name: "Ustadz Abdul Muhsin", email: "abdul.muhsin@tia.id", role: "instructor" },
+      { name: "Ustadz Salman Al-Faris", email: "salman@tia.id", role: "instructor" },
+    ])
+    .returning();
+
+  const studentRows = [
+    { name: "Abdurrahman", email: "abdurrahman@example.com", segment: "Profesional", cls: "I'dad A", eng: "on_track", comp: "sudah_dikuasai" },
+    { name: "Fauzan Hakim", email: "fauzan@example.com", segment: "Profesional", cls: "I'dad A", eng: "needs_attention", comp: "perlu_murojaah" },
+    { name: "Ummu Salamah", email: "ummu@example.com", segment: "Ibu Rumah Tangga", cls: "I'dad B", eng: "at_risk", comp: "belum_dikuasai" },
+    { name: "Ridwan Abdullah", email: "ridwan@example.com", segment: "Mahasiswa", cls: "I'dad A", eng: "needs_attention", comp: "perlu_murojaah" },
+    { name: "Hafizh Nurdin", email: "hafizh@example.com", segment: "Returning", cls: "I'dad C", eng: "at_risk", comp: "belum_dikuasai" },
+    { name: "Aisyah Rahmah", email: "aisyah@example.com", segment: "Profesional", cls: "I'dad B", eng: "needs_attention", comp: "perlu_murojaah" },
+    { name: "Zulfikar Mahmud", email: "zulfikar@example.com", segment: "Profesional", cls: "I'dad A", eng: "needs_attention", comp: "perlu_murojaah" },
+    { name: "Khadijah Amini", email: "khadijah@example.com", segment: "Ibu Rumah Tangga", cls: "I'dad B", eng: "on_track", comp: "sudah_dikuasai" },
+    { name: "Ilyas Munandar", email: "ilyas@example.com", segment: "Mahasiswa", cls: "I'dad C", eng: "on_track", comp: "sudah_dikuasai" },
+    { name: "Maryam Salsabila", email: "maryam@example.com", segment: "Mahasiswa", cls: "I'dad B", eng: "inactive", comp: "belum_dikuasai" },
+  ] as const;
+
+  const students = await db
+    .insert(s.users)
+    .values(studentRows.map((r) => ({ name: r.name, email: r.email, role: "student" as const, segment: r.segment })))
+    .returning();
+
+  console.log("→ program");
+  const [program] = await db
+    .insert(s.programs)
+    .values({
+      name: "Tarbiyah Sunnah Islamic Academy",
+      slug: "tia",
+      description:
+        "Program pembelajaran Islam bertahap bagi Muslim dewasa: Bahasa Arab dan ilmu syar'i melalui tahapan yang terarah dan realistis.",
+      status: "active",
+      sequence: 1,
+    })
+    .returning();
+
+  console.log("→ tahapan");
+  const tahapanRows = await db
+    .insert(s.tahapan)
+    .values([
+      {
+        programId: program.id,
+        code: "IDAD-1",
+        slug: "caturwulan-1",
+        name: "Caturwulan 1 — Marhalah I'dad",
+        title: "Membangun Fondasi Menuntut Ilmu",
+        subtitle: "Bahasa Arab 01 · Aqidah 01 · Adab Menuntut Ilmu",
+        startDate: new Date("2026-07-06"),
+        endDate: new Date("2026-09-27"),
+        durationWeeks: 12,
+        status: "running",
+        isPublic: true,
+        sequence: 1,
+      },
+      {
+        programId: program.id,
+        code: "IDAD-2",
+        slug: "caturwulan-2",
+        name: "Caturwulan 2 — Marhalah I'dad",
+        title: "Membangun Fondasi Ibadah",
+        subtitle: "Bahasa Arab 02 · Fiqh 01 · Adab Ibadah",
+        startDate: new Date("2026-10-12"),
+        endDate: new Date("2027-01-03"),
+        durationWeeks: 12,
+        status: "open",
+        isPublic: true,
+        sequence: 2,
+      },
+      {
+        programId: program.id,
+        code: "IDAD-3",
+        slug: "caturwulan-3",
+        name: "Caturwulan 3 — Marhalah I'dad",
+        title: "Menjaga dan Mengamalkan Ilmu",
+        subtitle: "Bahasa Arab 03 · Hadits 01 · Adab dan Akhlak",
+        durationWeeks: 12,
+        status: "draft",
+        isPublic: false,
+        sequence: 3,
+      },
+    ])
+    .returning();
+  const cawu1 = tahapanRows[0];
+
+  console.log("→ mata pelajaran");
+  const subjects = await db
+    .insert(s.subjects)
+    .values([
+      {
+        tahapanId: cawu1.id,
+        code: "AR01",
+        slug: "bahasa-arab-01",
+        name: "Bahasa Arab 01",
+        description: "Membangun alat — membaca, menulis, kosakata, dan struktur kalimat dasar.",
+        role: "INTENSIVE",
+        deliveryModel: "2 kelas online + 1 tatap muka pekanan",
+        weeklyLoad: "2–3 jam / pekan",
+        instructorId: instructors[0].id,
+        sequence: 1,
+      },
+      {
+        tahapanId: cawu1.id,
+        code: "AQ01",
+        slug: "aqidah-01",
+        name: "Aqidah 01",
+        description: "Membangun keyakinan — tujuan kehidupan, tauhid rububiyah dan uluhiyah.",
+        role: "FOUNDATION",
+        deliveryModel: "Materi mandiri LMS + Majlis Ta'sil bulanan",
+        weeklyLoad: "1–2 jam / pekan",
+        instructorId: instructors[1].id,
+        sequence: 2,
+      },
+      {
+        tahapanId: cawu1.id,
+        code: "AD01",
+        slug: "adab-menuntut-ilmu",
+        name: "Adab Menuntut Ilmu",
+        description: "Membangun sikap — satu materi pendek setiap pertemuan disertai refleksi.",
+        role: "COMPANION",
+        deliveryModel: "Materi pendamping mandiri",
+        weeklyLoad: "±30 menit / pekan",
+        instructorId: instructors[2].id,
+        sequence: 3,
+      },
+    ])
+    .returning();
+
+  const titles = [ARAB, AQIDAH, ADAB];
+
+  console.log("→ pertemuan + materi + kuis");
+  let nMeetings = 0;
+  let nMaterials = 0;
+  let nAssessments = 0;
+
+  for (let si = 0; si < subjects.length; si++) {
+    const subject = subjects[si];
+
+    const meetingRows = await db
+      .insert(s.meetings)
+      .values(
+        Array.from({ length: TOTAL_MEETINGS + 1 }, (_, n) => {
+          // Bahasa Arab hybrid; Aqidah & Adab mandiri, kecuali Majlis Ta'sil bulanan.
+          const isMajlis = si === 1 && n > 0 && n % 4 === 0;
+          const mode = si === 0 ? ("hybrid" as const) : isMajlis ? ("offline" as const) : ("mandiri" as const);
+          return {
+            subjectId: subject.id,
+            number: n,
+            title: titles[si][n],
+            description: `Pertemuan ${n} — ${titles[si][n]}`,
+            type: meetingType(n),
+            mode,
+            liveUrl: si === 0 ? "https://meet.tia.id/bahasa-arab-01" : isMajlis ? null : null,
+            livePlatform: si === 0 ? "Google Meet" : null,
+            location: isMajlis ? "Aula TIA, Lantai 2" : si === 0 ? "Masjid Al-Hikmah (sesi tatap muka)" : null,
+            startsAt: n > 0 ? new Date(Date.UTC(2026, 6, 6 + (n - 1) * 7, 12, 30)) : null,
+            durationMinutes: si === 0 ? 75 : isMajlis ? 120 : 30,
+            attendanceEnabled: si === 0 || isMajlis,
+            sequence: n,
+            isLocked: n > CURRENT_MEETING,
+            publishStatus: (n <= 10 ? "published" : n === 11 ? "review" : "draft") as
+              | "published"
+              | "review"
+              | "draft",
+            publishedAt: n <= 10 ? new Date() : null,
+          };
+        }),
+      )
+      .returning();
+    nMeetings += meetingRows.length;
+
+    for (const m of meetingRows) {
+      const mats = materialsFor(si, m.number, m.title);
+      const inserted = await db
+        .insert(s.materials)
+        .values(
+          mats.map((x, i) => ({
+            meetingId: m.id,
+            title: x.title,
+            description: x.type === "article" ? "Bacaan ringkas untuk pertemuan ini." : null,
+            type: x.type,
+            url: x.url,
+            content: x.type === "article" ? `Pembahasan ${m.title}.` : null,
+            durationMinutes: x.minutes,
+            sequence: i + 1,
+            isRequired: true,
+            isEssential: x.essential,
+            publishStatus: m.publishStatus,
+          })),
+        )
+        .returning();
+      nMaterials += inserted.length;
+
+      // Progres peserta demo: sebelum pertemuan berjalan = selesai.
+      const demo = students[0];
+      if (m.number <= CURRENT_MEETING) {
+        await db.insert(s.materialProgress).values(
+          inserted.map((mat) => ({
+            userId: demo.id,
+            materialId: mat.id,
+            status: (m.number < CURRENT_MEETING || (si !== 1 && mat.sequence <= 2)
+              ? "completed"
+              : "not_started") as "completed" | "not_started",
+            completedAt: m.number < CURRENT_MEETING ? new Date() : null,
+          })),
+        );
+      }
+
+      // Kuis melekat pada pertemuan, bukan pada materi.
+      if (m.type === "REGULAR" || m.type === "ASSESSMENT") {
+        const isFinal = m.type === "ASSESSMENT";
+        const [a] = await db
+          .insert(s.assessments)
+          .values({
+            meetingId: m.id,
+            kind: isFinal ? "ujian" : "kuis",
+            title: isFinal ? `Evaluasi Akhir — ${subject.name}` : `Cek Pemahaman Pertemuan ${m.number}`,
+            description: isFinal
+              ? "Evaluasi akhir tahapan, mencakup seluruh pertemuan."
+              : "5 pertanyaan singkat untuk melihat bagian mana yang perlu murojaah.",
+            questionCount: isFinal ? 25 : 5,
+            durationMinutes: isFinal ? 60 : 10,
+            passingScore: isFinal ? 70 : null,
+            weight: isFinal ? 30 : 20,
+            maxAttempts: isFinal ? 1 : 0,
+            publishStatus: m.publishStatus,
+          })
+          .returning();
+        nAssessments++;
+
+        if (!isFinal) {
+          await db.insert(s.assessmentQuestions).values([
+            {
+              assessmentId: a.id,
+              prompt: `Apa inti pembahasan pada pertemuan "${m.title}"?`,
+              options: JSON.stringify(["Pilihan A", "Pilihan B", "Pilihan C", "Pilihan D"]),
+              answer: "Pilihan A",
+              sequence: 1,
+            },
+          ]);
+        }
+      }
+    }
+  }
+
+  console.log("→ pendaftaran");
+  await db.insert(s.enrollments).values(
+    students.map((u, i) => ({
+      userId: u.id,
+      tahapanId: cawu1.id,
+      status: "active" as const,
+      engagement: studentRows[i].eng,
+      competency: studentRows[i].comp,
+      className: studentRows[i].cls,
+      progress: Math.round((CURRENT_MEETING / TOTAL_MEETINGS) * 100),
+      approvedAt: new Date(),
+      startedAt: new Date(),
+    })),
+  );
+
+  console.log("→ pengumuman");
+  await db.insert(s.announcements).values([
+    { tahapanId: cawu1.id, title: "Majlis Ta'sil bulan ini dimajukan ke Ahad, 6 September", body: "Tempat tetap di Aula TIA lantai 2, pukul 09.00.", audience: "Peserta", status: "published", publishedAt: new Date("2026-08-27") },
+    { tahapanId: cawu1.id, title: "Pertemuan 11 adalah Pekan Murojaah — tidak ada materi baru", body: "Gunakan pekan murojaah untuk mengulang pertemuan 5–10.", audience: "Peserta", status: "published", publishedAt: new Date("2026-08-24") },
+    { tahapanId: cawu1.id, title: "Registrasi Caturwulan 2 dibuka setelah evaluasi akhir", body: "Tidak ada pendaftaran otomatis.", audience: "Semua", status: "published", publishedAt: new Date("2026-08-20") },
+    { tahapanId: cawu1.id, title: "Panduan pengumpulan worksheet pertemuan 9", body: "Draf panduan, menunggu review pengampu.", audience: "Peserta", status: "draft" },
+  ]);
+
+  console.log("→ catatan");
+  const anyMaterial = await db.query.materials.findFirst({ where: eq(s.materials.type, "pdf") });
+  if (anyMaterial) {
+    await db.insert(s.notes).values({
+      userId: students[0].id,
+      materialId: anyMaterial.id,
+      body: "Perbedaan 'abd dan 'ibadah: 'abd adalah pelakunya, 'ibadah adalah perbuatannya.",
+    });
+    await db.insert(s.bookmarks).values({ userId: students[0].id, materialId: anyMaterial.id });
+  }
+
+  console.log("");
+  console.log("Selesai:");
+  console.log(`  program        : 1`);
+  console.log(`  tahapan        : ${tahapanRows.length}`);
+  console.log(`  mata pelajaran : ${subjects.length}`);
+  console.log(`  pertemuan      : ${nMeetings}`);
+  console.log(`  materi         : ${nMaterials}`);
+  console.log(`  kuis/ujian     : ${nAssessments}`);
+  console.log(`  users          : ${instructors.length + students.length}`);
+  console.log("");
+  console.log("Jalankan `npm run db:accounts` untuk membuat ulang akun demo.");
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((e) => {
+    console.error("Seed gagal:", e);
+    process.exit(1);
+  });
