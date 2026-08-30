@@ -1,4 +1,5 @@
 CREATE TYPE "public"."assessment_kind" AS ENUM('kuis', 'ujian', 'latihan');--> statement-breakpoint
+CREATE TYPE "public"."attempt_status" AS ENUM('berlangsung', 'menunggu_penilaian', 'dinilai');--> statement-breakpoint
 CREATE TYPE "public"."attendance_status" AS ENUM('hadir', 'izin', 'sakit', 'alpa');--> statement-breakpoint
 CREATE TYPE "public"."competency_status" AS ENUM('sudah_dikuasai', 'perlu_murojaah', 'belum_dikuasai');--> statement-breakpoint
 CREATE TYPE "public"."engagement_status" AS ENUM('on_track', 'needs_attention', 'at_risk', 'inactive');--> statement-breakpoint
@@ -9,6 +10,7 @@ CREATE TYPE "public"."meeting_type" AS ENUM('ORIENTATION', 'REGULAR', 'REVIEW', 
 CREATE TYPE "public"."program_status" AS ENUM('draft', 'active', 'archived');--> statement-breakpoint
 CREATE TYPE "public"."progress_status" AS ENUM('not_started', 'in_progress', 'completed', 'needs_review');--> statement-breakpoint
 CREATE TYPE "public"."publish_status" AS ENUM('draft', 'review', 'published');--> statement-breakpoint
+CREATE TYPE "public"."question_type" AS ENUM('multiple_choice', 'true_false', 'essay');--> statement-breakpoint
 CREATE TYPE "public"."role" AS ENUM('student', 'instructor', 'academic_admin', 'super_admin');--> statement-breakpoint
 CREATE TYPE "public"."subject_role" AS ENUM('INTENSIVE', 'FOUNDATION', 'COMPANION');--> statement-breakpoint
 CREATE TYPE "public"."tahapan_status" AS ENUM('draft', 'open', 'running', 'closed');--> statement-breakpoint
@@ -23,29 +25,62 @@ CREATE TABLE "announcements" (
 	"created_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE "assessment_answers" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"attempt_id" uuid NOT NULL,
+	"question_id" uuid NOT NULL,
+	"response" text,
+	"earned_points" integer,
+	"is_correct" boolean,
+	"feedback" text
+);
+--> statement-breakpoint
+CREATE TABLE "assessment_attempts" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"assessment_id" uuid NOT NULL,
+	"user_id" uuid NOT NULL,
+	"attempt_no" integer DEFAULT 1 NOT NULL,
+	"status" "attempt_status" DEFAULT 'berlangsung' NOT NULL,
+	"score" integer,
+	"auto_points" integer DEFAULT 0 NOT NULL,
+	"max_points" integer DEFAULT 0 NOT NULL,
+	"passed" boolean,
+	"started_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"submitted_at" timestamp with time zone,
+	"graded_at" timestamp with time zone,
+	"graded_by" uuid
+);
+--> statement-breakpoint
 CREATE TABLE "assessment_questions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"assessment_id" uuid NOT NULL,
+	"type" "question_type" DEFAULT 'multiple_choice' NOT NULL,
 	"prompt" text NOT NULL,
 	"options" text,
-	"answer" text,
+	"answer_key" text,
 	"explanation" text,
+	"points" integer DEFAULT 1 NOT NULL,
 	"sequence" integer DEFAULT 1 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "assessments" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"meeting_id" uuid NOT NULL,
+	"meeting_id" uuid,
+	"subject_id" uuid,
 	"kind" "assessment_kind" DEFAULT 'kuis' NOT NULL,
 	"title" text NOT NULL,
 	"description" text,
-	"question_count" integer DEFAULT 0 NOT NULL,
+	"kkm" integer DEFAULT 70 NOT NULL,
 	"duration_minutes" integer DEFAULT 0 NOT NULL,
-	"passing_score" integer,
 	"weight" integer,
-	"max_attempts" integer DEFAULT 0 NOT NULL,
+	"max_attempts" integer DEFAULT 1 NOT NULL,
+	"shuffle_questions" boolean DEFAULT false NOT NULL,
+	"show_feedback" boolean DEFAULT true NOT NULL,
+	"available_from" timestamp with time zone,
+	"available_until" timestamp with time zone,
 	"publish_status" "publish_status" DEFAULT 'draft' NOT NULL,
-	"created_at" timestamp with time zone DEFAULT now() NOT NULL
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "attendance" (
@@ -226,8 +261,14 @@ CREATE TABLE "users" (
 );
 --> statement-breakpoint
 ALTER TABLE "announcements" ADD CONSTRAINT "announcements_tahapan_id_tahapan_id_fk" FOREIGN KEY ("tahapan_id") REFERENCES "public"."tahapan"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessment_answers" ADD CONSTRAINT "assessment_answers_attempt_id_assessment_attempts_id_fk" FOREIGN KEY ("attempt_id") REFERENCES "public"."assessment_attempts"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessment_answers" ADD CONSTRAINT "assessment_answers_question_id_assessment_questions_id_fk" FOREIGN KEY ("question_id") REFERENCES "public"."assessment_questions"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessment_attempts" ADD CONSTRAINT "assessment_attempts_assessment_id_assessments_id_fk" FOREIGN KEY ("assessment_id") REFERENCES "public"."assessments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessment_attempts" ADD CONSTRAINT "assessment_attempts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessment_attempts" ADD CONSTRAINT "assessment_attempts_graded_by_users_id_fk" FOREIGN KEY ("graded_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assessment_questions" ADD CONSTRAINT "assessment_questions_assessment_id_assessments_id_fk" FOREIGN KEY ("assessment_id") REFERENCES "public"."assessments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assessments" ADD CONSTRAINT "assessments_meeting_id_meetings_id_fk" FOREIGN KEY ("meeting_id") REFERENCES "public"."meetings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessments" ADD CONSTRAINT "assessments_subject_id_subjects_id_fk" FOREIGN KEY ("subject_id") REFERENCES "public"."subjects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attendance" ADD CONSTRAINT "attendance_meeting_id_meetings_id_fk" FOREIGN KEY ("meeting_id") REFERENCES "public"."meetings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attendance" ADD CONSTRAINT "attendance_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -245,8 +286,12 @@ ALTER TABLE "notes" ADD CONSTRAINT "notes_material_id_materials_id_fk" FOREIGN K
 ALTER TABLE "subjects" ADD CONSTRAINT "subjects_tahapan_id_tahapan_id_fk" FOREIGN KEY ("tahapan_id") REFERENCES "public"."tahapan"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "subjects" ADD CONSTRAINT "subjects_instructor_id_users_id_fk" FOREIGN KEY ("instructor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "tahapan" ADD CONSTRAINT "tahapan_program_id_programs_id_fk" FOREIGN KEY ("program_id") REFERENCES "public"."programs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+CREATE UNIQUE INDEX "answers_attempt_question_idx" ON "assessment_answers" USING btree ("attempt_id","question_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "attempts_assessment_user_no_idx" ON "assessment_attempts" USING btree ("assessment_id","user_id","attempt_no");--> statement-breakpoint
+CREATE INDEX "attempts_user_idx" ON "assessment_attempts" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "assessment_questions_seq_idx" ON "assessment_questions" USING btree ("assessment_id","sequence");--> statement-breakpoint
 CREATE INDEX "assessments_meeting_idx" ON "assessments" USING btree ("meeting_id");--> statement-breakpoint
+CREATE INDEX "assessments_subject_idx" ON "assessments" USING btree ("subject_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "attendance_meeting_user_idx" ON "attendance" USING btree ("meeting_id","user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "auth_sessions_token_idx" ON "auth_sessions" USING btree ("token");--> statement-breakpoint
 CREATE INDEX "auth_sessions_user_idx" ON "auth_sessions" USING btree ("user_id");--> statement-breakpoint
@@ -262,4 +307,10 @@ CREATE UNIQUE INDEX "subjects_slug_idx" ON "subjects" USING btree ("slug");--> s
 CREATE INDEX "subjects_tahapan_seq_idx" ON "subjects" USING btree ("tahapan_id","sequence");--> statement-breakpoint
 CREATE UNIQUE INDEX "tahapan_slug_idx" ON "tahapan" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "tahapan_program_seq_idx" ON "tahapan" USING btree ("program_id","sequence");--> statement-breakpoint
-CREATE UNIQUE INDEX "users_email_idx" ON "users" USING btree ("email");
+CREATE UNIQUE INDEX "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
+-- Kuis/ujian harus menempel tepat pada satu induk: pertemuan ATAU mata pelajaran.
+ALTER TABLE "assessments" ADD CONSTRAINT "assessments_one_parent_chk"
+  CHECK (("meeting_id" IS NOT NULL) <> ("subject_id" IS NOT NULL));
+--> statement-breakpoint
+ALTER TABLE "assessments" ADD CONSTRAINT "assessments_kkm_range_chk"
+  CHECK ("kkm" >= 0 AND "kkm" <= 100);

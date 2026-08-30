@@ -12,6 +12,8 @@ import * as learner from "./repositories/learner";
 import * as service from "./services/learning";
 import { authRoutes } from "./routes/auth";
 import { contentRoutes } from "./routes/content";
+import { assessmentAdminRoutes, quizRoutes } from "./routes/assessment";
+import * as assess from "./services/assessment";
 import { bookmarkBody, noteBody, slugParam, uuidParam } from "./validators/schemas";
 
 const app = new Hono().basePath("/api/v1");
@@ -109,6 +111,12 @@ me.post("/notes", async (c) => {
   return c.json({ data: row }, 201);
 });
 
+me.get("/nilai", async (c) => {
+  const user = c.get("user")!;
+  const t = await service.getRunningTahapanOrThrow();
+  return c.json({ data: await assess.studentScores(user.id, t.id) });
+});
+
 app.route("/me", me);
 
 /* --- Materi (progres peserta) -------------------------------------- */
@@ -137,6 +145,8 @@ app.post("/materials/:id/complete", requireAuth(), async (c) => {
 
 /* --- Admin (CRUD hierarki konten) ---------------------------------- */
 
+app.route("/kuis", quizRoutes);
+app.route("/admin/assessments", assessmentAdminRoutes);
 app.route("/admin", contentRoutes);
 
 /* --- penanganan galat ----------------------------------------------- */

@@ -65,6 +65,19 @@ export const materialTypeEnum = pgEnum("material_type", [
 
 export const assessmentKindEnum = pgEnum("assessment_kind", ["kuis", "ujian", "latihan"]);
 
+/** Tiga tipe soal yang didukung. Esai dinilai manual, dua lainnya otomatis. */
+export const questionTypeEnum = pgEnum("question_type", [
+  "multiple_choice",
+  "true_false",
+  "essay",
+]);
+
+export const attemptStatusEnum = pgEnum("attempt_status", [
+  "berlangsung",
+  "menunggu_penilaian",
+  "dinilai",
+]);
+
 export const enrollmentStatusEnum = pgEnum("enrollment_status", [
   "registered",
   "approved",
@@ -282,25 +295,39 @@ export const materials = pgTable(
 
 /* --- Kuis / Ujian (per pertemuan) -------------------------------- */
 
+/**
+ * Kuis / Ujian.
+ *
+ * Menempel pada pertemuan (kuis pekanan) ATAU pada mata pelajaran (ujian
+ * akhir mata pelajaran). Tepat satu di antaranya harus terisi — dijaga oleh
+ * CHECK di migrasi dan divalidasi ulang oleh Zod.
+ */
 export const assessments = pgTable(
   "assessments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    meetingId: uuid("meeting_id")
-      .notNull()
-      .references(() => meetings.id, { onDelete: "cascade" }),
+    meetingId: uuid("meeting_id").references(() => meetings.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id").references(() => subjects.id, { onDelete: "cascade" }),
     kind: assessmentKindEnum("kind").notNull().default("kuis"),
     title: text("title").notNull(),
     description: text("description"),
-    questionCount: integer("question_count").notNull().default(0),
+    /** Kriteria Ketuntasan Minimal, 0–100. */
+    kkm: integer("kkm").notNull().default(70),
     durationMinutes: integer("duration_minutes").notNull().default(0),
-    passingScore: integer("passing_score"),
+    /** Bobot terhadap nilai akhir tahapan, 0–100. */
     weight: integer("weight"),
-    maxAttempts: integer("max_attempts").notNull().default(0),
+    /** 0 = tidak dibatasi. */
+    maxAttempts: integer("max_attempts").notNull().default(1),
+    shuffleQuestions: boolean("shuffle_questions").notNull().default(false),
+    /** Tampilkan kunci dan pembahasan setelah peserta selesai. */
+    showFeedback: boolean("show_feedback").notNull().default(true),
+    availableFrom: timestamp("available_from", { withTimezone: true }),
+    availableUntil: timestamp("available_until", { withTimezone: true }),
     publishStatus: publishStatusEnum("publish_status").notNull().default("draft"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("assessments_meeting_idx").on(t.meetingId)],
+  (t) => [index("assessments_meeting_idx").on(t.meetingId), index("assessments_subject_idx").on(t.subjectId)],
 );
 
 export const assessmentQuestions = pgTable(
@@ -310,14 +337,74 @@ export const assessmentQuestions = pgTable(
     assessmentId: uuid("assessment_id")
       .notNull()
       .references(() => assessments.id, { onDelete: "cascade" }),
+    type: questionTypeEnum("type").notNull().default("multiple_choice"),
     prompt: text("prompt").notNull(),
-    /** JSON array of options for multiple choice. */
+    /**
+     * Pilihan ganda: JSON array of string.
+     * Benar-salah dan esai: null.
+     */
     options: text("options"),
-    answer: text("answer"),
+    /**
+     * Pilihan ganda: indeks jawaban benar sebagai string ("0".."n").
+     * Benar-salah: "true" | "false".
+     * Esai: null — dinilai manual oleh pengajar.
+     */
+    answerKey: text("answer_key"),
     explanation: text("explanation"),
+    points: integer("points").notNull().default(1),
     sequence: integer("sequence").notNull().default(1),
   },
   (t) => [index("assessment_questions_seq_idx").on(t.assessmentId, t.sequence)],
+);
+
+/** Satu percobaan pengerjaan oleh satu peserta. */
+export const assessmentAttempts = pgTable(
+  "assessment_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    assessmentId: uuid("assessment_id")
+      .notNull()
+      .references(() => assessments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    attemptNo: integer("attempt_no").notNull().default(1),
+    status: attemptStatusEnum("status").notNull().default("berlangsung"),
+    /** Skor 0–100; null selama masih ada esai yang belum dinilai. */
+    score: integer("score"),
+    /** Poin objektif yang sudah pasti, dipakai saat menunggu penilaian esai. */
+    autoPoints: integer("auto_points").notNull().default(0),
+    maxPoints: integer("max_points").notNull().default(0),
+    passed: boolean("passed"),
+    startedAt: timestamp("started_at", { withTimezone: true }).defaultNow().notNull(),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }),
+    gradedAt: timestamp("graded_at", { withTimezone: true }),
+    gradedBy: uuid("graded_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    uniqueIndex("attempts_assessment_user_no_idx").on(t.assessmentId, t.userId, t.attemptNo),
+    index("attempts_user_idx").on(t.userId),
+  ],
+);
+
+export const assessmentAnswers = pgTable(
+  "assessment_answers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => assessmentAttempts.id, { onDelete: "cascade" }),
+    questionId: uuid("question_id")
+      .notNull()
+      .references(() => assessmentQuestions.id, { onDelete: "cascade" }),
+    /** Pilihan ganda: indeks. Benar-salah: "true"/"false". Esai: teks jawaban. */
+    response: text("response"),
+    /** null untuk esai yang belum dinilai. */
+    earnedPoints: integer("earned_points"),
+    isCorrect: boolean("is_correct"),
+    feedback: text("feedback"),
+  },
+  (t) => [uniqueIndex("answers_attempt_question_idx").on(t.attemptId, t.questionId)],
 );
 
 /* --- enrolment and progress -------------------------------------- */
@@ -469,5 +556,18 @@ export const materialsRelations = relations(materials, ({ one, many }) => ({
 
 export const assessmentsRelations = relations(assessments, ({ one, many }) => ({
   meeting: one(meetings, { fields: [assessments.meetingId], references: [meetings.id] }),
+  subject: one(subjects, { fields: [assessments.subjectId], references: [subjects.id] }),
   questions: many(assessmentQuestions),
+  attempts: many(assessmentAttempts),
+}));
+
+export const assessmentAttemptsRelations = relations(assessmentAttempts, ({ one, many }) => ({
+  assessment: one(assessments, { fields: [assessmentAttempts.assessmentId], references: [assessments.id] }),
+  user: one(users, { fields: [assessmentAttempts.userId], references: [users.id] }),
+  answers: many(assessmentAnswers),
+}));
+
+export const assessmentAnswersRelations = relations(assessmentAnswers, ({ one }) => ({
+  attempt: one(assessmentAttempts, { fields: [assessmentAnswers.attemptId], references: [assessmentAttempts.id] }),
+  question: one(assessmentQuestions, { fields: [assessmentAnswers.questionId], references: [assessmentQuestions.id] }),
 }));

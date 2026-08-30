@@ -122,21 +122,6 @@ export const materialBody = z
     path: ["url"],
   });
 
-/* --- Kuis / Ujian --------------------------------------------------- */
-
-export const assessmentBody = z.object({
-  meetingId: z.string().uuid("meetingId harus berupa UUID"),
-  kind: z.enum(["kuis", "ujian", "latihan"]),
-  title: z.string().min(2, "Judul kuis wajib diisi").max(300),
-  description: z.string().max(2000).optional().nullable(),
-  questionCount: z.number().int().min(0).max(500).optional(),
-  durationMinutes: z.number().int().min(0).max(600).optional(),
-  passingScore: z.number().int().min(0).max(100).optional().nullable(),
-  weight: z.number().int().min(0).max(100).optional().nullable(),
-  maxAttempts: z.number().int().min(0).max(20).optional(),
-  publishStatus: publishStatus.optional(),
-});
-
 /* --- lain-lain ------------------------------------------------------- */
 
 export const bookmarkBody = z.object({
@@ -151,4 +136,86 @@ export const noteBody = z.object({
 export const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
+/* --- Kuis / Ujian ---------------------------------------------------- */
+
+export const questionTypeSchema = z.enum(["multiple_choice", "true_false", "essay"]);
+
+/** Kuis menempel pada pertemuan ATAU mata pelajaran — tepat satu. */
+export const assessmentBody = z
+  .object({
+    meetingId: z.string().uuid().nullable().optional(),
+    subjectId: z.string().uuid().nullable().optional(),
+    kind: z.enum(["kuis", "ujian", "latihan"]),
+    title: z.string().min(2, "Judul wajib diisi").max(300),
+    description: z.string().max(2000).nullable().optional(),
+    kkm: z.number().int().min(0, "KKM minimal 0").max(100, "KKM maksimal 100"),
+    durationMinutes: z.number().int().min(0).max(600).optional(),
+    weight: z.number().int().min(0).max(100).nullable().optional(),
+    maxAttempts: z.number().int().min(0).max(20).optional(),
+    shuffleQuestions: z.boolean().optional(),
+    showFeedback: z.boolean().optional(),
+    availableFrom: z.coerce.date().nullable().optional(),
+    availableUntil: z.coerce.date().nullable().optional(),
+    publishStatus: z.enum(["draft", "review", "published"]).optional(),
+  })
+  .refine((v) => !!v.meetingId !== !!v.subjectId, {
+    message: "Kuis harus menempel pada pertemuan atau mata pelajaran — pilih salah satu.",
+    path: ["meetingId"],
+  });
+
+export const questionBody = z
+  .object({
+    assessmentId: z.string().uuid(),
+    type: questionTypeSchema,
+    prompt: z.string().min(3, "Pertanyaan wajib diisi").max(4000),
+    options: z.array(z.string().min(1, "Pilihan tidak boleh kosong")).max(8).nullable().optional(),
+    answerKey: z.string().max(200).nullable().optional(),
+    explanation: z.string().max(2000).nullable().optional(),
+    points: z.number().int().min(1, "Poin minimal 1").max(100),
+    sequence: z.number().int().min(1),
+  })
+  .superRefine((v, ctx) => {
+    if (v.type === "multiple_choice") {
+      if (!v.options || v.options.length < 2) {
+        ctx.addIssue({ code: "custom", path: ["options"], message: "Pilihan ganda butuh minimal 2 pilihan." });
+        return;
+      }
+      const idx = Number(v.answerKey);
+      if (!Number.isInteger(idx) || idx < 0 || idx >= v.options.length) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["answerKey"],
+          message: "Kunci jawaban harus menunjuk salah satu pilihan.",
+        });
+      }
+    }
+    if (v.type === "true_false" && v.answerKey !== "true" && v.answerKey !== "false") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["answerKey"],
+        message: 'Kunci benar-salah harus "true" atau "false".',
+      });
+    }
+    // Esai tidak punya kunci: dinilai manual oleh pengajar.
+  });
+
+export const submitAttemptBody = z.object({
+  responses: z
+    .array(z.object({ questionId: z.string().uuid(), response: z.string().max(20000) }))
+    .max(500),
+});
+
+export const gradeBody = z.object({
+  grades: z
+    .array(
+      z.object({
+        questionId: z.string().uuid(),
+        earnedPoints: z.number().int().min(0).max(100),
+        feedback: z.string().max(2000).optional(),
+      }),
+    )
+    .min(1, "Tidak ada penilaian yang dikirim.")
+    .max(200),
 });

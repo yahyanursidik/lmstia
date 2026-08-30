@@ -78,6 +78,31 @@ berikutnya; jejak navigasi di atas daftar untuk kembali. Pencarian, penyaring
 status, dan pilihan tampilan kartu/daftar berlaku di setiap tingkat.
 
 
+
+## Kuis / Ujian
+
+Menempel pada **pertemuan** (kuis pekanan) atau **mata pelajaran** (ujian akhir).
+Tiga tipe soal: pilihan ganda, benar-salah, dan esai. Setiap kuis punya **KKM**
+sendiri (0–100).
+
+| Tipe | Penilaian |
+|---|---|
+| Pilihan ganda | Otomatis oleh server |
+| Benar–salah | Otomatis oleh server |
+| Esai | Manual oleh pengajar |
+
+Selama masih ada esai yang belum dinilai, percobaan berstatus
+ dan peserta hanya melihat **nilai sementara** dari bagian
+objektif. Nilai akhir dan status KKM baru ditetapkan setelah seluruh esai
+diberi poin.
+
+- Peserta: **Nilai** → pilih kuis → kerjakan → hasil
+- Pengajar: **Penilaian Esai** → antrean → beri poin dan umpan balik
+- Admin: **Program Belajar** → pertemuan → *Kelola soal*
+
+Kunci jawaban tidak pernah dikirim ke peserta sebelum percobaan selesai
+dinilai, dan hanya bila kuis mengaktifkan .
+
 ## Perintah lain
 
 | Perintah | Fungsi |

@@ -106,6 +106,8 @@ function materialsFor(subjectIdx: number, n: number, title: string) {
 }
 
 async function reset() {
+  await db.delete(s.assessmentAnswers);
+  await db.delete(s.assessmentAttempts);
   await db.delete(s.assessmentQuestions);
   await db.delete(s.assessments);
   await db.delete(s.attendance);
@@ -266,6 +268,7 @@ async function main() {
   let nMeetings = 0;
   let nMaterials = 0;
   let nAssessments = 0;
+  let nQuestions = 0;
 
   for (let si = 0; si < subjects.length; si++) {
     const subject = subjects[si];
@@ -340,41 +343,119 @@ async function main() {
         );
       }
 
-      // Kuis melekat pada pertemuan, bukan pada materi.
-      if (m.type === "REGULAR" || m.type === "ASSESSMENT") {
-        const isFinal = m.type === "ASSESSMENT";
+      // Kuis pekanan melekat pada pertemuan. Ujian akhir mata pelajaran
+      // dipasang terpisah setelah loop, karena menempel pada subject.
+      if (m.type === "REGULAR") {
         const [a] = await db
           .insert(s.assessments)
           .values({
             meetingId: m.id,
-            kind: isFinal ? "ujian" : "kuis",
-            title: isFinal ? `Evaluasi Akhir — ${subject.name}` : `Cek Pemahaman Pertemuan ${m.number}`,
-            description: isFinal
-              ? "Evaluasi akhir tahapan, mencakup seluruh pertemuan."
-              : "5 pertanyaan singkat untuk melihat bagian mana yang perlu murojaah.",
-            questionCount: isFinal ? 25 : 5,
-            durationMinutes: isFinal ? 60 : 10,
-            passingScore: isFinal ? 70 : null,
-            weight: isFinal ? 30 : 20,
-            maxAttempts: isFinal ? 1 : 0,
+            kind: "kuis",
+            title: `Cek Pemahaman Pertemuan ${m.number}`,
+            description:
+              "Beberapa pertanyaan singkat untuk melihat bagian mana yang perlu murojaah.",
+            kkm: 70,
+            durationMinutes: 10,
+            weight: 20,
+            maxAttempts: 0,
+            showFeedback: true,
             publishStatus: m.publishStatus,
           })
           .returning();
         nAssessments++;
 
-        if (!isFinal) {
-          await db.insert(s.assessmentQuestions).values([
-            {
-              assessmentId: a.id,
-              prompt: `Apa inti pembahasan pada pertemuan "${m.title}"?`,
-              options: JSON.stringify(["Pilihan A", "Pilihan B", "Pilihan C", "Pilihan D"]),
-              answer: "Pilihan A",
-              sequence: 1,
-            },
-          ]);
-        }
+        // Satu contoh dari tiap tipe soal.
+        await db.insert(s.assessmentQuestions).values([
+          {
+            assessmentId: a.id,
+            type: "multiple_choice",
+            prompt: `Apa inti pembahasan pada pertemuan "${m.title}"?`,
+            options: JSON.stringify([
+              "Membangun fondasi pemahaman sebelum melangkah lebih jauh",
+              "Menghafal seluruh istilah tanpa memahaminya",
+              "Mempercepat materi agar segera selesai",
+              "Melewati latihan bila sudah merasa paham",
+            ]),
+            answerKey: "0",
+            explanation: "Fondasi didahulukan; kecepatan bukan tujuan.",
+            points: 2,
+            sequence: 1,
+          },
+          {
+            assessmentId: a.id,
+            type: "true_false",
+            prompt: "Murojaah adalah bagian inti kurikulum, bukan aktivitas tambahan.",
+            answerKey: "true",
+            explanation: "Murojaah dirancang sebagai bagian tetap setiap pekan.",
+            points: 1,
+            sequence: 2,
+          },
+          {
+            assessmentId: a.id,
+            type: "essay",
+            prompt: `Tuliskan satu hal yang Anda pahami dari pertemuan "${m.title}", dan satu hal yang masih perlu diperjelas.`,
+            points: 3,
+            sequence: 3,
+          },
+        ]);
+        nQuestions += 3;
       }
     }
+
+    // Ujian akhir menempel pada MATA PELAJARAN, bukan pertemuan — mencakup
+    // seluruh pertemuan di dalamnya.
+    const [ujian] = await db
+      .insert(s.assessments)
+      .values({
+        subjectId: subject.id,
+        kind: "ujian",
+        title: `Ujian Akhir — ${subject.name}`,
+        description: "Evaluasi akhir yang mencakup seluruh pertemuan mata pelajaran ini.",
+        kkm: 75,
+        durationMinutes: 60,
+        weight: 30,
+        maxAttempts: 1,
+        shuffleQuestions: true,
+        showFeedback: false,
+        publishStatus: "published",
+      })
+      .returning();
+    nAssessments++;
+
+    await db.insert(s.assessmentQuestions).values([
+      {
+        assessmentId: ujian.id,
+        type: "multiple_choice",
+        prompt: `Manakah yang paling tepat menggambarkan tujuan ${subject.name}?`,
+        options: JSON.stringify([
+          "Membangun kemampuan dasar secara bertahap dan tuntas",
+          "Menyelesaikan seluruh materi secepat mungkin",
+          "Mengumpulkan sebanyak mungkin catatan",
+          "Menghafal tanpa perlu memahami",
+        ]),
+        answerKey: "0",
+        explanation: "Tujuannya bertahap dan tuntas, bukan cepat.",
+        points: 4,
+        sequence: 1,
+      },
+      {
+        assessmentId: ujian.id,
+        type: "true_false",
+        prompt: "Peserta dapat melanjutkan ke tahapan berikutnya tanpa menyelesaikan evaluasi akhir.",
+        answerKey: "false",
+        explanation: "Evaluasi akhir adalah syarat penutup tahapan.",
+        points: 2,
+        sequence: 2,
+      },
+      {
+        assessmentId: ujian.id,
+        type: "essay",
+        prompt: `Jelaskan perjalanan belajar Anda pada ${subject.name}: apa yang sudah dikuasai, dan apa yang masih perlu dimurojaah.`,
+        points: 6,
+        sequence: 3,
+      },
+    ]);
+    nQuestions += 3;
   }
 
   console.log("→ pendaftaran");

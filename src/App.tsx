@@ -18,10 +18,13 @@ import {
 
 import StudentDashboard from "./views/student/Dashboard";
 import UnitBelajar from "./views/student/UnitBelajar";
+import Kuis from "./views/student/Kuis";
+import NilaiPeserta from "./views/student/Nilai";
 import { Catatan, Caturwulan, Jadwal, Kelas, Murojaah, Profil, Progress } from "./views/student/Pages";
 
 import AdminDashboard from "./views/admin/Dashboard";
 import Portofolio from "./views/admin/Portofolio";
+import Penilaian from "./views/admin/Penilaian";
 import {
   Kehadiran,
   Laporan,
@@ -30,7 +33,6 @@ import {
   PengajarAdmin,
   Pengumuman,
   Peserta,
-  Quiz,
   Worksheet,
 } from "./views/admin/Pages";
 
@@ -78,6 +80,8 @@ export default function App() {
           <Route path="/belajar/kelas/:courseSlug/pekan/:week" element={<UnitBelajar />} />
           <Route path="/belajar/jadwal" element={<Jadwal />} />
           <Route path="/belajar/murojaah" element={<Murojaah />} />
+          <Route path="/belajar/kuis/:id" element={<Kuis />} />
+          <Route path="/belajar/nilai" element={<NilaiPeserta />} />
           <Route path="/belajar/progress" element={<Progress />} />
           <Route path="/belajar/catatan" element={<Catatan />} />
           <Route path="/belajar/profil" element={<Profil />} />
@@ -101,7 +105,8 @@ export default function App() {
             <Route key={p} path={"/admin/" + p} element={<Navigate to="/admin/program" replace />} />
           ))}
           <Route path="/admin/worksheet" element={<Worksheet />} />
-          <Route path="/admin/quiz" element={<Quiz />} />
+          <Route path="/admin/penilaian" element={<Penilaian />} />
+          <Route path="/admin/quiz" element={<Navigate to="/admin/penilaian" replace />} />
           <Route path="/admin/kehadiran" element={<Kehadiran />} />
           <Route path="/admin/nilai" element={<Nilai />} />
           <Route path="/admin/pengajar" element={<PengajarAdmin />} />

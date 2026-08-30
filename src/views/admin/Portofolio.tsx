@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/auth";
 import { Badge, EmptyState, mono, serif } from "../../components/ui";
 import { Area, Check, DeleteButton, Field, FormPanel, Select, Text } from "../../components/form";
 import { MATERIAL_LABEL, MaterialRow, type MaterialType } from "../../components/MaterialPreview";
+import SoalEditor from "./SoalEditor";
 
 /**
  * Portofolio Kurikulum — satu halaman untuk seluruh hierarki konten.
@@ -67,9 +68,9 @@ type Assessment = {
   id: string;
   kind: "kuis" | "ujian" | "latihan";
   title: string;
-  questionCount: number;
+  kkm: number;
   durationMinutes: number;
-  passingScore: number | null;
+  maxAttempts: number;
   publishStatus: string;
 };
 type Meeting = {
@@ -468,6 +469,7 @@ export default function Portofolio() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("semua");
   const [view, setView] = useState<"kartu" | "daftar">("kartu");
+  const [soalUntuk, setSoalUntuk] = useState<string | null>(null);
 
   // Satu state formulir untuk seluruh tingkat.
   const [form, setForm] = useState<{ kind: FormKind; data: Record<string, unknown>; id: string | null } | null>(null);
@@ -1187,20 +1189,30 @@ export default function Portofolio() {
                   <EmptyState title="Belum ada kuis" hint="Kuis melekat pada pertemuan, bukan pada masing-masing materi." />
                 ) : (
                   meeting.assessments.map((a) => (
-                    <div key={a.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", borderTop: "1px solid var(--color-line-soft)" }}>
-                      <Badge bg={a.kind === "ujian" ? "#f7e6e0" : "#f6eddb"} fg={a.kind === "ujian" ? "#8d4632" : "#8a6a25"}>
-                        {a.kind}
-                      </Badge>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 16, fontWeight: 600 }}>{a.title}</div>
-                        <div style={{ fontSize: 14, color: "var(--color-faint)", marginTop: 3 }}>
-                          {a.questionCount} soal · {a.durationMinutes} menit
-                          {a.passingScore != null && ` · lulus ≥ ${a.passingScore}`}
+                    <div key={a.id} style={{ borderTop: "1px solid var(--color-line-soft)" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 0", flexWrap: "wrap" }}>
+                        <Badge bg={a.kind === "ujian" ? "#f7e6e0" : "#f6eddb"} fg={a.kind === "ujian" ? "#8d4632" : "#8a6a25"}>
+                          {a.kind}
+                        </Badge>
+                        <div style={{ flex: 1, minWidth: 180 }}>
+                          <div style={{ fontSize: 16, fontWeight: 600 }}>{a.title}</div>
+                          <div style={{ fontSize: 14, color: "var(--color-faint)", marginTop: 3 }}>
+                            KKM {a.kkm} · {a.durationMinutes} menit
+                            {a.maxAttempts > 0 ? ` · maks ${a.maxAttempts}×` : " · tanpa batas percobaan"}
+                          </div>
                         </div>
+                        <Badge bg={PUBLISH_TONE[a.publishStatus].bg} fg={PUBLISH_TONE[a.publishStatus].fg}>
+                          {LABEL[a.publishStatus]}
+                        </Badge>
+                        <button
+                          type="button"
+                          className={soalUntuk === a.id ? "btn-solid-sm" : "btn-sm"}
+                          onClick={() => setSoalUntuk(soalUntuk === a.id ? null : a.id)}
+                        >
+                          {soalUntuk === a.id ? "Tutup soal" : "Kelola soal"}
+                        </button>
                       </div>
-                      <Badge bg={PUBLISH_TONE[a.publishStatus].bg} fg={PUBLISH_TONE[a.publishStatus].fg}>
-                        {LABEL[a.publishStatus]}
-                      </Badge>
+                      {soalUntuk === a.id && <SoalEditor assessmentId={a.id} canWrite={canWrite} />}
                     </div>
                   ))
                 )}

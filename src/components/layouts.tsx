@@ -147,6 +147,7 @@ const STUDENT_NAV = [
   { to: "/belajar/caturwulan", label: "Caturwulan" },
   { to: "/belajar/jadwal", label: "Jadwal" },
   { to: "/belajar/murojaah", label: "Murojaah" },
+  { to: "/belajar/nilai", label: "Nilai" },
   { to: "/belajar/progress", label: "Progress" },
   { to: "/belajar/catatan", label: "Catatan" },
   { to: "/belajar/profil", label: "Profil" },
@@ -228,7 +229,7 @@ const ADMIN_GROUPS: { label: string; items: { to: string; label: string }[] }[] 
     label: "Penilaian",
     items: [
       { to: "/admin/worksheet", label: "Worksheet" },
-      { to: "/admin/quiz", label: "Quiz" },
+      { to: "/admin/penilaian", label: "Penilaian Esai" },
       { to: "/admin/kehadiran", label: "Kehadiran" },
       { to: "/admin/nilai", label: "Nilai" },
     ],
