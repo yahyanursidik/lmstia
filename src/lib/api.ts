@@ -5,7 +5,16 @@
  * credentials. Every authorization decision happens server-side.
  */
 
-const BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8787/api/v1";
+/**
+ * Basis API relatif terhadap origin yang sedang dibuka.
+ *
+ * Nilai mutlak seperti `http://localhost:8787` tidak boleh menjadi bawaan:
+ * di produksi itu menunjuk komputer pengunjung, bukan server, sehingga
+ * setiap permintaan gagal. Dengan jalur relatif, produksi memakai domain yang
+ * sama (Netlify Function di `/api/*`) dan pengembangan lokal memakai proxy
+ * Vite. `VITE_API_URL` hanya perlu diisi bila API dipasang di domain lain.
+ */
+const BASE = import.meta.env.VITE_API_URL ?? "/api/v1";
 const TOKEN_KEY = "tia.session";
 
 export type ApiErrorShape = { code: string; message: string; details?: unknown };

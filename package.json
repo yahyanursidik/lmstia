@@ -29,6 +29,7 @@
     "zod": "^4.5.2"
   },
   "devDependencies": {
+    "@netlify/functions": "^6.0.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^26.4.0",
     "@types/react": "^19.0.0",

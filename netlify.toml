@@ -1,0 +1,25 @@
+# Konfigurasi Netlify untuk TIA.
+#
+# Frontend adalah SPA statis; API Hono berjalan sebagai Netlify Function
+# pada jalur /api/*. Keduanya satu domain, jadi tidak ada CORS lintas asal
+# dan token sesi tidak perlu menyeberang origin.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  # esbuild agar TypeScript pada fungsi ikut dibundel.
+  node_bundler = "esbuild"
+  directory = "netlify/functions"
+
+# Rute klien (mis. /login, /admin/kuis) harus dikembalikan ke index.html,
+# jika tidak, memuat ulang halaman dalam akan menghasilkan 404.
+# Diletakkan setelah /api agar tidak menelan permintaan API.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

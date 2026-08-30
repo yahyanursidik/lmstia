@@ -1,10 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "types": ["node"],
+    "types": [
+      "node"
+    ],
     "strict": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
@@ -13,5 +17,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["server", "drizzle.config.ts"]
+  "include": [
+    "server",
+    "netlify",
+    "drizzle.config.ts"
+  ]
 }

@@ -116,6 +116,36 @@ diberi poin.
 Kunci jawaban tidak pernah dikirim ke peserta sebelum percobaan selesai
 dinilai, dan hanya bila kuis mengaktifkan umpan balik (showFeedback).
 
+
+## Deploy ke Netlify
+
+Frontend dan API berada di satu domain: berkas statis disajikan dari
+`dist`, sedangkan API Hono berjalan sebagai Netlify Function pada
+`/api/*` (lihat `netlify/functions/api.ts`). Karena satu domain, klien
+memanggil jalur relatif `/api/v1` dan tidak ada CORS lintas asal.
+
+**Wajib:** set variabel berikut di Netlify → Site settings → Environment
+variables, lalu deploy ulang.
+
+| Variabel | Nilai |
+|---|---|
+| `DATABASE_URL` | connection string Neon |
+
+Jangan set `VITE_API_URL` kecuali API dipasang di domain terpisah.
+Nilai mutlak seperti `http://localhost:8787` akan membuat produksi gagal,
+karena di browser pengunjung itu menunjuk komputer mereka sendiri.
+
+Migrasi dan seed dijalankan dari mesin lokal terhadap basis data yang sama
+(`npm run db:migrate`, `npm run db:seed`, `npm run db:accounts`) — tidak
+dijalankan otomatis saat deploy.
+
+### Batasan yang perlu diketahui
+
+Rate limit login disimpan di memori proses. Di lingkungan serverless setiap
+permintaan bisa mendapat instance berbeda, sehingga pembatasan menjadi
+longgar. Untuk produksi sungguhan, pindahkan ke penyimpanan bersama
+(mis. Redis) atau pakai pembatas bawaan platform.
+
 ## Perintah lain
 
 | Perintah | Fungsi |
