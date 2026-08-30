@@ -92,7 +92,7 @@ sendiri (0–100).
 | Esai | Manual oleh pengajar |
 
 Selama masih ada esai yang belum dinilai, percobaan berstatus
- dan peserta hanya melihat **nilai sementara** dari bagian
+`menunggu_penilaian` dan peserta hanya melihat **nilai sementara** dari bagian
 objektif. Nilai akhir dan status KKM baru ditetapkan setelah seluruh esai
 diberi poin.
 
@@ -101,7 +101,7 @@ diberi poin.
 - Admin: **Program Belajar** → pertemuan → *Kelola soal*
 
 Kunci jawaban tidak pernah dikirim ke peserta sebelum percobaan selesai
-dinilai, dan hanya bila kuis mengaktifkan .
+dinilai, dan hanya bila kuis mengaktifkan umpan balik (showFeedback).
 
 ## Perintah lain
 
