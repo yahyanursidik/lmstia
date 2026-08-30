@@ -149,7 +149,9 @@ dimasukkan lewat portal admin.
 Seed kini menolak berjalan bila basis data sudah berisi data, dan menolak
 sepenuhnya saat `NODE_ENV=production`. Untuk sengaja mengosongkan:
 
-
+```bash
+SEED_HAPUS_SEMUA=ya-saya-yakin npm run db:seed
+```
 
 Basis data lokal dan produksi memakai Neon yang sama, jadi perintah yang
 dijalankan dari mesin lokal langsung berdampak ke produksi.
