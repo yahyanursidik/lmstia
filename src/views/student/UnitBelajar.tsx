@@ -1,42 +1,109 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router";
-import * as repo from "../../domain/repository";
-import { LESSON_TYPE_LABEL, WEEK_TYPE_LABEL } from "../../domain/types";
+import { api } from "../../lib/api";
+import { mutate, useResource } from "../../lib/useApi";
 import { Badge, Card, EmptyState, StepMark, mono, serif } from "../../components/ui";
+import { MaterialRow, type MaterialType } from "../../components/MaterialPreview";
 
 /**
- * Unit belajar — the seven-part weekly structure from the brief §8.5.
- * Locked weeks are refused here too, not only hidden in navigation.
+ * Unit belajar satu pertemuan.
+ *
+ * Halaman ini dulu membaca data contoh yang ditulis di kode, sehingga materi
+ * yang dimasukkan admin — termasuk tautan rekaman — tidak pernah sampai ke
+ * peserta. Sekarang seluruh isinya berasal dari basis data.
  */
 
-const KOSAKATA = [
-  { ar: "الله", tr: "Allāh", id: "Allah" },
-  { ar: "رَبّ", tr: "Rabb", id: "Tuhan" },
-  { ar: "عَبْد", tr: "'abd", id: "Hamba" },
-  { ar: "عِبَادَة", tr: "'ibādah", id: "Ibadah" },
-  { ar: "نِيَّة", tr: "niyyah", id: "Niat" },
-];
+type Materi = {
+  id: string;
+  title: string;
+  description: string | null;
+  type: MaterialType;
+  url: string | null;
+  content: string | null;
+  durationMinutes: number;
+  isEssential: boolean;
+  sequence: number;
+  status: "not_started" | "in_progress" | "completed" | "needs_review";
+};
 
-const TUJUAN = [
-  "Membaca dan menulis kalimat Arab sederhana.",
-  "Mengenali kosakata inti tentang ibadah.",
-  "Menghubungkan makna niat dengan tauhid.",
-];
+type Kuis = { id: string; title: string; kind: string; kkm: number; durationMinutes: number };
 
-const WORKSHEET_SOAL = [
-  "“Mengapa ibadah harus ditujukan hanya kepada Allah?”",
-  "“Apa hubungan niat dengan tauhid?”",
-];
+type Unit = {
+  subject: { id: string; name: string; slug: string; code: string };
+  meeting: {
+    id: string;
+    number: number;
+    title: string;
+    description: string | null;
+    type: string;
+    mode: string;
+    liveUrl: string | null;
+    livePlatform: string | null;
+    location: string | null;
+    startsAt: string | null;
+    durationMinutes: number;
+  };
+  locked: boolean;
+  materials: Materi[];
+  assessments: Kuis[];
+  nav: { prev: number | null; next: number | null; total: number; urutan: number };
+  selesai: number;
+};
+
+const TIPE_PERTEMUAN: Record<string, string> = {
+  ORIENTATION: "Orientasi",
+  REGULAR: "Pembelajaran",
+  REVIEW: "Murojaah",
+  ASSESSMENT: "Evaluasi",
+  PRACTICE: "Latihan",
+  BREAK: "Jeda",
+};
+
+const MODE: Record<string, string> = {
+  online: "Daring",
+  offline: "Tatap muka",
+  hybrid: "Hybrid",
+  mandiri: "Mandiri",
+};
+
+const waktu = (iso: string | null) =>
+  iso
+    ? new Date(iso).toLocaleString("id-ID", { dateStyle: "full", timeStyle: "short" })
+    : null;
 
 export default function UnitBelajar() {
   const { courseSlug, week } = useParams();
-  const course = courseSlug ? repo.courseBySlug(courseSlug) : undefined;
-  const weekNo = Number(week ?? NaN);
-  const wk = course && Number.isFinite(weekNo) ? repo.weekOf(course.id, weekNo) : undefined;
+  const unit = useResource<Unit>(
+    courseSlug && week ? `/me/kelas/${courseSlug}/pertemuan/${week}` : null,
+  );
+  const [sibuk, setSibuk] = useState<string | null>(null);
+  const [galat, setGalat] = useState<string | null>(null);
 
-  if (!course || !wk) {
+  async function tandaiSelesai(m: Materi) {
+    setSibuk(m.id);
+    const jalur = m.status === "completed" ? "start" : "complete";
+    const pesan = await mutate(() => api.post(`/materials/${m.id}/${jalur}`));
+    setSibuk(null);
+    if (pesan) return setGalat(pesan);
+    setGalat(null);
+    unit.reload();
+  }
+
+  if (unit.loading) {
+    return (
+      <div className="shell" style={{ paddingBlock: "40px 80px", color: "var(--color-faint)" }}>
+        Memuat pertemuan…
+      </div>
+    );
+  }
+
+  if (unit.error || !unit.data) {
     return (
       <div className="shell" style={{ paddingBlock: "40px 80px" }}>
-        <EmptyState title="Unit tidak ditemukan" hint="Periksa kembali mata pelajaran dan pertemuan yang Anda buka." />
+        <EmptyState
+          title="Unit tidak ditemukan"
+          hint="Periksa kembali mata pelajaran dan pertemuan yang Anda buka."
+        />
         <div style={{ marginTop: 20 }}>
           <Link to="/belajar/dashboard" className="btn-sm">
             Kembali ke dasbor
@@ -46,289 +113,271 @@ export default function UnitBelajar() {
     );
   }
 
-  if (wk.locked) {
+  const d = unit.data;
+  const { meeting: p, subject: s } = d;
+
+  if (d.locked) {
     return (
       <div className="shell" style={{ paddingBlock: "40px 80px" }}>
         <EmptyState
-          title={`Pertemuan ${wk.number} belum dibuka`}
+          title={`Pertemuan ${p.number} belum dibuka`}
           hint="Materi lanjutan dibuka bertahap setelah fondasi pertemuan sebelumnya cukup. Selesaikan pertemuan yang sedang berjalan terlebih dahulu."
         />
         <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link to={`/belajar/kelas/${course.slug}/pertemuan/${repo.CURRENT_WEEK}`} className="btn-solid-sm">
-            Buka pertemuan berjalan
-          </Link>
-          <Link to={`/belajar/kelas/${course.slug}`} className="btn-sm">
+          <Link to={`/belajar/kelas/${s.slug}`} className="btn-solid-sm">
             Lihat semua pertemuan
+          </Link>
+          <Link to="/belajar/dashboard" className="btn-sm">
+            Kembali ke dasbor
           </Link>
         </div>
       </div>
     );
   }
 
-  const steps = repo.lessonsOf(wk.id);
-  const done = repo.weekCompletion(wk.id);
-  const showArabicExtras = course.id === "co-arab";
+  const total = d.materials.length;
+  const berikutnya = d.materials.find((m) => m.status !== "completed");
 
   return (
     <div className="shell" style={{ paddingBlock: "28px 80px" }}>
       <nav
         aria-label="Breadcrumb"
-        style={{ display: "flex", alignItems: "center", gap: 9, fontSize: 14.5, color: "#807a70", marginBottom: 22, flexWrap: "wrap" }}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 9,
+          fontSize: 14.5,
+          color: "#807a70",
+          marginBottom: 22,
+          flexWrap: "wrap",
+        }}
       >
         <Link to="/belajar/dashboard" style={{ color: "var(--color-forest)", fontWeight: 600 }}>
           Dasbor
         </Link>
         <span style={{ color: "#c9c1b2" }}>/</span>
-        <Link to="/belajar/caturwulan">{repo.activeTerm.name}</Link>
+        <Link to={`/belajar/kelas/${s.slug}`}>{s.name}</Link>
         <span style={{ color: "#c9c1b2" }}>/</span>
-        <Link to={`/belajar/kelas/${course.slug}`}>{course.name}</Link>
-        <span style={{ color: "#c9c1b2" }}>/</span>
-        <span style={{ color: "var(--color-ink)", fontWeight: 600 }}>Pertemuan {wk.number}</span>
+        <span style={{ color: "var(--color-ink)", fontWeight: 600 }}>Pertemuan {p.number}</span>
       </nav>
 
-      <div className="unit-layout" style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "start" }}>
-        <aside className="unit-rail" style={{ position: "sticky", top: 80, display: "flex", flexDirection: "column", gap: 16 }}>
+      <div
+        className="unit-layout"
+        style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "start" }}
+      >
+        {/* --- rel kiri: daftar bagian --- */}
+        <aside
+          className="unit-rail"
+          style={{ position: "sticky", top: 80, display: "flex", flexDirection: "column", gap: 16 }}
+        >
           <Card padding={8}>
             <div style={{ padding: "14px 16px 12px" }}>
               <div className="eyebrow">
-                Pertemuan {wk.number} · {WEEK_TYPE_LABEL[wk.type]}
+                Pertemuan {p.number} · {TIPE_PERTEMUAN[p.type] ?? p.type}
               </div>
-              <div style={{ fontFamily: serif, fontSize: 19, lineHeight: 1.25, marginTop: 6 }}>{wk.title}</div>
+              <div style={{ fontFamily: serif, fontSize: 19, lineHeight: 1.25, marginTop: 6 }}>
+                {p.title}
+              </div>
               <div style={{ fontSize: 14, color: "var(--color-soft)", marginTop: 6 }}>
-                {done.done} dari {done.total} bagian selesai
+                {d.selesai} dari {total} bagian selesai
               </div>
             </div>
-            {steps.map((l) => {
-              const isDone = repo.progressOf(l.id) === "completed";
-              const isCurrent = !isDone && steps.find((s) => repo.progressOf(s.id) !== "completed")?.id === l.id;
+
+            {d.materials.map((m) => {
+              const selesai = m.status === "completed";
+              const kini = !selesai && berikutnya?.id === m.id;
               return (
-                <div
-                  key={l.id}
-                  aria-current={isCurrent ? "step" : undefined}
+                <a
+                  key={m.id}
+                  href={`#materi-${m.id}`}
+                  aria-current={kini ? "step" : undefined}
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 12,
-                    padding: "11px 16px",
-                    borderRadius: 8,
-                    background: isCurrent ? "var(--color-mist)" : "transparent",
+                    gap: 10,
+                    padding: "10px 16px",
+                    fontSize: 15,
+                    color: selesai ? "var(--color-soft)" : "var(--color-ink)",
+                    background: kini ? "var(--color-paper)" : "transparent",
+                    borderLeft: kini ? "3px solid var(--color-forest)" : "3px solid transparent",
                   }}
                 >
-                  <StepMark done={isDone} size={18} current={isCurrent} />
-                  <div
-                    style={{
-                      flex: 1,
-                      fontSize: 15.5,
-                      fontWeight: 600,
-                      color: isDone ? "var(--color-ink)" : "var(--color-soft)",
-                    }}
-                  >
-                    {l.title}
-                  </div>
-                </div>
+                  <StepMark done={selesai} current={kini} />
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>
+                    {m.title}
+                  </span>
+                </a>
               );
             })}
           </Card>
 
-          <Card tone="sand" padding={20}>
-            <div className="eyebrow" style={{ marginBottom: 12 }}>
-              Tujuan pembelajaran
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 9, fontSize: 15, lineHeight: 1.5, color: "#3d3a34" }}>
-              {TUJUAN.map((t) => (
-                <div key={t}>{t}</div>
-              ))}
-            </div>
-          </Card>
+          {(p.liveUrl || p.startsAt || p.location) && (
+            <Card padding={18}>
+              <div className="eyebrow" style={{ marginBottom: 9 }}>
+                Kelas {MODE[p.mode] ?? p.mode}
+              </div>
+              {p.startsAt && (
+                <div style={{ fontSize: 14.5, lineHeight: 1.6, color: "var(--color-body)" }}>
+                  {waktu(p.startsAt)}
+                </div>
+              )}
+              {p.location && (
+                <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 4 }}>
+                  {p.location}
+                </div>
+              )}
+              {p.liveUrl && (
+                <a
+                  href={p.liveUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn-solid-sm"
+                  style={{ display: "inline-block", marginTop: 12 }}
+                >
+                  Masuk kelas{p.livePlatform ? ` (${p.livePlatform})` : ""} →
+                </a>
+              )}
+            </Card>
+          )}
         </aside>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          {steps.map((l, i) => (
-            <Card key={l.id} padding={0} style={{ overflow: "hidden" }}>
-              <div style={{ padding: "22px 26px 18px", borderBottom: "1px solid #ece6da" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-                  <div className="eyebrow eyebrow-accent">
-                    0{i + 1} · {l.title}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    {l.isEssential && (
-                      <Badge bg="#f6eddb" fg="#8a6a25">
-                        Esensial
-                      </Badge>
-                    )}
-                    <span style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                      {LESSON_TYPE_LABEL[l.type]} · {l.durationMinutes} mnt
-                    </span>
-                  </div>
-                </div>
-                <h2 style={{ fontSize: 22, marginTop: 10 }}>{l.description}</h2>
+        {/* --- isi utama --- */}
+        <div style={{ minWidth: 0 }}>
+          {p.description && (
+            <Card padding={22} style={{ marginBottom: 20 }}>
+              <div className="eyebrow" style={{ marginBottom: 8 }}>
+                Tentang pertemuan ini
               </div>
-
-              <div style={{ padding: "18px 26px 24px" }}>
-                {l.type === "video" && (
-                  <div
-                    style={{
-                      aspectRatio: "16 / 9",
-                      borderRadius: 10,
-                      border: "1px solid var(--color-line)",
-                      backgroundImage:
-                        "repeating-linear-gradient(135deg, var(--color-line-softer) 0 10px, var(--color-paper) 10px 20px)",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 10,
-                    }}
-                  >
-                    <div
-                      aria-hidden="true"
-                      style={{
-                        width: 46,
-                        height: 46,
-                        borderRadius: "50%",
-                        background: "var(--color-forest)",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        color: "var(--color-paper)",
-                        fontSize: 17.5,
-                      }}
-                    >
-                      ▶
-                    </div>
-                    <div style={{ fontFamily: mono, fontSize: 12.5, letterSpacing: ".08em", color: "var(--color-soft)" }}>
-                      REKAMAN — {course.name.toUpperCase()} PERTEMUAN {wk.number}
-                    </div>
-                  </div>
-                )}
-
-                {l.type === "worksheet" && (
-                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                    {WORKSHEET_SOAL.map((s) => (
-                      <div key={s} style={{ fontFamily: serif, fontSize: 18, lineHeight: 1.4 }}>
-                        {s}
-                      </div>
-                    ))}
-                    <textarea
-                      rows={4}
-                      placeholder="Tulis jawaban Anda…"
-                      style={{
-                        width: "100%",
-                        padding: "11px 13px",
-                        border: "1px solid var(--color-line-strong)",
-                        borderRadius: 6,
-                        background: "var(--color-paper)",
-                        fontFamily: "var(--font-sans)",
-                        fontSize: 16,
-                        resize: "vertical",
-                      }}
-                    />
-                  </div>
-                )}
-
-                {l.type === "quiz" && (
-                  <div>
-                    <div style={{ fontSize: 16.5, lineHeight: 1.6, color: "#3d3a34" }}>
-                      5 pertanyaan singkat. Tidak dinilai sebagai ujian — hanya untuk melihat bagian mana yang perlu
-                      murojaah.
-                    </div>
-                    <button type="button" className="btn-solid-sm" style={{ marginTop: 16 }}>
-                      Mulai cek pemahaman
-                    </button>
-                  </div>
-                )}
-
-                {l.type === "reflection" && (
-                  <textarea
-                    rows={3}
-                    placeholder="Satu hal yang saya pahami, dan satu hal yang masih perlu diperjelas…"
-                    style={{
-                      width: "100%",
-                      padding: "11px 13px",
-                      border: "1px solid var(--color-line-strong)",
-                      borderRadius: 6,
-                      background: "var(--color-paper)",
-                      fontFamily: "var(--font-sans)",
-                      fontSize: 16,
-                      resize: "vertical",
-                    }}
-                  />
-                )}
-
-                {(l.type === "article" || l.type === "exercise" || l.type === "review") && (
-                  <div style={{ fontSize: 16.5, lineHeight: 1.7, color: "var(--color-body)" }}>{l.description}.</div>
-                )}
-
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 10,
-                    marginTop: 18,
-                    paddingTop: 16,
-                    borderTop: "1px solid var(--color-line-soft)",
-                    flexWrap: "wrap",
-                  }}
-                >
-                  <button type="button" className="btn-sm">
-                    Simpan untuk Murojaah
-                  </button>
-                  <button type="button" className="btn-sm">
-                    Tandai selesai
-                  </button>
-                </div>
+              <div style={{ fontSize: 16.5, lineHeight: 1.75, color: "var(--color-body)" }}>
+                {p.description}
               </div>
             </Card>
-          ))}
+          )}
 
-          {showArabicExtras && (
-            <Card padding="26px 28px">
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20, gap: 16 }}>
-                <h2 style={{ fontFamily: serif, fontSize: 22 }}>Kosakata Pertemuan Ini</h2>
-                <div style={{ fontFamily: mono, fontSize: 12, color: "var(--color-faint)" }}>
-                  {KOSAKATA.length} KATA
+          {galat && (
+            <div
+              role="alert"
+              style={{
+                marginBottom: 16,
+                padding: "12px 14px",
+                background: "#f7e6e0",
+                border: "1px solid #e8cdc3",
+                borderRadius: 8,
+                fontSize: 15,
+                color: "#8d4632",
+              }}
+            >
+              {galat}
+            </div>
+          )}
+
+          {total === 0 ? (
+            <EmptyState
+              title="Belum ada materi pada pertemuan ini"
+              hint="Materi akan muncul setelah pengampu menerbitkannya."
+            />
+          ) : (
+            <div style={{ display: "grid", gap: 14 }}>
+              {d.materials.map((m) => (
+                <div key={m.id} id={`materi-${m.id}`} style={{ scrollMarginTop: 90 }}>
+                  <MaterialRow
+                    title={m.title}
+                    type={m.type}
+                    url={m.url}
+                    content={m.content}
+                    durationMinutes={m.durationMinutes}
+                    isEssential={m.isEssential}
+                    publishStatus="published"
+                    actions={
+                      <button
+                        type="button"
+                        className={m.status === "completed" ? "btn-sm" : "btn-solid-sm"}
+                        disabled={sibuk === m.id}
+                        onClick={() => tandaiSelesai(m)}
+                        style={{ opacity: sibuk === m.id ? 0.6 : 1 }}
+                      >
+                        {sibuk === m.id
+                          ? "Menyimpan…"
+                          : m.status === "completed"
+                            ? "✓ Selesai"
+                            : "Tandai selesai"}
+                      </button>
+                    }
+                  />
                 </div>
+              ))}
+            </div>
+          )}
+
+          {d.assessments.length > 0 && (
+            <Card padding={22} style={{ marginTop: 22 }}>
+              <div className="eyebrow" style={{ marginBottom: 12 }}>
+                Kuis & Ujian
               </div>
-              <div className="vocab-grid" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12 }}>
-                {KOSAKATA.map((k) => (
+              <div style={{ display: "grid", gap: 10 }}>
+                {d.assessments.map((k) => (
                   <div
-                    key={k.tr}
+                    key={k.id}
                     style={{
-                      padding: "18px 14px",
-                      border: "1px solid #e8e2d6",
-                      borderRadius: 10,
-                      background: "var(--color-paper)",
-                      textAlign: "center",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 14,
+                      flexWrap: "wrap",
+                      border: "1px solid var(--color-line)",
+                      borderRadius: 9,
+                      padding: "13px 15px",
                     }}
                   >
-                    <div
-                      dir="rtl"
-                      lang="ar"
-                      style={{ fontFamily: "var(--font-arabic)", fontSize: 28, lineHeight: 1.5, color: "var(--color-forest)" }}
-                    >
-                      {k.ar}
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 600 }}>{k.title}</div>
+                      <div style={{ fontSize: 13.5, color: "var(--color-faint)", marginTop: 3 }}>
+                        <Badge bg="#f6eddb" fg="#8a6a25">
+                          {k.kind}
+                        </Badge>{" "}
+                        <span style={{ fontFamily: mono }}>
+                          KKM {k.kkm}
+                          {k.durationMinutes ? ` · ${k.durationMinutes} menit` : ""}
+                        </span>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 14.5, fontStyle: "italic", color: "var(--color-soft)", marginTop: 6 }}>
-                      {k.tr}
-                    </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, marginTop: 4 }}>{k.id}</div>
+                    <Link to={`/belajar/kuis/${k.id}`} className="btn-solid-sm">
+                      Kerjakan →
+                    </Link>
                   </div>
                 ))}
               </div>
             </Card>
           )}
 
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            {wk.number > 0 ? (
-              <Link to={`/belajar/kelas/${course.slug}/pertemuan/${wk.number - 1}`} className="btn-sm">
-                ← Pertemuan {wk.number - 1}
+          {/* --- navigasi antar pertemuan --- */}
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              gap: 12,
+              flexWrap: "wrap",
+              marginTop: 26,
+              paddingTop: 20,
+              borderTop: "1px solid var(--color-line)",
+            }}
+          >
+            {d.nav.prev !== null ? (
+              <Link to={`/belajar/kelas/${s.slug}/pertemuan/${d.nav.prev}`} className="btn-sm">
+                ← Pertemuan {d.nav.prev}
               </Link>
             ) : (
               <span />
             )}
-            {wk.number < repo.TOTAL_WEEKS && !repo.weekOf(course.id, wk.number + 1)?.locked && (
-              <Link to={`/belajar/kelas/${course.slug}/pertemuan/${wk.number + 1}`} className="btn-solid-sm">
-                Pertemuan {wk.number + 1} →
+            <span style={{ fontFamily: mono, fontSize: 13.5, color: "var(--color-faint)" }}>
+              {d.nav.urutan} / {d.nav.total}
+            </span>
+            {d.nav.next !== null ? (
+              <Link to={`/belajar/kelas/${s.slug}/pertemuan/${d.nav.next}`} className="btn-solid-sm">
+                Pertemuan {d.nav.next} →
               </Link>
+            ) : (
+              <span />
             )}
           </div>
         </div>

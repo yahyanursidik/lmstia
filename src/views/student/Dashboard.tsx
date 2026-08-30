@@ -1,32 +1,97 @@
 import { Link } from "react-router";
-import * as repo from "../../domain/repository";
-import { CURRENT_WEEK, TOTAL_WEEKS } from "../../domain/repository";
-import { Card, CardTitle, Meter, StepMark, mono, serif } from "../../components/ui";
+import { useResource } from "../../lib/useApi";
+import { Card, CardTitle, EmptyState, Meter, mono, serif } from "../../components/ui";
 import { useAuth } from "../../lib/auth";
 
 /**
- * Dasbor peserta — answers one question: "apa yang perlu saya kerjakan sekarang?"
- * Progress shown is always the active caturwulan, never the whole TIA journey
- * (01-PRODUCT-BRIEF.md §Progress dekat).
+ * Dasbor peserta — menjawab satu pertanyaan: "apa yang perlu saya kerjakan
+ * sekarang?"
+ *
+ * Isinya berasal dari basis data, bukan lagi data contoh di kode. Progres
+ * yang ditampilkan selalu caturwulan berjalan, tidak pernah seluruh
+ * perjalanan TIA (01-PRODUCT-BRIEF.md §Progress dekat).
  */
 
-function weekColor(i: number) {
-  if (i < CURRENT_WEEK - 1) return "var(--color-mist)";
-  if (i === CURRENT_WEEK - 1) return "#a9c4b5";
-  return "rgba(238,242,238,.16)";
-}
+type Mapel = {
+  id: string;
+  slug: string;
+  name: string;
+  role: string;
+  deliveryModel: string | null;
+  percent: number;
+};
+
+type Jadwal = {
+  id: string;
+  number: number;
+  title: string;
+  mode: string;
+  startsAt: string | null;
+  subjectName: string;
+  subjectSlug: string;
+};
+
+type Pengumuman = { id: string; title: string; body: string; publishedAt: string | null };
+
+type Dasbor = {
+  tahapan: { id: string; name: string; title: string | null; durationWeeks: number };
+  enrollment: { status: string; progress: number; className: string | null } | null;
+  subjects: Mapel[];
+  upcomingMeetings: Jadwal[];
+  announcements: Pengumuman[];
+  nextAction: {
+    reason: string;
+    subjectName: string;
+    meetingNumber: number;
+    title: string;
+    detail: string;
+    href: string;
+  };
+};
+
+const PERAN_MAPEL: Record<string, string> = {
+  INTENSIVE: "Intensif",
+  FOUNDATION: "Fondasi",
+  COMPANION: "Pendamping",
+};
+
+const MODE: Record<string, string> = {
+  online: "Daring",
+  offline: "Tatap muka",
+  hybrid: "Hybrid",
+  mandiri: "Mandiri",
+};
+
+const tanggal = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : null;
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const next = repo.nextLearningAction();
-  const arab = repo.courseBySlug("bahasa-arab-01")!;
-  const week = repo.weekOf(arab.id, CURRENT_WEEK)!;
-  const steps = repo.lessonsOf(week.id);
-  const done = repo.weekCompletion(week.id);
-  const courses = repo.coursesWithProgress();
-  const upcoming = repo.sessionsUpcoming().slice(0, 3);
-  const pending = repo.pendingThisWeek();
-  const majlis = repo.sessionsUpcoming().find((s) => s.type === "MAJLIS_TASIL");
+  const d = useResource<Dasbor>("/me/dashboard");
+
+  if (d.loading) {
+    return (
+      <div className="shell" style={{ paddingBlock: "40px 80px", color: "var(--color-faint)" }}>
+        Memuat dasbor…
+      </div>
+    );
+  }
+
+  if (d.error || !d.data) {
+    return (
+      <div className="shell" style={{ paddingBlock: "40px 80px" }}>
+        <EmptyState
+          title="Dasbor belum dapat dimuat"
+          hint={d.error ?? "Coba muat ulang halaman ini."}
+        />
+      </div>
+    );
+  }
+
+  const data = d.data;
+  const rata = data.subjects.length
+    ? Math.round(data.subjects.reduce((a, s) => a + s.percent, 0) / data.subjects.length)
+    : 0;
 
   return (
     <div className="shell" style={{ paddingBlock: "40px 80px" }}>
@@ -57,219 +122,182 @@ export default function Dashboard() {
             borderRadius: 8,
           }}
         >
-          <div style={{ fontSize: 15, color: "var(--color-muted)" }}>
-            {repo.activeTerm.name} · Marhalah I&apos;dad
-          </div>
+          <div style={{ fontSize: 15, color: "var(--color-muted)" }}>{data.tahapan.name}</div>
           <div style={{ width: 1, height: 18, background: "var(--color-line)" }} />
-          <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-forest)" }}>
-            Pertemuan {CURRENT_WEEK} dari {TOTAL_WEEKS}
-          </div>
+          <div style={{ fontWeight: 700 }}>{rata}% selesai</div>
         </div>
       </header>
 
-      {/* Langkah berikutnya — resolved by the next-learning-action rules. */}
-      <section
-        className="card-forest split"
-        style={{
-          padding: "30px 32px",
-          display: "grid",
-          gridTemplateColumns: "1fr auto",
-          gap: 36,
-          alignItems: "center",
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <div className="eyebrow eyebrow-on-dark" style={{ marginBottom: 12 }}>
-            Langkah berikutnya
-          </div>
-          <div style={{ fontFamily: serif, fontSize: 29, lineHeight: 1.2 }}>{next.title}</div>
-          <div style={{ fontSize: 16, color: "rgba(238,242,238,.7)", marginTop: 10 }}>{next.detail}</div>
-          <div style={{ display: "flex", gap: 10, marginTop: 22, flexWrap: "wrap" }}>
-            <Link to={next.href} className="btn-light">
-              Lanjutkan belajar →
-            </Link>
-            <Link to="/belajar/jadwal" className="btn-outline-dark">
-              Lihat jadwal
-            </Link>
-          </div>
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-          <div style={{ display: "flex", gap: 4 }} aria-hidden="true">
-            {Array.from({ length: TOTAL_WEEKS }, (_, i) => (
-              <div key={i} style={{ width: 15, height: 44, borderRadius: 3, background: weekColor(i) }} />
-            ))}
-          </div>
+      {/* --- langkah berikutnya --- */}
+      <Card padding={0} style={{ overflow: "hidden", marginBottom: 26 }}>
+        <div style={{ background: "var(--color-forest)", color: "var(--color-paper)", padding: 26 }}>
           <div
             style={{
               fontFamily: mono,
               fontSize: 11.5,
-              letterSpacing: ".08em",
-              color: "rgba(238,242,238,.5)",
-              marginTop: 6,
+              letterSpacing: ".14em",
+              opacity: 0.75,
+              marginBottom: 12,
             }}
           >
-            {TOTAL_WEEKS} PERTEMUAN {repo.activeTerm.name.toUpperCase()}
+            LANGKAH BERIKUTNYA
+          </div>
+          <div style={{ fontFamily: serif, fontSize: 27, lineHeight: 1.25 }}>
+            {data.nextAction.title}
+          </div>
+          {data.nextAction.detail && (
+            <div style={{ fontSize: 16, opacity: 0.85, marginTop: 10 }}>
+              {data.nextAction.detail}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
+            <Link
+              to={data.nextAction.href}
+              className="btn-solid-sm"
+              style={{ background: "var(--color-paper)", color: "var(--color-forest)", borderColor: "var(--color-paper)" }}
+            >
+              Lanjutkan belajar →
+            </Link>
+            <Link
+              to="/belajar/jadwal"
+              className="btn-sm"
+              style={{ color: "var(--color-paper)", borderColor: "rgba(246,242,234,.4)" }}
+            >
+              Lihat jadwal
+            </Link>
           </div>
         </div>
-      </section>
+      </Card>
 
-      <div className="split" style={{ display: "grid", gridTemplateColumns: "1.35fr 1fr", gap: 20 }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <Card padding={0} style={{ overflow: "hidden" }}>
-            <div
-              style={{
-                padding: "20px 24px",
-                borderBottom: "1px solid #ece6da",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
-                gap: 16,
-              }}
-            >
-              <h2 style={{ fontFamily: serif, fontSize: 21 }}>Pertemuan Ini</h2>
-              <div style={{ fontSize: 14.5, color: "#807a70" }}>
-                {done.done} dari {done.total} bagian selesai
-              </div>
-            </div>
-            {steps.map((l) => {
-              const isDone = repo.progressOf(l.id) === "completed";
-              return (
-                <div
-                  key={l.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
-                    padding: "15px 24px",
-                    borderBottom: "1px solid var(--color-line-softer)",
-                  }}
-                >
-                  <StepMark done={isDone} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
+      <div
+        className="split"
+        style={{ display: "grid", gridTemplateColumns: "1.35fr .95fr", gap: 26, alignItems: "start" }}
+      >
+        {/* --- progres per mata pelajaran --- */}
+        <div>
+          <Card padding={22}>
+            <CardTitle aside={`${data.subjects.length} mata pelajaran`}>
+              Progres caturwulan berjalan
+            </CardTitle>
+            {data.subjects.length === 0 ? (
+              <EmptyState title="Belum ada mata pelajaran" />
+            ) : (
+              <div style={{ display: "grid", gap: 18, marginTop: 16 }}>
+                {data.subjects.map((s) => (
+                  <div key={s.id}>
                     <div
                       style={{
-                        fontSize: 16.5,
-                        fontWeight: 600,
-                        color: isDone ? "var(--color-ink)" : "var(--color-soft)",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        marginBottom: 7,
+                        flexWrap: "wrap",
                       }}
                     >
-                      {l.title}
+                      <Link to={`/belajar/kelas/${s.slug}`} style={{ fontWeight: 600 }}>
+                        {s.name}
+                      </Link>
+                      <span style={{ fontFamily: mono, fontSize: 13.5, color: "var(--color-faint)" }}>
+                        {PERAN_MAPEL[s.role] ?? s.role} · {s.percent}%
+                      </span>
                     </div>
-                    <div style={{ fontSize: 14.5, color: "var(--color-soft)", marginTop: 2 }}>{l.description}</div>
+                    <Meter percent={s.percent} />
+                    {s.deliveryModel && (
+                      <div style={{ fontSize: 13.5, color: "var(--color-faint)", marginTop: 6 }}>
+                        {s.deliveryModel}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                    {l.durationMinutes} mnt
-                  </div>
-                </div>
-              );
-            })}
-            <div style={{ padding: "18px 24px", background: "var(--color-paper)" }}>
-              <Link
-                to={`/belajar/kelas/${arab.slug}/pertemuan/${CURRENT_WEEK}`}
-                className="btn-solid-sm"
-                style={{ display: "inline-block" }}
-              >
-                Buka pertemuan ini →
-              </Link>
-            </div>
-          </Card>
-
-          <Card>
-            <CardTitle>Mata Pelajaran {repo.activeTerm.name}</CardTitle>
-            {courses.map((c) => (
-              <div key={c.id} style={{ padding: "16px 0", borderTop: "1px solid var(--color-line-soft)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16 }}>
-                  <Link to={`/belajar/kelas/${c.slug}`} style={{ fontSize: 17.5, fontWeight: 700 }}>
-                    {c.name}
-                  </Link>
-                  <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-muted)" }}>{c.label}</div>
-                </div>
-                <div style={{ fontSize: 14.5, color: "var(--color-soft)", marginTop: 4 }}>{c.deliveryModel}</div>
-                <div style={{ marginTop: 12 }}>
-                  <Meter percent={c.percent} label={`Progres ${c.name}`} />
-                </div>
-              </div>
-            ))}
-          </Card>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-          <Card>
-            <div className="eyebrow" style={{ marginBottom: 14 }}>
-              Perlu diselesaikan pertemuan ini
-            </div>
-            {pending.length === 0 ? (
-              <div style={{ fontSize: 15.5, color: "var(--color-muted)", lineHeight: 1.6 }}>
-                Semua aktivitas pertemuan ini sudah selesai. Gunakan sisa waktu untuk murojaah.
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                {pending.slice(0, 5).map((p) => (
-                  <Link
-                    key={p.lesson.id}
-                    to={`/belajar/kelas/${p.course.slug}/pertemuan/${p.week.number}`}
-                    style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 15.5 }}
-                  >
-                    <span style={{ color: "#3d3a34" }}>{p.lesson.title}</span>
-                    <span style={{ color: "var(--color-faint)", fontFamily: mono, fontSize: 13, flex: "none" }}>
-                      {p.course.code}
-                    </span>
-                  </Link>
                 ))}
               </div>
             )}
           </Card>
 
-          <Card>
-            <div className="eyebrow" style={{ marginBottom: 14 }}>
-              Jadwal terdekat
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {upcoming.map((s) => (
-                <div key={s.id}>
-                  <div style={{ fontSize: 16, fontWeight: 600 }}>{s.title}</div>
-                  <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 3 }}>
-                    {s.dayLabel} · {s.timeLabel} ·{" "}
-                    {s.locationType === "online" ? "Online" : "Tatap muka"}
+          {data.announcements.length > 0 && (
+            <Card padding={22} style={{ marginTop: 20 }}>
+              <CardTitle>Pengumuman</CardTitle>
+              <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
+                {data.announcements.map((a) => (
+                  <div
+                    key={a.id}
+                    style={{ borderLeft: "3px solid var(--color-line)", paddingLeft: 14 }}
+                  >
+                    <div style={{ fontWeight: 600, lineHeight: 1.4 }}>{a.title}</div>
+                    <div
+                      style={{
+                        fontSize: 15,
+                        lineHeight: 1.65,
+                        color: "var(--color-muted)",
+                        marginTop: 5,
+                      }}
+                    >
+                      {a.body}
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {majlis && (
-            <Card>
-              <div className="eyebrow" style={{ marginBottom: 14 }}>
-                Majlis Ta&apos;sil berikutnya
-              </div>
-              <div style={{ fontFamily: serif, fontSize: 20, lineHeight: 1.3 }}>{majlis.title}</div>
-              <div style={{ fontSize: 15, color: "var(--color-muted)", marginTop: 10, lineHeight: 1.55 }}>
-                {majlis.dayLabel} · {majlis.timeLabel} · {majlis.address}
+                ))}
               </div>
             </Card>
           )}
+        </div>
 
-          <Card tone="sand">
-            <div className="eyebrow" style={{ marginBottom: 14 }}>
-              Catatan murojaah
-            </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              {repo
-                .allNotes()
-                .filter((n) => n.bookmarkedForReview)
-                .slice(0, 3)
-                .map((n) => (
-                  <div key={n.id} style={{ fontSize: 15.5 }}>
-                    <div style={{ color: "#3d3a34", fontWeight: 600 }}>{n.lessonTitle}</div>
-                    <div style={{ color: "var(--color-soft)", fontSize: 14.5, marginTop: 2 }}>{n.courseName}</div>
+        {/* --- jadwal terdekat --- */}
+        <div>
+          <Card padding={22}>
+            <CardTitle>Jadwal terdekat</CardTitle>
+            {data.upcomingMeetings.length === 0 ? (
+              <EmptyState title="Belum ada jadwal" hint="Jadwal muncul setelah pengampu menetapkannya." />
+            ) : (
+              <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
+                {data.upcomingMeetings.map((m) => (
+                  <div
+                    key={m.id}
+                    style={{ border: "1px solid var(--color-line)", borderRadius: 9, padding: "13px 15px" }}
+                  >
+                    <div className="eyebrow" style={{ marginBottom: 5 }}>
+                      {m.subjectName} · {MODE[m.mode] ?? m.mode}
+                    </div>
+                    <Link
+                      to={`/belajar/kelas/${m.subjectSlug}/pertemuan/${m.number}`}
+                      style={{ fontWeight: 600, lineHeight: 1.4 }}
+                    >
+                      Pertemuan {m.number}: {m.title}
+                    </Link>
+                    {m.startsAt && (
+                      <div
+                        style={{
+                          fontFamily: mono,
+                          fontSize: 13,
+                          color: "var(--color-faint)",
+                          marginTop: 6,
+                        }}
+                      >
+                        {tanggal(m.startsAt)}
+                      </div>
+                    )}
                   </div>
                 ))}
-            </div>
-            <div style={{ marginTop: 16 }}>
-              <Link to="/belajar/murojaah" className="btn-sm" style={{ display: "inline-block" }}>
-                Buka murojaah
-              </Link>
+              </div>
+            )}
+          </Card>
+
+          <Card padding={22} style={{ marginTop: 20 }}>
+            <CardTitle>Status pendaftaran</CardTitle>
+            <div style={{ marginTop: 12, fontSize: 15.5, lineHeight: 1.7 }}>
+              {data.enrollment ? (
+                <>
+                  <div>
+                    Status: <strong>{data.enrollment.status}</strong>
+                  </div>
+                  {data.enrollment.className && <div>Kelas: {data.enrollment.className}</div>}
+                  <div style={{ marginTop: 10 }}>
+                    <Meter percent={data.enrollment.progress} label="Progres tercatat" />
+                  </div>
+                </>
+              ) : (
+                <span style={{ color: "var(--color-faint)" }}>
+                  Anda belum terdaftar pada caturwulan ini.
+                </span>
+              )}
             </div>
           </Card>
         </div>

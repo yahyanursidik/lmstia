@@ -143,6 +143,19 @@ me.get("/nilai", async (c) => {
   return c.json({ data: await assess.studentScores(user.id, t.id) });
 });
 
+
+/**
+ * Unit belajar satu pertemuan. Berada di bawah `/me` karena isinya bergantung
+ * pada progres pemanggil, bukan konten publik semata.
+ */
+me.get("/kelas/:slug/pertemuan/:number", async (c) => {
+  const nomor = Number(c.req.param("number"));
+  if (!Number.isInteger(nomor) || nomor < 0) {
+    return notFound(c, "Nomor pertemuan tidak valid.");
+  }
+  const data = await service.getUnitBelajar(c.get("user")!.id, c.req.param("slug"), nomor);
+  return c.json({ data });
+});
 app.route("/me", me);
 
 /* --- Materi (progres peserta) -------------------------------------- */

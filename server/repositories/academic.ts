@@ -210,3 +210,34 @@ export async function contentTree(tahapanId: string) {
     }),
   );
 }
+
+/* --- Unit belajar (satu pertemuan lengkap) -------------------------- */
+
+/** Pertemuan pada satu mata pelajaran, dicari lewat slug dan nomornya. */
+export const findMeetingBySlugAndNumber = (slug: string, number: number) =>
+  db
+    .select({
+      meeting: s.meetings,
+      subjectId: s.subjects.id,
+      subjectName: s.subjects.name,
+      subjectSlug: s.subjects.slug,
+      subjectCode: s.subjects.code,
+      tahapanId: s.subjects.tahapanId,
+    })
+    .from(s.meetings)
+    .innerJoin(s.subjects, eq(s.subjects.id, s.meetings.subjectId))
+    .where(and(eq(s.subjects.slug, slug), eq(s.meetings.number, number)))
+    .limit(1);
+
+/**
+ * Nomor pertemuan tetangga untuk tombol maju/mundur.
+ *
+ * Diambil sebagai daftar nomor, bukan dua query terpisah, supaya navigasi
+ * tidak menambah dua perjalanan jaringan pada tiap pembukaan halaman.
+ */
+export const listMeetingNumbers = (subjectId: string) =>
+  db
+    .select({ number: s.meetings.number, isLocked: s.meetings.isLocked, publishStatus: s.meetings.publishStatus })
+    .from(s.meetings)
+    .where(eq(s.meetings.subjectId, subjectId))
+    .orderBy(asc(s.meetings.number));

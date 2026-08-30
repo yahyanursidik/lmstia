@@ -175,3 +175,88 @@ export async function getCurriculumSummary(tahapanId: string) {
     published: meetings.filter((m) => m.publishStatus === "published").length,
   };
 }
+
+/**
+ * Satu unit belajar: pertemuan beserta materi, kuis, dan progres pemanggil.
+ *
+ * Halaman pertemuan peserta sebelumnya membaca data contoh yang ditulis di
+ * kode, sehingga materi yang dimasukkan admin tidak pernah tampil. Fungsi ini
+ * menyediakan bentuk yang dibutuhkan halaman itu langsung dari basis data.
+ */
+export async function getUnitBelajar(userId: string, slug: string, number: number) {
+  const [induk] = await academic.findMeetingBySlugAndNumber(slug, number);
+  if (!induk) throw new NotFoundError("Pertemuan tidak ditemukan");
+
+  const { meeting } = induk;
+
+  /*
+   * Terkunci ditentukan data, bukan ditebak dari nomor: `isLocked` disetel
+   * admin, dan pertemuan yang belum terbit juga belum layak dibuka.
+   */
+  const terkunci = meeting.isLocked || meeting.publishStatus !== "published";
+
+  const [nomor, materials, assessments] = await Promise.all([
+    academic.listMeetingNumbers(induk.subjectId),
+    terkunci ? Promise.resolve([]) : academic.listMaterials(meeting.id),
+    terkunci ? Promise.resolve([]) : academic.listAssessments(meeting.id),
+  ]);
+
+  const progres = terkunci
+    ? []
+    : await learner.listProgressForMaterials(
+        userId,
+        materials.map((m) => m.id),
+      );
+  const statusMateri = new Map(progres.map((p) => [p.materialId, p.status]));
+
+  /* Hanya materi terbit yang ditawarkan; draf milik admin, bukan peserta. */
+  const terbit = materials.filter((m) => m.publishStatus === "published");
+
+  const dapatDibuka = nomor.filter((n) => !n.isLocked && n.publishStatus === "published");
+  const posisi = dapatDibuka.findIndex((n) => n.number === number);
+
+  return {
+    subject: {
+      id: induk.subjectId,
+      name: induk.subjectName,
+      slug: induk.subjectSlug,
+      code: induk.subjectCode,
+    },
+    meeting: {
+      id: meeting.id,
+      number: meeting.number,
+      title: meeting.title,
+      description: meeting.description,
+      type: meeting.type,
+      mode: meeting.mode,
+      liveUrl: terkunci ? null : meeting.liveUrl,
+      livePlatform: meeting.livePlatform,
+      location: meeting.location,
+      startsAt: meeting.startsAt,
+      durationMinutes: meeting.durationMinutes,
+    },
+    locked: terkunci,
+    materials: terbit.map((m) => ({
+      id: m.id,
+      title: m.title,
+      description: m.description,
+      type: m.type,
+      url: m.url,
+      content: m.content,
+      durationMinutes: m.durationMinutes,
+      isEssential: m.isEssential,
+      sequence: m.sequence,
+      status: statusMateri.get(m.id) ?? "not_started",
+    })),
+    assessments: assessments
+      .filter((a) => a.publishStatus === "published")
+      .map((a) => ({ id: a.id, title: a.title, kind: a.kind, kkm: a.kkm, durationMinutes: a.durationMinutes })),
+    nav: {
+      prev: posisi > 0 ? dapatDibuka[posisi - 1]!.number : null,
+      next: posisi >= 0 && posisi < dapatDibuka.length - 1 ? dapatDibuka[posisi + 1]!.number : null,
+      total: dapatDibuka.length,
+      urutan: posisi + 1,
+    },
+    selesai: terbit.filter((m) => statusMateri.get(m.id) === "completed").length,
+  };
+}
