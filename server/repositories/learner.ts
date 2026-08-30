@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import * as s from "../db/schema";
 
@@ -42,6 +42,68 @@ export const listProgressForMaterials = (userId: string, materialIds: string[]) 
           and(eq(s.materialProgress.userId, userId), inArray(s.materialProgress.materialId, materialIds)),
         )
     : Promise.resolve([]);
+
+
+/*
+ * Progres seluruh mata pelajaran satu tahapan dalam SATU query.
+ *
+ * Versi sebelumnya menelusuri mata pelajaran → pertemuan → materi dengan
+ * loop bersarang, sehingga satu tahapan berukuran normal menghasilkan
+ * ratusan round-trip berurutan. Driver Neon berbasis HTTP: setiap query
+ * adalah satu permintaan jaringan, jadi biayanya latensi × jumlah query —
+ * cukup untuk melewati batas waktu fungsi serverless.
+ *
+ * `total` sengaja menghitung semua materi (bukan hanya yang published),
+ * mempertahankan perilaku perhitungan sebelumnya.
+ */
+export const subjectProgressForTahapan = (userId: string, tahapanId: string) =>
+  db
+    .select({
+      subjectId: s.subjects.id,
+      total: sql<number>`count(*)::int`,
+      done: sql<number>`(count(*) filter (where ${s.materialProgress.status} = 'completed'))::int`,
+    })
+    .from(s.materials)
+    .innerJoin(s.meetings, eq(s.meetings.id, s.materials.meetingId))
+    .innerJoin(s.subjects, eq(s.subjects.id, s.meetings.subjectId))
+    .leftJoin(
+      s.materialProgress,
+      and(
+        eq(s.materialProgress.materialId, s.materials.id),
+        eq(s.materialProgress.userId, userId),
+      ),
+    )
+    .where(eq(s.subjects.tahapanId, tahapanId))
+    .groupBy(s.subjects.id);
+
+
+/**
+ * Seluruh materi satu tahapan, sudah diratakan bersama progres peserta,
+ * dalam satu query. Urutan mengikuti nomor pertemuan lalu urutan materi.
+ *
+ * `status` bernilai null bila peserta belum pernah menyentuh materi; pemanggil
+ * memetakannya ke "not_started".
+ */
+export const tahapanMaterialRows = (userId: string, tahapanId: string) =>
+  db
+    .select({
+      subject: s.subjects,
+      meeting: s.meetings,
+      material: s.materials,
+      status: s.materialProgress.status,
+    })
+    .from(s.materials)
+    .innerJoin(s.meetings, eq(s.meetings.id, s.materials.meetingId))
+    .innerJoin(s.subjects, eq(s.subjects.id, s.meetings.subjectId))
+    .leftJoin(
+      s.materialProgress,
+      and(
+        eq(s.materialProgress.materialId, s.materials.id),
+        eq(s.materialProgress.userId, userId),
+      ),
+    )
+    .where(eq(s.subjects.tahapanId, tahapanId))
+    .orderBy(asc(s.meetings.number), asc(s.materials.sequence));
 
 /** Upsert keyed on the (user, material) unique index. */
 export async function setMaterialProgress(

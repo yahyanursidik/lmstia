@@ -18,63 +18,37 @@ export async function getRunningTahapanOrThrow() {
 
 /** Seluruh materi satu tahapan, diratakan, dengan progres pemanggil. */
 export async function tahapanMaterialsWithProgress(userId: string, tahapanId: string) {
-  const subjects = await academic.listSubjects(tahapanId);
-  const out: {
-    subject: (typeof subjects)[number];
-    meeting: Awaited<ReturnType<typeof academic.listMeetings>>[number];
-    material: Awaited<ReturnType<typeof academic.listMaterials>>[number];
-    status: string;
-  }[] = [];
-
-  for (const subject of subjects) {
-    const meetings = await academic.listMeetings(subject.id);
-    for (const meeting of meetings) {
-      const materials = await academic.listMaterials(meeting.id);
-      const progress = await learner.listProgressForMaterials(
-        userId,
-        materials.map((m) => m.id),
-      );
-      const byId = new Map(progress.map((p) => [p.materialId, p.status]));
-      for (const material of materials) {
-        out.push({ subject, meeting, material, status: byId.get(material.id) ?? "not_started" });
-      }
-    }
-  }
-  return out;
+  const rows = await learner.tahapanMaterialRows(userId, tahapanId);
+  return rows.map((r) => ({ ...r, status: r.status ?? "not_started" }));
 }
 
-export async function subjectProgressPercent(userId: string, subjectId: string) {
-  const meetings = await academic.listMeetings(subjectId);
-  let total = 0;
-  let done = 0;
-  for (const m of meetings) {
-    const materials = await academic.listMaterials(m.id);
-    const progress = await learner.listProgressForMaterials(
-      userId,
-      materials.map((x) => x.id),
-    );
-    total += materials.length;
-    done += progress.filter((p) => p.status === "completed").length;
-  }
-  return total ? Math.round((done / total) * 100) : 0;
+/**
+ * Persentase materi selesai untuk setiap mata pelajaran dalam satu tahapan.
+ *
+ * Dikembalikan sebagai peta, bukan dihitung per mata pelajaran, supaya
+ * pemanggil tidak menambah satu round-trip untuk tiap barisnya.
+ */
+export async function subjectProgressMap(userId: string, tahapanId: string) {
+  const rows = await learner.subjectProgressForTahapan(userId, tahapanId);
+  return new Map(rows.map((r) => [r.subjectId, r.total ? Math.round((r.done / r.total) * 100) : 0]));
 }
 
 export async function getDashboard(userId: string) {
   const tahapan = await getRunningTahapanOrThrow();
-  const enrollment = await learner.findEnrollment(userId, tahapan.id);
-  const subjects = await academic.listSubjects(tahapan.id);
 
-  const perSubject = [];
-  for (const s of subjects) {
-    perSubject.push({
-      id: s.id,
-      slug: s.slug,
-      name: s.name,
-      role: s.role,
-      deliveryModel: s.deliveryModel,
-      percent: await subjectProgressPercent(userId, s.id),
-    });
-  }
+  /*
+   * Bagian-bagian ini saling bebas, jadi dijalankan bersamaan. Dengan driver
+   * Neon berbasis HTTP, biaya endpoint ini adalah latensi × jumlah query
+   * berurutan — bukan jumlah barisnya.
+   */
+  const [enrollment, subjects, persen, meetings, announcements, nextAction] = await Promise.all([
+    learner.findEnrollment(userId, tahapan.id),
+    academic.listSubjects(tahapan.id),
+    subjectProgressMap(userId, tahapan.id),
+    academic.listScheduledMeetings(),
+    academic.listAnnouncements(tahapan.id),
+    getNextLearningAction(userId, tahapan),
+  ]);
 
   return {
     tahapan: {
@@ -86,15 +60,29 @@ export async function getDashboard(userId: string) {
     enrollment: enrollment
       ? { status: enrollment.status, progress: enrollment.progress, className: enrollment.className }
       : null,
-    subjects: perSubject,
-    upcomingMeetings: (await academic.listScheduledMeetings()).slice(0, 3),
-    announcements: (await academic.listAnnouncements(tahapan.id)).slice(0, 3),
-    nextAction: await getNextLearningAction(userId),
+    subjects: subjects.map((s) => ({
+      id: s.id,
+      slug: s.slug,
+      name: s.name,
+      role: s.role,
+      deliveryModel: s.deliveryModel,
+      percent: persen.get(s.id) ?? 0,
+    })),
+    upcomingMeetings: meetings.slice(0, 3),
+    announcements: announcements.slice(0, 3),
+    nextAction,
   };
 }
 
-export async function getNextLearningAction(userId: string) {
-  const tahapan = await getRunningTahapanOrThrow();
+/**
+ * `tahapanTerpakai` boleh diisi pemanggil yang sudah memuat tahapan berjalan,
+ * agar tidak menambah round-trip yang sama dua kali.
+ */
+export async function getNextLearningAction(
+  userId: string,
+  tahapanTerpakai?: Awaited<ReturnType<typeof getRunningTahapanOrThrow>>,
+) {
+  const tahapan = tahapanTerpakai ?? (await getRunningTahapanOrThrow());
   const all = await tahapanMaterialsWithProgress(userId, tahapan.id);
 
   const pending = all

@@ -92,12 +92,16 @@ me.get("/next-learning-action", async (c) =>
 me.get("/progress", async (c) => {
   const user = c.get("user")!;
   const t = await service.getRunningTahapanOrThrow();
-  const subjects = await academic.listSubjects(t.id);
-  const data = [];
-  for (const s of subjects) {
-    data.push({ slug: s.slug, name: s.name, percent: await service.subjectProgressPercent(user.id, s.id) });
-  }
-  return c.json({ data: { tahapan: t.name, subjects: data } });
+  const [subjects, persen] = await Promise.all([
+    academic.listSubjects(t.id),
+    service.subjectProgressMap(user.id, t.id),
+  ]);
+  return c.json({
+    data: {
+      tahapan: t.name,
+      subjects: subjects.map((s) => ({ slug: s.slug, name: s.name, percent: persen.get(s.id) ?? 0 })),
+    },
+  });
 });
 
 me.get("/catch-up", async (c) => c.json({ data: await service.getCatchUpPath(c.get("user")!.id) }));
