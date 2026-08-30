@@ -93,6 +93,7 @@ contentRoutes.patch("/tahapan/:id", canWrite, async (c) => {
   if (!p.success) return badRequest(c, p.error);
   const [row] = await academic.updateTahapan(id.data.id, clean(p.data));
   if (!row) return notFound(c, "Tahapan tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "tahapan.update", "tahapan", row.id);
   return c.json({ data: row });
 });
 
@@ -101,6 +102,7 @@ contentRoutes.delete("/tahapan/:id", canWrite, async (c) => {
   if (!id.success) return badRequest(c, id.error);
   const [row] = await academic.deleteTahapan(id.data.id);
   if (!row) return notFound(c, "Tahapan tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "tahapan.delete", "tahapan", id.data.id);
   return c.body(null, 204);
 });
 
@@ -142,6 +144,7 @@ contentRoutes.patch("/subjects/:id", canWrite, async (c) => {
   if (!p.success) return badRequest(c, p.error);
   const [row] = await academic.updateSubject(id.data.id, clean(p.data));
   if (!row) return notFound(c, "Mata pelajaran tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "subject.update", "subject", row.id);
   return c.json({ data: row });
 });
 
@@ -150,6 +153,7 @@ contentRoutes.delete("/subjects/:id", canWrite, async (c) => {
   if (!id.success) return badRequest(c, id.error);
   const [row] = await academic.deleteSubject(id.data.id);
   if (!row) return notFound(c, "Mata pelajaran tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "subject.delete", "subject", id.data.id);
   return c.body(null, 204);
 });
 
@@ -190,6 +194,7 @@ contentRoutes.patch("/meetings/:id", canWrite, async (c) => {
   if (!p.success) return badRequest(c, p.error);
   const [row] = await academic.updateMeeting(id.data.id, clean(p.data));
   if (!row) return notFound(c, "Pertemuan tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "meeting.update", "meeting", row.id);
   return c.json({ data: row });
 });
 
@@ -198,6 +203,7 @@ contentRoutes.delete("/meetings/:id", canWrite, async (c) => {
   if (!id.success) return badRequest(c, id.error);
   const [row] = await academic.deleteMeeting(id.data.id);
   if (!row) return notFound(c, "Pertemuan tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "meeting.delete", "meeting", id.data.id);
   return c.body(null, 204);
 });
 
@@ -224,6 +230,7 @@ contentRoutes.patch("/materials/:id", canWrite, async (c) => {
   if (!p.success) return badRequest(c, p.error);
   const [row] = await academic.updateMaterial(id.data.id, clean(p.data));
   if (!row) return notFound(c, "Materi tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "material.update", "material", row.id);
   return c.json({ data: row });
 });
 
@@ -232,6 +239,7 @@ contentRoutes.delete("/materials/:id", canWrite, async (c) => {
   if (!id.success) return badRequest(c, id.error);
   const [row] = await academic.deleteMaterial(id.data.id);
   if (!row) return notFound(c, "Materi tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "material.delete", "material", id.data.id);
   return c.body(null, 204);
 });
 
@@ -258,6 +266,7 @@ contentRoutes.patch("/assessments/:id", canWrite, async (c) => {
   if (!p.success) return badRequest(c, p.error);
   const [row] = await academic.updateAssessment(id.data.id, clean(p.data));
   if (!row) return notFound(c, "Kuis tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "assessment.update", "assessment", row.id);
   return c.json({ data: row });
 });
 
@@ -266,6 +275,7 @@ contentRoutes.delete("/assessments/:id", canWrite, async (c) => {
   if (!id.success) return badRequest(c, id.error);
   const [row] = await academic.deleteAssessment(id.data.id);
   if (!row) return notFound(c, "Kuis tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "assessment.delete", "assessment", id.data.id);
   return c.body(null, 204);
 });
 
