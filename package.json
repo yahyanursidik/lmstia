@@ -15,7 +15,9 @@
     "db:seed": "tsx server/db/seed.ts",
     "api": "tsx watch server/index.ts",
     "db:accounts": "tsx server/db/seed-accounts.ts",
-    "db:reset": "tsx server/db/reset.ts"
+    "db:reset": "tsx server/db/reset.ts",
+    "db:admin": "tsx server/db/create-admin.ts",
+    "db:purge-demo": "tsx server/db/purge-demo.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",

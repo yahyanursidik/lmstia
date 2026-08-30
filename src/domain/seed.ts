@@ -151,7 +151,7 @@ export const courses: Course[] = [
   },
 ];
 
-/** Week titles per course. Index 0 is Pekan 0 (orientasi). */
+/** Week titles per course. Index 0 is Pertemuan 0 (orientasi). */
 const ARAB_WEEKS = [
   "Orientasi dan Pengenalan Huruf",
   "Huruf Hijaiyah dan Bunyi Dasar",
@@ -164,7 +164,7 @@ const ARAB_WEEKS = [
   "Untuk Siapa Kita Beribadah?",
   "Struktur Kalimat Lanjutan",
   "Membaca Paragraf Pendek",
-  "Pekan Murojaah",
+  "Pertemuan Murojaah",
   "Evaluasi Akhir Caturwulan",
 ];
 
@@ -180,7 +180,7 @@ const AQIDAH_WEEKS = [
   "Hanya kepada Allah Kita Beribadah",
   "Ikhlas dan Mengikuti Rasulullah",
   "Ilmu, Iman, dan Amal",
-  "Pekan Murojaah",
+  "Pertemuan Murojaah",
   "Evaluasi Akhir Caturwulan",
 ];
 
@@ -244,11 +244,11 @@ const UNIT_PARTS: {
 ];
 
 const PART_DESC: Record<string, string> = {
-  "sebelum-belajar": "Pengantar dan tujuan pekan ini",
+  "sebelum-belajar": "Pengantar dan tujuan pertemuan ini",
   "materi-utama": "Video dan PDF ringkas",
-  latihan: "Latihan terarah sesuai materi pekan ini",
+  latihan: "Latihan terarah sesuai materi pertemuan ini",
   worksheet: "Pertanyaan terarah yang menghubungkan antarmata pelajaran",
-  murojaah: "Ringkasan dan pengulangan pekan sebelumnya",
+  murojaah: "Ringkasan dan pengulangan pertemuan sebelumnya",
   "cek-pemahaman": "5 pertanyaan singkat, bukan ujian",
   refleksi: "Catatan pemahaman, manfaat, dan penerapan",
 };
@@ -327,9 +327,9 @@ export const registrations: Registration[] = [
 
 export const announcements: Announcement[] = [
   { id: "an-1", title: "Majlis Ta'sil bulan ini dimajukan ke Ahad, 6 September", body: "Majlis Ta'sil Aqidah bulan kedua dimajukan satu pekan. Tempat tetap di Aula TIA lantai 2, pukul 09.00.", audience: "Peserta", publishedAt: "27 Agustus 2026", status: "published" },
-  { id: "an-2", title: "Pekan 11 adalah Pekan Murojaah — tidak ada materi baru", body: "Gunakan pekan murojaah untuk mengulang kosakata dan struktur pekan 5–10, serta menyelesaikan latihan yang tertinggal.", audience: "Peserta", publishedAt: "24 Agustus 2026", status: "published" },
+  { id: "an-2", title: "Pertemuan 11 adalah Pertemuan Murojaah — tidak ada materi baru", body: "Gunakan pertemuan murojaah untuk mengulang kosakata dan struktur pertemuan 5–10, serta menyelesaikan latihan yang tertinggal.", audience: "Peserta", publishedAt: "24 Agustus 2026", status: "published" },
   { id: "an-3", title: "Registrasi Caturwulan 2 dibuka setelah evaluasi akhir", body: "Peserta yang menyelesaikan Caturwulan 1 dapat mendaftar Caturwulan 2. Tidak ada pendaftaran otomatis.", audience: "Semua", publishedAt: "20 Agustus 2026", status: "published" },
-  { id: "an-4", title: "Panduan pengumpulan worksheet pekan 9", body: "Draf panduan, menunggu review pengampu.", audience: "Peserta", publishedAt: "—", status: "draft" },
+  { id: "an-4", title: "Panduan pengumpulan worksheet pertemuan 9", body: "Draf panduan, menunggu review pengampu.", audience: "Peserta", publishedAt: "—", status: "draft" },
 ];
 
 export const notes: Note[] = [
@@ -344,7 +344,7 @@ export const faq: FaqItem[] = [
   { q: "Bagaimana jika saya tertinggal?", a: "LMS menyediakan Jalur Mengejar Ketertinggalan berisi materi esensial: satu video inti, satu PDF ringkas, satu latihan wajib, dan satu cek pemahaman. Jalur ini bersifat suportif, bukan hukuman." },
   { q: "Apakah semua kelas berlangsung live?", a: "Tidak. Sebagian materi dipelajari mandiri melalui LMS. Bahasa Arab memiliki dua kelas online dan satu pertemuan tatap muka pekanan, sedangkan Aqidah dan Adab sebagian besar mandiri." },
   { q: "Berapa beban belajar per pekan?", a: "Sekitar 4–6 jam per pekan, sudah termasuk kelas, latihan, worksheet, dan murojaah. Beban ini dirancang realistis bagi orang dewasa yang bekerja atau kuliah." },
-  { q: "Apakah ada evaluasi dan sertifikat?", a: "Ada. Setiap caturwulan diakhiri dengan pekan murojaah dan evaluasi akhir. Peserta yang memenuhi syarat menerima laporan capaian dan Syahadah Penyelesaian." },
+  { q: "Apakah ada evaluasi dan sertifikat?", a: "Ada. Setiap caturwulan diakhiri dengan pertemuan murojaah dan evaluasi akhir. Peserta yang memenuhi syarat menerima laporan capaian dan Syahadah Penyelesaian." },
   { q: "Apa yang terjadi setelah caturwulan selesai?", a: "Tersedia jeda 1–2 pekan sebagai bagian dari desain pembelajaran. Setelah itu Anda dapat memutuskan untuk mendaftar caturwulan berikutnya." },
 ];
 

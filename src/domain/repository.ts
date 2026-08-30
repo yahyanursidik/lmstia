@@ -101,9 +101,9 @@ export function nextLearningAction(): NextLearningAction {
         reason: pending.type === "exercise" ? "exercise" : "lesson",
         courseName: c.name,
         weekNumber: wk.number,
-        title: `${c.name} — Pekan ${wk.number}: ${pending.title}`,
+        title: `${c.name} — Pertemuan ${wk.number}: ${pending.title}`,
         detail: `${pending.description} · ${pending.durationMinutes} menit`,
-        href: `/belajar/kelas/${c.slug}/pekan/${wk.number}`,
+        href: `/belajar/kelas/${c.slug}/pertemuan/${wk.number}`,
       };
     }
   }
@@ -181,7 +181,7 @@ export function coursesWithProgress(): (Course & { percent: number; label: strin
     const percent = courseProgress(c.id);
     const label =
       c.role === "INTENSIVE"
-        ? `PEKAN ${CURRENT_WEEK} / ${TOTAL_WEEKS}`
+        ? `PERTEMUAN ${CURRENT_WEEK} / ${TOTAL_WEEKS}`
         : c.role === "FOUNDATION"
           ? "BULAN 2 / 3"
           : `${Math.round((percent / 100) * TOTAL_WEEKS)} / ${TOTAL_WEEKS} MATERI`;

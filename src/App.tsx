@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from "react-router";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router";
 import { useEffect } from "react";
 
 import { AdminLayout, PublicLayout, StudentLayout } from "./components/layouts";
@@ -40,6 +40,17 @@ import {
 const STUDENT_ONLY = ["student"] as const;
 const STAFF = ["instructor", "academic_admin", "super_admin"] as const;
 
+/**
+ * Mengalihkan tautan lama `/pekan/:week` ke `/pertemuan/:week`.
+ *
+ * Penggantian istilah tidak boleh mematikan tautan yang sudah dibagikan atau
+ * disimpan peserta, jadi jalur lamanya dipertahankan sebagai pengalih.
+ */
+function AlihkanKePertemuan() {
+  const { courseSlug, week } = useParams();
+  return <Navigate to={`/belajar/kelas/${courseSlug}/pertemuan/${week}`} replace />;
+}
+
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
@@ -80,7 +91,9 @@ export default function App() {
           <Route path="/belajar/dashboard" element={<StudentDashboard />} />
           <Route path="/belajar/caturwulan" element={<Caturwulan />} />
           <Route path="/belajar/kelas/:courseSlug" element={<Kelas />} />
-          <Route path="/belajar/kelas/:courseSlug/pekan/:week" element={<UnitBelajar />} />
+          <Route path="/belajar/kelas/:courseSlug/pertemuan/:week" element={<UnitBelajar />} />
+          {/* Tautan lama /pekan/ tetap hidup — peserta mungkin sudah menyimpannya. */}
+          <Route path="/belajar/kelas/:courseSlug/pekan/:week" element={<AlihkanKePertemuan />} />
           <Route path="/belajar/jadwal" element={<Jadwal />} />
           <Route path="/belajar/murojaah" element={<Murojaah />} />
           <Route path="/belajar/kuis/:id" element={<Kuis />} />

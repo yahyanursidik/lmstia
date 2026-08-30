@@ -62,7 +62,7 @@ export default function Dashboard() {
           </div>
           <div style={{ width: 1, height: 18, background: "var(--color-line)" }} />
           <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-forest)" }}>
-            Pekan {CURRENT_WEEK} dari {TOTAL_WEEKS}
+            Pertemuan {CURRENT_WEEK} dari {TOTAL_WEEKS}
           </div>
         </div>
       </header>
@@ -109,7 +109,7 @@ export default function Dashboard() {
               marginTop: 6,
             }}
           >
-            {TOTAL_WEEKS} PEKAN {repo.activeTerm.name.toUpperCase()}
+            {TOTAL_WEEKS} PERTEMUAN {repo.activeTerm.name.toUpperCase()}
           </div>
         </div>
       </section>
@@ -127,7 +127,7 @@ export default function Dashboard() {
                 gap: 16,
               }}
             >
-              <h2 style={{ fontFamily: serif, fontSize: 21 }}>Unit Pekan Ini</h2>
+              <h2 style={{ fontFamily: serif, fontSize: 21 }}>Pertemuan Ini</h2>
               <div style={{ fontSize: 14.5, color: "#807a70" }}>
                 {done.done} dari {done.total} bagian selesai
               </div>
@@ -166,11 +166,11 @@ export default function Dashboard() {
             })}
             <div style={{ padding: "18px 24px", background: "var(--color-paper)" }}>
               <Link
-                to={`/belajar/kelas/${arab.slug}/pekan/${CURRENT_WEEK}`}
+                to={`/belajar/kelas/${arab.slug}/pertemuan/${CURRENT_WEEK}`}
                 className="btn-solid-sm"
                 style={{ display: "inline-block" }}
               >
-                Buka unit pekan ini →
+                Buka pertemuan ini →
               </Link>
             </div>
           </Card>
@@ -197,18 +197,18 @@ export default function Dashboard() {
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           <Card>
             <div className="eyebrow" style={{ marginBottom: 14 }}>
-              Perlu diselesaikan pekan ini
+              Perlu diselesaikan pertemuan ini
             </div>
             {pending.length === 0 ? (
               <div style={{ fontSize: 15.5, color: "var(--color-muted)", lineHeight: 1.6 }}>
-                Semua aktivitas pekan ini sudah selesai. Gunakan sisa waktu untuk murojaah.
+                Semua aktivitas pertemuan ini sudah selesai. Gunakan sisa waktu untuk murojaah.
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                 {pending.slice(0, 5).map((p) => (
                   <Link
                     key={p.lesson.id}
-                    to={`/belajar/kelas/${p.course.slug}/pekan/${p.week.number}`}
+                    to={`/belajar/kelas/${p.course.slug}/pertemuan/${p.week.number}`}
                     style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 15.5 }}
                   >
                     <span style={{ color: "#3d3a34" }}>{p.lesson.title}</span>

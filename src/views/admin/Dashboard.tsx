@@ -50,7 +50,7 @@ export default function AdminDashboard() {
 
   const cards = [
     { label: "PESERTA AKTIF", nilai: String(kpi.active), delta: `dari ${kpi.total} terdaftar`, tone: "#807a70" },
-    { label: "KEHADIRAN PEKAN 8", nilai: "86%", delta: "+4% dari pekan lalu", tone: "var(--color-forest)" },
+    { label: "KEHADIRAN PERTEMUAN 8", nilai: "86%", delta: "+4% dari pekan lalu", tone: "var(--color-forest)" },
     { label: "PERLU PENDAMPINGAN", nilai: String(kpi.risk), delta: "tindak lanjut diperlukan", tone: "var(--color-amber)" },
     { label: "PENDAFTARAN BARU", nilai: String(kpi.pendingReg), delta: "menunggu persetujuan", tone: "var(--color-amber)" },
   ];
@@ -124,7 +124,7 @@ export default function AdminDashboard() {
 
       <div className="split" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 20, marginBottom: 20 }}>
         <Card>
-          <CardTitle aside="Kehadiran & penyelesaian latihan">Keterlibatan per Pekan</CardTitle>
+          <CardTitle aside="Kehadiran & penyelesaian latihan">Keterlibatan per Pertemuan</CardTitle>
           <Chart />
           <div
             style={{
@@ -179,7 +179,7 @@ export default function AdminDashboard() {
         <DataTable
           columns={columns}
           rows={followUp}
-          empty="Tidak ada peserta yang perlu pendampingan pekan ini."
+          empty="Tidak ada peserta yang perlu pendampingan pertemuan ini."
         />
         <div style={{ fontSize: 14.5, color: "#5c564d", lineHeight: 1.55, marginTop: 12 }}>
           Peserta berstatus <strong>Perlu perhatian</strong> atau <strong>Berisiko tertinggal</strong> otomatis
@@ -189,14 +189,14 @@ export default function AdminDashboard() {
 
       <div className="split-even" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
         <Card>
-          <CardTitle>Kesiapan Konten Pekan {CURRENT_WEEK + 1}–{TOTAL_WEEKS}</CardTitle>
+          <CardTitle>Kesiapan Konten Pertemuan {CURRENT_WEEK + 1}–{TOTAL_WEEKS}</CardTitle>
           {readiness.map((r) => (
             <div
               key={r.week.id}
               style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderTop: "1px solid var(--color-line-soft)" }}
             >
               <div style={{ width: 62, flex: "none", fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                PEKAN {r.week.number}
+                PERTEMUAN {r.week.number}
               </div>
               <div style={{ flex: 1, fontSize: 15.5, minWidth: 0 }}>{r.week.title}</div>
               <div
@@ -223,7 +223,7 @@ export default function AdminDashboard() {
             Penutupan caturwulan
           </div>
           <div style={{ fontFamily: serif, fontSize: 23, lineHeight: 1.3 }}>
-            Materi Inti → Pekan Murojaah → Evaluasi Akhir → Umpan Balik
+            Materi Inti → Pertemuan Murojaah → Evaluasi Akhir → Umpan Balik
           </div>
           <div
             style={{

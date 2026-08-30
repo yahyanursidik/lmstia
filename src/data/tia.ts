@@ -17,11 +17,11 @@ export type UnitStep = {
 
 /** The seven-part unit structure, fixed for every pekan. */
 export const unitSteps: UnitStep[] = [
-  { nama: "Sebelum Belajar", ket: "Pengantar dan tujuan pekan ini", durasi: "3 mnt", done: true },
+  { nama: "Sebelum Belajar", ket: "Pengantar dan tujuan pertemuan ini", durasi: "3 mnt", done: true },
   { nama: "Materi Utama", ket: "Video 18 menit + PDF ringkas", durasi: "25 mnt", done: true, current: true },
   { nama: "Latihan", ket: "Membaca dan menulis kalimat sederhana", durasi: "30 mnt", done: true },
   { nama: "Worksheet", ket: "Menghubungkan niat, ibadah, dan tauhid", durasi: "20 mnt", done: true },
-  { nama: "Murojaah", ket: "Kosakata dan struktur pekan 5–7", durasi: "15 mnt", done: false },
+  { nama: "Murojaah", ket: "Kosakata dan struktur pertemuan 5–7", durasi: "15 mnt", done: false },
   { nama: "Cek Pemahaman", ket: "5 pertanyaan singkat", durasi: "10 mnt", done: false },
   { nama: "Refleksi", ket: "Catatan pemahaman dan penerapan", durasi: "5 mnt", done: false },
 ];
@@ -138,13 +138,13 @@ export const PEKAN_AKTIF = 8;
 export const TOTAL_PEKAN = 12;
 
 export const progresMapel = [
-  { nama: "Bahasa Arab 01", peran: "Membangun alat · intensif", label: "PEKAN 8 / 12", pct: 66 },
+  { nama: "Bahasa Arab 01", peran: "Membangun alat · intensif", label: "PERTEMUAN 8 / 12", pct: 66 },
   { nama: "Aqidah 01", peran: "Membangun keyakinan · fondasi", label: "BULAN 2 / 3", pct: 58 },
   { nama: "Adab Menuntut Ilmu", peran: "Membangun sikap · mandiri", label: "7 / 12 MATERI", pct: 58 },
 ];
 
 export const murojaahCatatan = [
-  { topik: "Kosakata Pekan 5–6", status: "Sudah Dikuasai", perlu: false },
+  { topik: "Kosakata Pertemuan 5–6", status: "Sudah Dikuasai", perlu: false },
   { topik: "Menulis huruf bersambung", status: "Perlu Murojaah", perlu: true },
   { topik: "Tauhid rububiyah & uluhiyah", status: "Sudah Dikuasai", perlu: false },
 ];
@@ -179,7 +179,7 @@ export const adminNav = [
 
 export const kpi = [
   { label: "PESERTA AKTIF", nilai: "64", delta: "dari 71 terdaftar", tone: "muted" as const },
-  { label: "KEHADIRAN PEKAN 8", nilai: "86%", delta: "+4% dari pekan lalu", tone: "good" as const },
+  { label: "KEHADIRAN PERTEMUAN 8", nilai: "86%", delta: "+4% dari pekan lalu", tone: "good" as const },
   { label: "LATIHAN SELESAI", nilai: "73%", delta: "−6% dari pekan lalu", tone: "warn" as const },
   { label: "BERISIKO BERHENTI", nilai: "7", delta: "perlu pendampingan", tone: "warn" as const },
 ];
@@ -238,10 +238,10 @@ export const STATUS_TONE: Record<StatusPeserta, { bg: string; fg: string }> = {
 };
 
 export const kesiapanKonten = [
-  { pekan: "PEKAN 9", judul: "Bahasa Arab 01 — Struktur kalimat lanjutan", status: "Siap", fg: "var(--color-forest)" },
-  { pekan: "PEKAN 10", judul: "Aqidah 01 — Ikhlas dan mengikuti Rasulullah", status: "Siap", fg: "var(--color-forest)" },
-  { pekan: "PEKAN 11", judul: "Pekan Murojaah — tanpa materi baru", status: "Perlu review", fg: "#8a6a25" },
-  { pekan: "PEKAN 12", judul: "Evaluasi Akhir Caturwulan + Muhasabah", status: "Draf", fg: "#8d4632" },
+  { pekan: "PERTEMUAN 9", judul: "Bahasa Arab 01 — Struktur kalimat lanjutan", status: "Siap", fg: "var(--color-forest)" },
+  { pekan: "PERTEMUAN 10", judul: "Aqidah 01 — Ikhlas dan mengikuti Rasulullah", status: "Siap", fg: "var(--color-forest)" },
+  { pekan: "PERTEMUAN 11", judul: "Pertemuan Murojaah — tanpa materi baru", status: "Perlu review", fg: "#8a6a25" },
+  { pekan: "PERTEMUAN 12", judul: "Evaluasi Akhir Caturwulan + Muhasabah", status: "Draf", fg: "#8d4632" },
 ];
 
 /** Bobot evaluasi akhir caturwulan — brief §8.7. */

@@ -36,7 +36,7 @@ export default function UnitBelajar() {
   if (!course || !wk) {
     return (
       <div className="shell" style={{ paddingBlock: "40px 80px" }}>
-        <EmptyState title="Unit tidak ditemukan" hint="Periksa kembali mata pelajaran dan pekan yang Anda buka." />
+        <EmptyState title="Unit tidak ditemukan" hint="Periksa kembali mata pelajaran dan pertemuan yang Anda buka." />
         <div style={{ marginTop: 20 }}>
           <Link to="/belajar/dashboard" className="btn-sm">
             Kembali ke dasbor
@@ -50,15 +50,15 @@ export default function UnitBelajar() {
     return (
       <div className="shell" style={{ paddingBlock: "40px 80px" }}>
         <EmptyState
-          title={`Pekan ${wk.number} belum dibuka`}
-          hint="Materi lanjutan dibuka bertahap setelah fondasi pekan sebelumnya cukup. Selesaikan pekan yang sedang berjalan terlebih dahulu."
+          title={`Pertemuan ${wk.number} belum dibuka`}
+          hint="Materi lanjutan dibuka bertahap setelah fondasi pertemuan sebelumnya cukup. Selesaikan pertemuan yang sedang berjalan terlebih dahulu."
         />
         <div style={{ marginTop: 20, display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <Link to={`/belajar/kelas/${course.slug}/pekan/${repo.CURRENT_WEEK}`} className="btn-solid-sm">
-            Buka pekan berjalan
+          <Link to={`/belajar/kelas/${course.slug}/pertemuan/${repo.CURRENT_WEEK}`} className="btn-solid-sm">
+            Buka pertemuan berjalan
           </Link>
           <Link to={`/belajar/kelas/${course.slug}`} className="btn-sm">
-            Lihat semua pekan
+            Lihat semua pertemuan
           </Link>
         </div>
       </div>
@@ -83,7 +83,7 @@ export default function UnitBelajar() {
         <span style={{ color: "#c9c1b2" }}>/</span>
         <Link to={`/belajar/kelas/${course.slug}`}>{course.name}</Link>
         <span style={{ color: "#c9c1b2" }}>/</span>
-        <span style={{ color: "var(--color-ink)", fontWeight: 600 }}>Pekan {wk.number}</span>
+        <span style={{ color: "var(--color-ink)", fontWeight: 600 }}>Pertemuan {wk.number}</span>
       </nav>
 
       <div className="unit-layout" style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 28, alignItems: "start" }}>
@@ -91,7 +91,7 @@ export default function UnitBelajar() {
           <Card padding={8}>
             <div style={{ padding: "14px 16px 12px" }}>
               <div className="eyebrow">
-                Pekan {wk.number} · {WEEK_TYPE_LABEL[wk.type]}
+                Pertemuan {wk.number} · {WEEK_TYPE_LABEL[wk.type]}
               </div>
               <div style={{ fontFamily: serif, fontSize: 19, lineHeight: 1.25, marginTop: 6 }}>{wk.title}</div>
               <div style={{ fontSize: 14, color: "var(--color-soft)", marginTop: 6 }}>
@@ -197,7 +197,7 @@ export default function UnitBelajar() {
                       ▶
                     </div>
                     <div style={{ fontFamily: mono, fontSize: 12.5, letterSpacing: ".08em", color: "var(--color-soft)" }}>
-                      REKAMAN — {course.name.toUpperCase()} PEKAN {wk.number}
+                      REKAMAN — {course.name.toUpperCase()} PERTEMUAN {wk.number}
                     </div>
                   </div>
                 )}
@@ -283,7 +283,7 @@ export default function UnitBelajar() {
           {showArabicExtras && (
             <Card padding="26px 28px">
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 20, gap: 16 }}>
-                <h2 style={{ fontFamily: serif, fontSize: 22 }}>Kosakata Pekan Ini</h2>
+                <h2 style={{ fontFamily: serif, fontSize: 22 }}>Kosakata Pertemuan Ini</h2>
                 <div style={{ fontFamily: mono, fontSize: 12, color: "var(--color-faint)" }}>
                   {KOSAKATA.length} KATA
                 </div>
@@ -319,15 +319,15 @@ export default function UnitBelajar() {
 
           <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
             {wk.number > 0 ? (
-              <Link to={`/belajar/kelas/${course.slug}/pekan/${wk.number - 1}`} className="btn-sm">
-                ← Pekan {wk.number - 1}
+              <Link to={`/belajar/kelas/${course.slug}/pertemuan/${wk.number - 1}`} className="btn-sm">
+                ← Pertemuan {wk.number - 1}
               </Link>
             ) : (
               <span />
             )}
             {wk.number < repo.TOTAL_WEEKS && !repo.weekOf(course.id, wk.number + 1)?.locked && (
-              <Link to={`/belajar/kelas/${course.slug}/pekan/${wk.number + 1}`} className="btn-solid-sm">
-                Pekan {wk.number + 1} →
+              <Link to={`/belajar/kelas/${course.slug}/pertemuan/${wk.number + 1}`} className="btn-solid-sm">
+                Pertemuan {wk.number + 1} →
               </Link>
             )}
           </div>

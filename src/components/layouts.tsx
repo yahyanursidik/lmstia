@@ -322,10 +322,10 @@ export function AdminLayout() {
               color: "#807a70",
             }}
           >
-            Cawu 1 · Pekan 8 dari 12
+            Cawu 1 · Pertemuan 8 dari 12
             <br />
             <span style={{ color: "var(--color-forest)", fontWeight: 700 }}>
-              Pekan Murojaah: pekan 11
+              Pertemuan Murojaah: pertemuan 11
             </span>
           </div>
         </aside>

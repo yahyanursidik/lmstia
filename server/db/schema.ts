@@ -720,3 +720,20 @@ export const registrations = pgTable(
     index("registrations_status_idx").on(t.status),
   ],
 );
+
+/**
+ * Pembatas laju percobaan masuk.
+ *
+ * Sebelumnya disimpan di memori proses, yang tidak berarti apa-apa di
+ * lingkungan serverless: tiap permintaan dapat mendarat pada instance baru
+ * dengan hitungan kosong. Disimpan di basis data, hitungannya dibagi oleh
+ * seluruh instance.
+ *
+ * `key` memuat dua bentuk: `ip:<alamat>` membatasi satu sumber yang mencoba
+ * banyak email, dan `akun:<alamat>:<email>` membatasi tebakan pada satu akun.
+ */
+export const loginAttempts = pgTable("login_attempts", {
+  key: text("key").primaryKey(),
+  n: integer("n").notNull().default(0),
+  resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
+});

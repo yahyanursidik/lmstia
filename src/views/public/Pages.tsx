@@ -175,7 +175,7 @@ export function CaturwulanDetail() {
       {!isActive && (
         <Card tone="sand" padding={22} style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 16, lineHeight: 1.6, color: "var(--color-body)" }}>
-            Rincian pekan untuk {term.name} akan dibuka menjelang pendaftaran. Anda dapat menyelesaikan{" "}
+            Rincian pertemuan untuk {term.name} akan dibuka menjelang pendaftaran. Anda dapat menyelesaikan{" "}
             {repo.activeTerm.name} terlebih dahulu.
           </div>
         </Card>
@@ -222,7 +222,7 @@ export function CaturwulanDetail() {
                 className="split"
               >
                 <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-faint)" }}>
-                  {w.number === 0 ? "PEKAN 0" : `PEKAN ${w.number}`}
+                  {w.number === 0 ? "PERTEMUAN 0" : `PERTEMUAN ${w.number}`}
                 </div>
                 <div>{w.title}</div>
                 <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-forest)" }}>
@@ -418,7 +418,7 @@ export function Daftar() {
         <Card tone="mist" padding={28}>
           <div style={{ fontSize: 18, lineHeight: 1.7, color: "#2f4a3f" }}>
             Tim akademik akan meninjau pendaftaran Anda untuk <strong>{term.name}</strong>. Setelah disetujui, Anda akan
-            menerima akses orientasi dan dapat memulai Pekan 0.
+            menerima akses orientasi dan dapat memulai Pertemuan 0.
           </div>
         </Card>
         <div style={{ marginTop: 20 }}>

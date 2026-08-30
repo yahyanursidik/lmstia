@@ -156,12 +156,37 @@ SEED_HAPUS_SEMUA=ya-saya-yakin npm run db:seed
 Basis data lokal dan produksi memakai Neon yang sama, jadi perintah yang
 dijalankan dari mesin lokal langsung berdampak ke produksi.
 
+
+### Menyiapkan akun admin sungguhan
+
+Akun demo (`npm run db:accounts`) hanya untuk menjelajah portal dan harus
+hilang sebelum go-live. Sebelum menghapusnya, buat dulu admin sungguhan —
+tanpa itu portal admin terkunci permanen, karena tidak ada pendaftaran admin
+maupun reset kata sandi.
+
+```bash
+ADMIN_EMAIL=admin@domain-anda.id ADMIN_NAME="Nama Lengkap" ADMIN_PASSWORD='kata sandi panjang' npm run db:admin
+```
+
+Kata sandi dibaca dari environment, bukan argumen, supaya tidak tersimpan di
+riwayat shell. Setelah menguji masuk dengan akun itu:
+
+```bash
+HAPUS_AKUN_DEMO=ya-saya-yakin npm run db:purge-demo
+```
+
+`db:purge-demo` menolak berjalan selama belum ada super admin non-demo yang
+aktif, dan menyebutkan data apa saja yang ikut terhapus lewat cascade.
+
 ### Batasan yang perlu diketahui
 
-Rate limit login disimpan di memori proses. Di lingkungan serverless setiap
-permintaan bisa mendapat instance berbeda, sehingga pembatasan menjadi
-longgar. Untuk produksi sungguhan, pindahkan ke penyimpanan bersama
-(mis. Redis) atau pakai pembatas bawaan platform.
+Rate limit login disimpan di tabel `login_attempts`, bukan di memori proses,
+sehingga hitungannya dibagi seluruh instance serverless. Ada dua penghitung:
+per alamat IP (30 percobaan / 5 menit) dan per akun dari alamat itu (8).
+
+Formulir pendaftaran publik belum punya pembatas laju. Indeks unik mencegah
+satu email mendaftar dua kali, tetapi tidak mencegah pengiriman massal dengan
+email berbeda.
 
 ## Perintah lain
 

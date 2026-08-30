@@ -399,10 +399,10 @@ function MengapaCaturwulan() {
 function FokusCawu1() {
   const mapel = repo.allCourses();
   const struktur = [
-    { p: "PEKAN 0", t: "Orientasi", d: "Mengenal ritme belajar, menyiapkan target, dan memilih pengingat." },
-    { p: "PEKAN 1–10", t: "Pembelajaran inti", d: "Materi, latihan, worksheet, dan murojaah setiap pekan." },
-    { p: "PEKAN 11", t: "Pekan Murojaah", d: "Tidak ada materi baru. Fokus mengulang dan menutup yang tertinggal." },
-    { p: "PEKAN 12", t: "Evaluasi Akhir", d: "Evaluasi, laporan capaian, dan muhasabah perjalanan." },
+    { p: "PERTEMUAN 0", t: "Orientasi", d: "Mengenal ritme belajar, menyiapkan target, dan memilih pengingat." },
+    { p: "PERTEMUAN 1–10", t: "Pembelajaran inti", d: "Materi, latihan, worksheet, dan murojaah setiap pekan." },
+    { p: "PERTEMUAN 11", t: "Pertemuan Murojaah", d: "Tidak ada materi baru. Fokus mengulang dan menutup yang tertinggal." },
+    { p: "PERTEMUAN 12", t: "Evaluasi Akhir", d: "Evaluasi, laporan capaian, dan muhasabah perjalanan." },
   ];
 
   return (
@@ -668,7 +668,7 @@ function MateriLMS() {
           <SectionHead
             eyebrow="Di dalam LMS"
             title="Semua yang Anda perlukan untuk satu pekan, di satu tempat."
-            lead="LMS TIA tidak menampilkan seluruh perjalanan sekaligus. Yang tampil adalah pekan yang sedang Anda jalani dan satu langkah berikutnya."
+            lead="LMS TIA tidak menampilkan seluruh perjalanan sekaligus. Yang tampil adalah pertemuan yang sedang Anda jalani dan satu langkah berikutnya."
             max={420}
           />
         </div>

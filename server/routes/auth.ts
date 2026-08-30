@@ -4,35 +4,17 @@ import { badRequest } from "../lib/errors";
 import { requireAuth } from "../middleware/auth";
 import { authenticate, createSession, destroySession } from "../services/auth";
 import * as learner from "../repositories/learner";
+import {
+  alamatPemanggil,
+  bersihkanPercobaan,
+  catatPercobaanMasuk,
+  sapuBerkala,
+} from "../services/ratelimit";
 
 const loginBody = z.object({
   email: z.string().email("Format email tidak valid"),
   password: z.string().min(1, "Kata sandi wajib diisi").max(200),
 });
-
-/**
- * Simple in-memory rate limit on the login endpoint (10-AUTH-RBAC.md:
- * "Rate limit endpoint auth"). Per-process only — a multi-instance deploy
- * needs Redis or the platform's own limiter.
- */
-const WINDOW_MS = 5 * 60 * 1000;
-const MAX_ATTEMPTS = 8;
-const attempts = new Map<string, { n: number; resetAt: number }>();
-
-function tooManyAttempts(key: string): boolean {
-  const now = Date.now();
-  const rec = attempts.get(key);
-  if (!rec || now > rec.resetAt) {
-    attempts.set(key, { n: 1, resetAt: now + WINDOW_MS });
-    return false;
-  }
-  rec.n += 1;
-  return rec.n > MAX_ATTEMPTS;
-}
-
-function clearAttempts(key: string) {
-  attempts.delete(key);
-}
 
 export const authRoutes = new Hono();
 
@@ -41,17 +23,21 @@ authRoutes.post("/login", async (c) => {
   if (!parsed.success) return badRequest(c, parsed.error);
 
   const { email, password } = parsed.data;
-  const key = `${c.req.header("x-forwarded-for") ?? "local"}:${email.toLowerCase()}`;
+  const ip = alamatPemanggil((n) => c.req.header(n));
 
-  if (tooManyAttempts(key)) {
+  await sapuBerkala();
+  const batas = await catatPercobaanMasuk(ip, email);
+  if (batas.ditolak) {
+    const menit = Math.ceil(batas.sisaDetik / 60);
     return c.json(
       {
         error: {
           code: "RATE_LIMITED",
-          message: "Terlalu banyak percobaan masuk. Coba lagi dalam beberapa menit.",
+          message: `Terlalu banyak percobaan masuk. Coba lagi dalam ${menit} menit.`,
         },
       },
       429,
+      { "Retry-After": String(batas.sisaDetik) },
     );
   }
 
@@ -64,7 +50,7 @@ authRoutes.post("/login", async (c) => {
     );
   }
 
-  clearAttempts(key);
+  await bersihkanPercobaan(ip, email);
   const { token, expiresAt } = await createSession(user.id);
   await learner.writeAudit(user.id, "auth.login", "user", user.id);
 

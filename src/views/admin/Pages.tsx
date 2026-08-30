@@ -89,7 +89,7 @@ export function Peserta() {
       <DataTable columns={columns} rows={rows} empty="Tidak ada peserta pada filter ini." />
       <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 14, lineHeight: 1.6 }}>
         Aturan peringatan dini: 7 hari tanpa aktivitas → perlu perhatian; 14 hari tanpa aktivitas atau tertinggal ≥ 2
-        pekan → berisiko tertinggal.
+        pertemuan → berisiko tertinggal.
       </div>
     </>
   );
@@ -194,9 +194,9 @@ export function Kehadiran() {
   return (
     <>
       <PageHeader
-        eyebrow={`${repo.activeTerm.name} · Pekan ${CURRENT_WEEK}`}
+        eyebrow={`${repo.activeTerm.name} · Pertemuan ${CURRENT_WEEK}`}
         title="Kehadiran"
-        lead="Rekap kehadiran kelas Bahasa Arab sampai pekan berjalan."
+        lead="Rekap kehadiran kelas Bahasa Arab sampai pertemuan berjalan."
       />
       <DataTable columns={columns} rows={participants} empty="Belum ada data kehadiran." />
     </>
@@ -277,7 +277,7 @@ function AssessmentList({ kind }: { kind: "worksheet" | "quiz" }) {
             <Card key={l.id} padding={18}>
               <div className="split" style={{ display: "grid", gridTemplateColumns: "160px 1fr 120px", gap: 16, alignItems: "center" }}>
                 <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                  {c.code} · PEKAN {w.number}
+                  {c.code} · PERTEMUAN {w.number}
                 </div>
                 <div style={{ fontSize: 16, minWidth: 0 }}>{w.title}</div>
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
@@ -414,7 +414,7 @@ export function Laporan() {
           { k: "PESERTA TERDAFTAR", v: String(kpi.total) },
           { k: "SESUAI JALUR", v: String(kpi.active) },
           { k: "PERLU PENDAMPINGAN", v: String(kpi.risk) },
-          { k: "PEKAN BERJALAN", v: `${CURRENT_WEEK}/12` },
+          { k: "PERTEMUAN BERJALAN", v: `${CURRENT_WEEK}/12` },
         ].map((x) => (
           <Card key={x.k} padding={20}>
             <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".11em", color: "var(--color-soft)" }}>{x.k}</div>

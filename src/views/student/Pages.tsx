@@ -49,7 +49,7 @@ export function Caturwulan() {
       <PageHeader
         eyebrow={`${term.name} · Marhalah I'dad`}
         title={term.title}
-        lead="Seluruh perjalanan caturwulan ini dalam satu tampilan. Materi lanjutan terbuka bertahap seiring pekan berjalan."
+        lead="Seluruh perjalanan caturwulan ini dalam satu tampilan. Materi lanjutan terbuka bertahap seiring pertemuan berjalan."
       />
 
       <Card tone="forest" padding={26} style={{ marginBottom: 24 }}>
@@ -59,7 +59,7 @@ export function Caturwulan() {
               Progres caturwulan
             </div>
             <div style={{ fontFamily: serif, fontSize: 30 }}>
-              Pekan {p.week} dari {p.total}
+              Pertemuan {p.week} dari {p.total}
             </div>
             <div style={{ fontSize: 16, color: "rgba(238,242,238,.7)", marginTop: 8 }}>
               Setelah caturwulan ini selesai, tersedia jeda 1–2 pekan sebelum Anda memutuskan untuk melanjutkan.
@@ -69,7 +69,7 @@ export function Caturwulan() {
         </div>
       </Card>
 
-      <CardTitle>Timeline 12 pekan</CardTitle>
+      <CardTitle>Timeline 12 pertemuan</CardTitle>
       <div style={{ display: "grid", gap: 8, marginBottom: 36 }}>
         {weeks.map((w) => {
           const s = weekStatus(w);
@@ -91,13 +91,13 @@ export function Caturwulan() {
               }}
             >
               <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-faint)" }}>
-                PEKAN {w.number}
+                PERTEMUAN {w.number}
               </div>
               <div style={{ minWidth: 0 }}>
                 {w.locked ? (
                   <span style={{ color: "var(--color-soft)" }}>{w.title}</span>
                 ) : (
-                  <Link to={`/belajar/kelas/${arab.slug}/pekan/${w.number}`} style={{ fontWeight: 600 }}>
+                  <Link to={`/belajar/kelas/${arab.slug}/pertemuan/${w.number}`} style={{ fontWeight: 600 }}>
                     {w.title}
                   </Link>
                 )}
@@ -188,14 +188,14 @@ export function Kelas() {
                   }}
                 >
                   <div style={{ width: 62, flex: "none", fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                    PEKAN {w.number}
+                    PERTEMUAN {w.number}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     {w.locked ? (
                       <span style={{ fontSize: 16.5, color: "var(--color-soft)" }}>{w.title}</span>
                     ) : (
                       <Link
-                        to={`/belajar/kelas/${course.slug}/pekan/${w.number}`}
+                        to={`/belajar/kelas/${course.slug}/pertemuan/${w.number}`}
                         style={{ fontSize: 16.5, fontWeight: 600 }}
                       >
                         {w.title}
@@ -258,7 +258,7 @@ export function Jadwal() {
         lead="Kelas online, praktik tatap muka, dan Majlis Ta'sil bulanan. Kehadiran dicatat untuk kelas yang mewajibkannya."
       />
       {sessions.length === 0 ? (
-        <EmptyState title="Belum ada jadwal" hint="Jadwal akan muncul setelah pekan berjalan dibuka." />
+        <EmptyState title="Belum ada jadwal" hint="Jadwal akan muncul setelah pertemuan berjalan dibuka." />
       ) : (
         <div style={{ display: "grid", gap: 10 }}>
           {sessions.map((s) => {
@@ -346,7 +346,7 @@ export function Murojaah() {
             Jalur mengejar ketertinggalan
           </div>
           <div style={{ fontSize: 15.5, lineHeight: 1.6, color: "var(--color-body)", marginBottom: 16 }}>
-            Materi esensial pekan {CURRENT_WEEK} bila Anda perlu mengejar. Jalur ini bersifat suportif — bukan hukuman.
+            Materi esensial pertemuan {CURRENT_WEEK} bila Anda perlu mengejar. Jalur ini bersifat suportif — bukan hukuman.
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {catchUp.map((l) => (
@@ -370,7 +370,7 @@ export function Murojaah() {
             ))}
           </div>
           <div style={{ marginTop: 18 }}>
-            <Link to={`/belajar/kelas/${arab.slug}/pekan/${CURRENT_WEEK}`} className="btn-solid-sm" style={{ display: "inline-block" }}>
+            <Link to={`/belajar/kelas/${arab.slug}/pertemuan/${CURRENT_WEEK}`} className="btn-solid-sm" style={{ display: "inline-block" }}>
               Mulai jalur ringkas →
             </Link>
           </div>
@@ -403,7 +403,7 @@ export function Progress() {
       <div className="quad" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
         <Card>
           <div className="eyebrow" style={{ marginBottom: 10 }}>
-            Pekan
+            Pertemuan
           </div>
           <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>
             {p.week}/{p.total}
