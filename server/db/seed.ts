@@ -7,7 +7,7 @@
  */
 
 import "dotenv/config";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { db } from "./client";
 import * as s from "./schema";
 
@@ -126,7 +126,64 @@ async function reset() {
   await db.delete(s.users);
 }
 
+/**
+ * Seed ini MENGHAPUS seluruh isi tabel sebelum mengisi ulang. Itu aman pada
+ * basis data kosong, dan menghancurkan pada basis data yang sudah dipakai —
+ * termasuk konten yang dimasukkan lewat portal admin.
+ *
+ * Karena itu seed menolak berjalan bila sudah ada isinya, kecuali penghapusan
+ * dinyatakan secara eksplisit. Sengaja tidak memakai flag yang mudah terketik
+ * ulang dari riwayat shell.
+ */
+async function pastikanAmanUntukMenghapus() {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Seed menolak berjalan dengan NODE_ENV=production.");
+  }
+
+  const [{ programs, tahapanCount, subjects, meetings, materials, users }] = await db
+    .select({
+      programs: sql<number>`(select count(*) from ${s.programs})::int`,
+      tahapanCount: sql<number>`(select count(*) from ${s.tahapan})::int`,
+      subjects: sql<number>`(select count(*) from ${s.subjects})::int`,
+      meetings: sql<number>`(select count(*) from ${s.meetings})::int`,
+      materials: sql<number>`(select count(*) from ${s.materials})::int`,
+      users: sql<number>`(select count(*) from ${s.users})::int`,
+    })
+    .from(sql`(select 1) as _`);
+
+  const total = programs + tahapanCount + subjects + meetings + materials + users;
+  if (total === 0) return;
+
+  if (process.env.SEED_HAPUS_SEMUA === "ya-saya-yakin") {
+    console.warn("⚠  Menghapus data yang sudah ada atas permintaan eksplisit.");
+    return;
+  }
+
+  const host = (process.env.DATABASE_URL ?? "").split("@")[1]?.split("/")[0] ?? "(tidak diketahui)";
+  throw new Error(
+    [
+      "",
+      "Seed DIBATALKAN — basis data ini sudah berisi data.",
+      "",
+      `  host      : ${host}`,
+      `  program   : ${programs}`,
+      `  tahapan   : ${tahapanCount}`,
+      `  mapel     : ${subjects}`,
+      `  pertemuan : ${meetings}`,
+      `  materi    : ${materials}`,
+      `  pengguna  : ${users}`,
+      "",
+      "Menjalankan seed akan MENGHAPUS semuanya, termasuk konten yang",
+      "dimasukkan lewat portal admin. Bila memang itu yang diinginkan:",
+      "",
+      "  SEED_HAPUS_SEMUA=ya-saya-yakin npm run db:seed",
+      "",
+    ].join("\n"),
+  );
+}
+
 async function main() {
+  await pastikanAmanUntukMenghapus();
   console.log("→ mengosongkan data lama…");
   await reset();
 

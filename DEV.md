@@ -139,6 +139,21 @@ Migrasi dan seed dijalankan dari mesin lokal terhadap basis data yang sama
 (`npm run db:migrate`, `npm run db:seed`, `npm run db:accounts`) — tidak
 dijalankan otomatis saat deploy.
 
+
+### Peringatan: `db:seed` bersifat menghapus
+
+`npm run db:seed` mengosongkan SELURUH tabel lalu mengisi ulang dengan data
+contoh. Pada basis data yang sudah dipakai, ini menghancurkan konten yang
+dimasukkan lewat portal admin.
+
+Seed kini menolak berjalan bila basis data sudah berisi data, dan menolak
+sepenuhnya saat `NODE_ENV=production`. Untuk sengaja mengosongkan:
+
+
+
+Basis data lokal dan produksi memakai Neon yang sama, jadi perintah yang
+dijalankan dari mesin lokal langsung berdampak ke produksi.
+
 ### Batasan yang perlu diketahui
 
 Rate limit login disimpan di memori proses. Di lingkungan serverless setiap
