@@ -11,7 +11,7 @@ const DEMO_PASSWORD = "TiaDemo#2026";
 
 const DEMO_ACCOUNTS = [
   { email: "peserta@tia.id", label: "Peserta", who: "Abdurrahman", desc: "Dasbor belajar, unit pekanan, murojaah." },
-  { email: "pengajar@tia.id", label: "Pengajar", who: "Ustadz Abu Hudzaifah", desc: "Kelas yang diampu, kehadiran, penilaian." },
+  { email: "pengajar@tia.id", label: "Pengajar", who: "Ustadz M. Hilman Al-Fiqhy, M.A.", desc: "Kelas yang diampu, kehadiran, penilaian." },
   { email: "admin@tia.id", label: "Admin Akademik", who: "Tim Akademik", desc: "Kurikulum, peserta, pendaftaran, laporan." },
   { email: "super@tia.id", label: "Super Admin", who: "Akses penuh", desc: "Seluruh sumber daya tanpa batasan." },
 ];

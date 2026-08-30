@@ -134,9 +134,10 @@ async function main() {
   const instructors = await db
     .insert(s.users)
     .values([
-      { name: "Ustadz Abu Hudzaifah", email: "abu.hudzaifah@tia.id", role: "instructor" },
-      { name: "Ustadz Abdul Muhsin", email: "abdul.muhsin@tia.id", role: "instructor" },
-      { name: "Ustadz Salman Al-Faris", email: "salman@tia.id", role: "instructor" },
+      // Urutan disamakan dengan src/domain/seed.ts agar tidak membingungkan.
+      // Aqidah dan Adab diampu pengajar yang sama — satu catatan, dua mata pelajaran.
+      { name: "Ustadz Abu Haidar As-Sundawy حفظه الله", email: "abu.haidar@tia.id", role: "instructor" },
+      { name: "Ustadz M. Hilman Al-Fiqhy, M.A. حفظه الله", email: "hilman.alfiqhy@tia.id", role: "instructor" },
     ])
     .returning();
 
@@ -232,7 +233,7 @@ async function main() {
         role: "INTENSIVE",
         deliveryModel: "2 kelas online + 1 tatap muka pekanan",
         weeklyLoad: "2–3 jam / pekan",
-        instructorId: instructors[0].id,
+        instructorId: instructors[1].id,
         sequence: 1,
       },
       {
@@ -244,7 +245,7 @@ async function main() {
         role: "FOUNDATION",
         deliveryModel: "Materi mandiri LMS + Majlis Ta'sil bulanan",
         weeklyLoad: "1–2 jam / pekan",
-        instructorId: instructors[1].id,
+        instructorId: instructors[0].id,
         sequence: 2,
       },
       {
@@ -256,7 +257,7 @@ async function main() {
         role: "COMPANION",
         deliveryModel: "Materi pendamping mandiri",
         weeklyLoad: "±30 menit / pekan",
-        instructorId: instructors[2].id,
+        instructorId: instructors[0].id,
         sequence: 3,
       },
     ])

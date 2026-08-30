@@ -28,7 +28,7 @@ type Seed = {
 const ACCOUNTS: Seed[] = [
   { email: "admin@tia.id", name: "Tim Akademik", role: "academic_admin" },
   { email: "super@tia.id", name: "Super Admin", role: "super_admin" },
-  { email: "pengajar@tia.id", name: "Ustadz Abu Hudzaifah", role: "instructor" },
+  { email: "pengajar@tia.id", name: "Ustadz M. Hilman Al-Fiqhy, M.A. حفظه الله", role: "instructor" },
   { email: "peserta@tia.id", name: "Abdurrahman", role: "student", segment: "Profesional" },
 ];
 

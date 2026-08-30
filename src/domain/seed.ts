@@ -81,30 +81,31 @@ export const terms: Term[] = [
   },
 ];
 
+/**
+ * Aqidah dan Adab diampu pengajar yang sama, jadi keduanya menunjuk satu
+ * catatan pengajar — bukan dua baris bernama identik.
+ */
+/**
+ * Urutan larik ini menentukan urutan tampil di halaman Pengajar.
+ * Aqidah dan Adab diampu pengajar yang sama, jadi keduanya menunjuk satu
+ * catatan pengajar — bukan dua baris bernama identik.
+ */
 export const instructors: Instructor[] = [
   {
-    id: "in-1",
-    name: "Ustadz Abu Hudzaifah",
-    title: "Pengampu Bahasa Arab 01",
-    focus: "Bahasa Arab",
-    bio: "Mengampu kelas materi dan kelas latihan Bahasa Arab, dengan penekanan pada membaca dan menulis kalimat dasar.",
+    id: "in-2",
+    name: "Ustadz Abu Haidar As-Sundawy حفظه الله",
+    title: "Pengampu Aqidah 01 dan Adab Menuntut Ilmu",
+    focus: "Aqidah dan Adab",
+    bio: "Membimbing materi tauhid dan memimpin Majlis Ta'sil bulanan, serta menyusun materi pendamping Adab beserta refleksi pekanan peserta.",
     initials: "AH",
   },
   {
-    id: "in-2",
-    name: "Ustadz Abdul Muhsin",
-    title: "Pengampu Aqidah 01",
-    focus: "Aqidah",
-    bio: "Membimbing materi tauhid dan memimpin Majlis Ta'sil bulanan.",
-    initials: "AM",
-  },
-  {
-    id: "in-3",
-    name: "Ustadz Salman Al-Faris",
-    title: "Pengampu Adab Menuntut Ilmu",
-    focus: "Adab",
-    bio: "Menyusun materi pendamping mandiri dan mendampingi refleksi pekanan peserta.",
-    initials: "SF",
+    id: "in-1",
+    name: "Ustadz M. Hilman Al-Fiqhy, M.A. حفظه الله",
+    title: "Pengampu Bahasa Arab 01",
+    focus: "Bahasa Arab",
+    bio: "Mengampu kelas materi dan kelas latihan Bahasa Arab, dengan penekanan pada membaca dan menulis kalimat dasar.",
+    initials: "HF",
   },
 ];
 
@@ -145,7 +146,7 @@ export const courses: Course[] = [
     role: "COMPANION",
     deliveryModel: "Materi pendamping mandiri",
     weeklyLoad: "±30 menit / pekan",
-    instructorId: "in-3",
+    instructorId: "in-2",
     sequence: 3,
   },
 ];

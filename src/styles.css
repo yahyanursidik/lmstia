@@ -30,8 +30,14 @@
   --color-line-softer: #f2ede3;
   --color-line-strong: #d3cabb;
 
-  --font-serif: "Newsreader", Georgia, serif;
-  --font-sans: "Karla", ui-sans-serif, system-ui, sans-serif;
+  /*
+     Noto Naskh Arabic disisipkan setelah font utama. Newsreader dan Karla
+     tidak memuat glif Arab, jadi peramban jatuh ke Naskh hanya untuk aksara
+     Arab — huruf Latin tetap memakai font utama. Ini membuat honorifik pada
+     nama pengajar (حفظه الله) tampil rapi tanpa perlu memecah teksnya.
+  */
+  --font-serif: "Newsreader", "Noto Naskh Arabic", Georgia, serif;
+  --font-sans: "Karla", "Noto Naskh Arabic", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
   --font-arabic: "Noto Naskh Arabic", serif;
 }
