@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import * as s from "../db/schema";
 
@@ -178,3 +178,158 @@ export const writeAudit = (
   entity: string,
   entityId?: string,
 ) => db.insert(s.auditLogs).values({ actorId, action, entity, entityId });
+
+/* --- Manajemen pengguna ------------------------------------------- */
+
+/**
+ * Kolom pengguna yang boleh keluar dari server.
+ *
+ * `passwordHash` sengaja tidak pernah masuk daftar ini. Memilih kolom secara
+ * eksplisit — bukan `select()` lalu menghapus field — membuat kebocoran tidak
+ * mungkin terjadi karena lupa, termasuk saat kolom baru ditambahkan nanti.
+ */
+const kolomPengguna = {
+  id: s.users.id,
+  name: s.users.name,
+  email: s.users.email,
+  role: s.users.role,
+  phone: s.users.phone,
+  country: s.users.country,
+  province: s.users.province,
+  city: s.users.city,
+  education: s.users.education,
+  accountStatus: s.users.accountStatus,
+  segment: s.users.segment,
+  avatarUrl: s.users.avatarUrl,
+  isDemo: s.users.isDemo,
+  lastLoginAt: s.users.lastLoginAt,
+  createdAt: s.users.createdAt,
+};
+
+export type FilterPengguna = {
+  q?: string;
+  role?: "student" | "instructor" | "academic_admin" | "super_admin";
+  accountStatus?: "aktif" | "nonaktif" | "ditangguhkan";
+  programId?: string;
+  tahapanId?: string;
+};
+
+/**
+ * Menyusun syarat WHERE bersama untuk daftar dan penghitungan, supaya cacah
+ * total selalu konsisten dengan halaman yang ditampilkan.
+ */
+function syaratPengguna(f: FilterPengguna) {
+  const w = [];
+  if (f.role) w.push(eq(s.users.role, f.role));
+  if (f.accountStatus) w.push(eq(s.users.accountStatus, f.accountStatus));
+
+  const q = f.q?.trim();
+  if (q) {
+    const pola = `%${q.replace(/[%_\\]/g, (m) => "\\" + m)}%`;
+    w.push(
+      or(
+        ilike(s.users.name, pola),
+        ilike(s.users.email, pola),
+        ilike(s.users.phone, pola),
+        ilike(s.users.city, pola),
+      )!,
+    );
+  }
+
+  /*
+   * Penyaring program dan caturwulan bekerja lewat pendaftaran. Dipakai
+   * subquery EXISTS, bukan JOIN, agar satu peserta tidak muncul berkali-kali
+   * ketika ia terdaftar pada lebih dari satu tahapan.
+   */
+  if (f.tahapanId) {
+    w.push(
+      exists(
+        db
+          .select({ x: sql`1` })
+          .from(s.enrollments)
+          .where(
+            and(eq(s.enrollments.userId, s.users.id), eq(s.enrollments.tahapanId, f.tahapanId)),
+          ),
+      ),
+    );
+  } else if (f.programId) {
+    w.push(
+      exists(
+        db
+          .select({ x: sql`1` })
+          .from(s.enrollments)
+          .innerJoin(s.tahapan, eq(s.tahapan.id, s.enrollments.tahapanId))
+          .where(and(eq(s.enrollments.userId, s.users.id), eq(s.tahapan.programId, f.programId))),
+      ),
+    );
+  }
+
+  return w.length ? and(...w) : undefined;
+}
+
+/** Satu halaman pengguna beserta cacah total untuk paginasi. */
+export async function listUsersPaged(f: FilterPengguna, page: number, perPage: number) {
+  const where = syaratPengguna(f);
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select(kolomPengguna)
+      .from(s.users)
+      .where(where)
+      .orderBy(asc(s.users.name))
+      .limit(perPage)
+      .offset((page - 1) * perPage),
+    db.select({ total: sql<number>`count(*)::int` }).from(s.users).where(where),
+  ]);
+  return { rows, total };
+}
+
+/** Daftar ringkas untuk kotak pencarian dengan saran. */
+export const suggestUsers = (q: string, limit = 8) =>
+  db
+    .select({ id: s.users.id, name: s.users.name, email: s.users.email, role: s.users.role })
+    .from(s.users)
+    .where(syaratPengguna({ q }))
+    .orderBy(asc(s.users.name))
+    .limit(limit);
+
+export const findUserDetail = (id: string) =>
+  db.select(kolomPengguna).from(s.users).where(eq(s.users.id, id));
+
+/** Pendaftaran seorang pengguna, lengkap dengan tahapan dan programnya. */
+export const listUserEnrollments = (userId: string) =>
+  db
+    .select({
+      id: s.enrollments.id,
+      status: s.enrollments.status,
+      engagement: s.enrollments.engagement,
+      competency: s.enrollments.competency,
+      progress: s.enrollments.progress,
+      className: s.enrollments.className,
+      tahapanId: s.tahapan.id,
+      tahapanName: s.tahapan.name,
+      programId: s.programs.id,
+      programName: s.programs.name,
+    })
+    .from(s.enrollments)
+    .innerJoin(s.tahapan, eq(s.tahapan.id, s.enrollments.tahapanId))
+    .innerJoin(s.programs, eq(s.programs.id, s.tahapan.programId))
+    .where(eq(s.enrollments.userId, userId));
+
+export const updateUser = (id: string, v: Partial<typeof s.users.$inferInsert>) =>
+  db
+    .update(s.users)
+    .set({ ...v, updatedAt: new Date() })
+    .where(eq(s.users.id, id))
+    .returning(kolomPengguna);
+
+export const deleteUser = (id: string) =>
+  db.delete(s.users).where(eq(s.users.id, id)).returning({ id: s.users.id });
+
+/** Dipakai untuk mencegah super admin terakhir dihapus atau diturunkan. */
+export const countSuperAdmins = async () => {
+  const [r] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(s.users)
+    .where(and(eq(s.users.role, "super_admin"), eq(s.users.accountStatus, "aktif")));
+  return r.n;
+};

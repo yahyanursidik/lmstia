@@ -19,6 +19,7 @@ import * as service from "./services/learning";
 import { authRoutes } from "./routes/auth";
 import { contentRoutes } from "./routes/content";
 import { assessmentAdminRoutes, quizRoutes } from "./routes/assessment";
+import { userRoutes } from "./routes/users";
 import * as assess from "./services/assessment";
 import { bookmarkBody, noteBody, slugParam, uuidParam } from "./validators/schemas";
 
@@ -170,6 +171,7 @@ app.post("/materials/:id/complete", requireAuth(), async (c) => {
 /* --- Admin (CRUD hierarki konten) ---------------------------------- */
 
 app.route("/kuis", quizRoutes);
+app.route("/admin/users", userRoutes);
 app.route("/admin/assessments", assessmentAdminRoutes);
 app.route("/admin", contentRoutes);
 

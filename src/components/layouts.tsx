@@ -210,7 +210,15 @@ export function StudentLayout() {
 
 /* --- admin ---------------------------------------------------- */
 
-const ADMIN_GROUPS: { label: string; items: { to: string; label: string }[] }[] = [
+/**
+ * `adminOnly` menandai menu yang API-nya hanya melayani academic_admin dan
+ * super_admin. Menampilkannya kepada pengajar hanya akan berujung 403, jadi
+ * menunya disaring, bukan sekadar halamannya yang menolak.
+ */
+const ADMIN_GROUPS: {
+  label: string;
+  items: { to: string; label: string; adminOnly?: boolean }[];
+}[] = [
   {
     label: "Ringkasan",
     items: [
@@ -238,7 +246,7 @@ const ADMIN_GROUPS: { label: string; items: { to: string; label: string }[] }[] 
   {
     label: "Orang",
     items: [
-      { to: "/admin/peserta", label: "Peserta" },
+      { to: "/admin/pengguna", label: "Pengguna", adminOnly: true },
       { to: "/admin/pendaftaran", label: "Pendaftaran" },
       { to: "/admin/pengajar", label: "Pengajar" },
       { to: "/admin/pengumuman", label: "Pengumuman" },
@@ -289,7 +297,9 @@ export function AdminLayout() {
               >
                 {g.label.toUpperCase()}
               </div>
-              {g.items.map((it) => (
+              {g.items
+                .filter((it) => !it.adminOnly || (user && isAdminRole(user.role)))
+                .map((it) => (
                 <NavLink
                   key={it.to}
                   to={it.to}

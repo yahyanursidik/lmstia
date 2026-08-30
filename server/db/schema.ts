@@ -32,6 +32,25 @@ import {
 
 export const roleEnum = pgEnum("role", ["student", "instructor", "academic_admin", "super_admin"]);
 
+/** Jenjang pendidikan terakhir peserta. */
+export const educationEnum = pgEnum("education_level", [
+  "sd",
+  "smp",
+  "sma",
+  "d1_d3",
+  "d4_s1",
+  "s2",
+  "s3",
+  "lainnya",
+]);
+
+/**
+ * Status akun — terpisah dari status pendaftaran (`enrollments.status`).
+ * Status akun mengatur boleh-tidaknya masuk; status pendaftaran mengatur
+ * keikutsertaan pada satu tahapan.
+ */
+export const accountStatusEnum = pgEnum("account_status", ["aktif", "nonaktif", "ditangguhkan"]);
+
 export const publishStatusEnum = pgEnum("publish_status", ["draft", "review", "published"]);
 
 export const programStatusEnum = pgEnum("program_status", ["draft", "active", "archived"]);
@@ -122,6 +141,16 @@ export const users = pgTable(
     isDemo: boolean("is_demo").notNull().default(false),
     avatarUrl: text("avatar_url"),
     segment: text("segment"),
+    /* --- Kontak & Domisili ---------------------------------------- */
+    /** Nomor WhatsApp, disimpan apa adanya seperti yang diisi admin. */
+    phone: text("phone"),
+    country: text("country"),
+    /** Provinsi disimpan agar penyaringan wilayah tidak perlu menebak. */
+    province: text("province"),
+    /** Kabupaten atau kota. */
+    city: text("city"),
+    education: educationEnum("education"),
+    accountStatus: accountStatusEnum("account_status").notNull().default("aktif"),
     lastLoginAt: timestamp("last_login_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

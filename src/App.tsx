@@ -26,6 +26,7 @@ import AdminDashboard from "./views/admin/Dashboard";
 import Portofolio from "./views/admin/Portofolio";
 import Penilaian from "./views/admin/Penilaian";
 import KuisUjian from "./views/admin/KuisUjian";
+import Pengguna from "./views/admin/Pengguna";
 import {
   Kehadiran,
   Laporan,
@@ -33,7 +34,6 @@ import {
   Pendaftaran,
   PengajarAdmin,
   Pengumuman,
-  Peserta,
   Worksheet,
 } from "./views/admin/Pages";
 
@@ -98,7 +98,9 @@ export default function App() {
         >
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/peserta" element={<Peserta />} />
+          <Route path="/admin/pengguna" element={<Pengguna />} />
+          {/* Halaman peserta lama masih memakai data contoh; manajemen pengguna menggantikannya. */}
+          <Route path="/admin/peserta" element={<Navigate to="/admin/pengguna" replace />} />
           <Route path="/admin/pendaftaran" element={<Pendaftaran />} />
           <Route path="/admin/program" element={<Portofolio />} />
           {/* Menu lama diarahkan ke portofolio terpadu. */}

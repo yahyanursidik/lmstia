@@ -50,7 +50,15 @@ export function setToken(token: string | null) {
   }
 }
 
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+/**
+ * Beberapa endpoint mengirim `meta` di samping `data` — paginasi, misalnya.
+ * `request` hanya mengembalikan `data`, jadi disediakan jalur terpisah yang
+ * mengembalikan amplop utuh, supaya daftar dan cacahnya datang dari satu
+ * permintaan yang sama dan tidak bisa saling bertentangan.
+ */
+export type Amplop<T> = { data: T; meta?: Record<string, number> };
+
+async function request<T>(path: string, init: RequestInit = {}, utuh = false): Promise<T> {
   const token = getToken();
   const headers = new Headers(init.headers);
   if (init.body) headers.set("Content-Type", "application/json");
@@ -76,11 +84,13 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       body?.error ?? { code: "UNKNOWN", message: "Terjadi kesalahan yang tidak diketahui." },
     );
   }
-  return body?.data as T;
+  return (utuh ? body : body?.data) as T;
 }
 
 export const api = {
   get: <T>(p: string) => request<T>(p),
+  /** Amplop utuh (`data` + `meta`), untuk endpoint berpaginasi. */
+  getFull: <T>(p: string) => request<Amplop<T>>(p, {}, true),
   post: <T>(p: string, body?: unknown) =>
     request<T>(p, { method: "POST", body: body ? JSON.stringify(body) : undefined }),
   patch: <T>(p: string, body?: unknown) =>

@@ -35,6 +35,42 @@ export function useResource<T>(path: string | null) {
   return { data, loading, error, reload, setError };
 }
 
+/**
+ * Seperti `useResource`, tetapi ikut menyimpan `meta` dari amplop respons.
+ *
+ * Daftar dan cacah totalnya sengaja berasal dari satu permintaan yang sama:
+ * bila keduanya diambil terpisah, penyaring yang berubah di antara dua
+ * permintaan membuat nomor halaman dan isi tabel saling bertentangan.
+ */
+export function usePagedResource<T>(path: string) {
+  const [data, setData] = useState<T | null>(null);
+  const [meta, setMeta] = useState<{ page: number; perPage: number; total: number; totalPages: number }>({
+    page: 1,
+    perPage: 20,
+    total: 0,
+    totalPages: 1,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(() => {
+    setLoading(true);
+    api
+      .getFull<T>(path)
+      .then((r) => {
+        setData(r.data);
+        if (r.meta) setMeta(r.meta as typeof meta);
+        setError(null);
+      })
+      .catch((e) => setError(e instanceof ApiError ? e.message : "Gagal memuat data."))
+      .finally(() => setLoading(false));
+  }, [path]);
+
+  useEffect(reload, [reload]);
+
+  return { data, meta, loading, error, reload };
+}
+
 /** Membungkus mutasi agar galat Zod dari server tampil apa adanya. */
 export async function mutate(fn: () => Promise<unknown>): Promise<string | null> {
   try {
