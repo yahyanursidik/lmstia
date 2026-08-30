@@ -286,8 +286,11 @@ assessmentAdminRoutes.get("/", async (c) => {
   const tahapanId = c.req.query("tahapanId");
   if (!tahapanId) return c.json({ data: [] });
 
-  // Kuis pertemuan dan ujian mata pelajaran digabung dalam satu daftar,
-  // masing-masing membawa konteks induknya.
+  // Ambil tahapan untuk tahu programnya, agar asesmen tingkat program
+  // ikut tampil pada tahapan mana pun di bawahnya.
+  const t = await db.query.tahapan.findFirst({ where: eq(s.tahapan.id, tahapanId) });
+  if (!t) return c.json({ data: [] });
+
   const rows = await db
     .select({
       id: s.assessments.id,
@@ -301,12 +304,15 @@ assessmentAdminRoutes.get("/", async (c) => {
       shuffleQuestions: s.assessments.shuffleQuestions,
       showFeedback: s.assessments.showFeedback,
       publishStatus: s.assessments.publishStatus,
-      meetingId: s.assessments.meetingId,
+      programId: s.assessments.programId,
+      tahapanId: s.assessments.tahapanId,
       subjectId: s.assessments.subjectId,
+      meetingId: s.assessments.meetingId,
       meetingNumber: s.meetings.number,
       meetingTitle: s.meetings.title,
       subjectName: s.subjects.name,
-      subjectSlug: s.subjects.slug,
+      tahapanName: s.tahapan.name,
+      programName: s.programs.name,
     })
     .from(s.assessments)
     .leftJoin(s.meetings, eq(s.assessments.meetingId, s.meetings.id))
@@ -314,9 +320,12 @@ assessmentAdminRoutes.get("/", async (c) => {
       s.subjects,
       sql`${s.subjects.id} = coalesce(${s.assessments.subjectId}, ${s.meetings.subjectId})`,
     )
-    .where(eq(s.subjects.tahapanId, tahapanId));
+    .leftJoin(s.tahapan, eq(s.assessments.tahapanId, s.tahapan.id))
+    .leftJoin(s.programs, eq(s.assessments.programId, s.programs.id))
+    .where(
+      sql`(${s.subjects.tahapanId} = ${tahapanId} OR ${s.assessments.tahapanId} = ${tahapanId} OR ${s.assessments.programId} = ${t.programId})`,
+    );
 
-  // Hitung soal dan percobaan per kuis dalam satu query, bukan N+1.
   const counts = await db
     .select({
       assessmentId: s.assessmentQuestions.assessmentId,
@@ -341,6 +350,8 @@ assessmentAdminRoutes.get("/", async (c) => {
   return c.json({
     data: rows.map((r) => ({
       ...r,
+      // Tingkat penempelan, dipakai UI untuk melabeli cakupan asesmen.
+      scope: r.meetingId ? "meeting" : r.subjectId ? "subject" : r.tahapanId ? "tahapan" : "program",
       questionCount: qc.get(r.id)?.questionCount ?? 0,
       totalPoints: qc.get(r.id)?.totalPoints ?? 0,
       attemptCount: ac.get(r.id)?.total ?? 0,

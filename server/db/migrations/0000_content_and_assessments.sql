@@ -65,8 +65,10 @@ CREATE TABLE "assessment_questions" (
 --> statement-breakpoint
 CREATE TABLE "assessments" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"meeting_id" uuid,
+	"program_id" uuid,
+	"tahapan_id" uuid,
 	"subject_id" uuid,
+	"meeting_id" uuid,
 	"kind" "assessment_kind" DEFAULT 'kuis' NOT NULL,
 	"title" text NOT NULL,
 	"description" text,
@@ -267,8 +269,10 @@ ALTER TABLE "assessment_attempts" ADD CONSTRAINT "assessment_attempts_assessment
 ALTER TABLE "assessment_attempts" ADD CONSTRAINT "assessment_attempts_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assessment_attempts" ADD CONSTRAINT "assessment_attempts_graded_by_users_id_fk" FOREIGN KEY ("graded_by") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assessment_questions" ADD CONSTRAINT "assessment_questions_assessment_id_assessments_id_fk" FOREIGN KEY ("assessment_id") REFERENCES "public"."assessments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "assessments" ADD CONSTRAINT "assessments_meeting_id_meetings_id_fk" FOREIGN KEY ("meeting_id") REFERENCES "public"."meetings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessments" ADD CONSTRAINT "assessments_program_id_programs_id_fk" FOREIGN KEY ("program_id") REFERENCES "public"."programs"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessments" ADD CONSTRAINT "assessments_tahapan_id_tahapan_id_fk" FOREIGN KEY ("tahapan_id") REFERENCES "public"."tahapan"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "assessments" ADD CONSTRAINT "assessments_subject_id_subjects_id_fk" FOREIGN KEY ("subject_id") REFERENCES "public"."subjects"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "assessments" ADD CONSTRAINT "assessments_meeting_id_meetings_id_fk" FOREIGN KEY ("meeting_id") REFERENCES "public"."meetings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attendance" ADD CONSTRAINT "attendance_meeting_id_meetings_id_fk" FOREIGN KEY ("meeting_id") REFERENCES "public"."meetings"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "attendance" ADD CONSTRAINT "attendance_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_id_users_id_fk" FOREIGN KEY ("actor_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
@@ -292,6 +296,8 @@ CREATE INDEX "attempts_user_idx" ON "assessment_attempts" USING btree ("user_id"
 CREATE INDEX "assessment_questions_seq_idx" ON "assessment_questions" USING btree ("assessment_id","sequence");--> statement-breakpoint
 CREATE INDEX "assessments_meeting_idx" ON "assessments" USING btree ("meeting_id");--> statement-breakpoint
 CREATE INDEX "assessments_subject_idx" ON "assessments" USING btree ("subject_id");--> statement-breakpoint
+CREATE INDEX "assessments_tahapan_idx" ON "assessments" USING btree ("tahapan_id");--> statement-breakpoint
+CREATE INDEX "assessments_program_idx" ON "assessments" USING btree ("program_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "attendance_meeting_user_idx" ON "attendance" USING btree ("meeting_id","user_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "auth_sessions_token_idx" ON "auth_sessions" USING btree ("token");--> statement-breakpoint
 CREATE INDEX "auth_sessions_user_idx" ON "auth_sessions" USING btree ("user_id");--> statement-breakpoint
@@ -308,9 +314,13 @@ CREATE INDEX "subjects_tahapan_seq_idx" ON "subjects" USING btree ("tahapan_id",
 CREATE UNIQUE INDEX "tahapan_slug_idx" ON "tahapan" USING btree ("slug");--> statement-breakpoint
 CREATE INDEX "tahapan_program_seq_idx" ON "tahapan" USING btree ("program_id","sequence");--> statement-breakpoint
 CREATE UNIQUE INDEX "users_email_idx" ON "users" USING btree ("email");--> statement-breakpoint
--- Kuis/ujian harus menempel tepat pada satu induk: pertemuan ATAU mata pelajaran.
-ALTER TABLE "assessments" ADD CONSTRAINT "assessments_one_parent_chk"
-  CHECK (("meeting_id" IS NOT NULL) <> ("subject_id" IS NOT NULL));
+-- Kuis/ujian menempel pada TEPAT SATU tingkat hierarki.
+ALTER TABLE "assessments" ADD CONSTRAINT "assessments_one_parent_chk" CHECK (
+  (CASE WHEN "program_id" IS NOT NULL THEN 1 ELSE 0 END) +
+  (CASE WHEN "tahapan_id" IS NOT NULL THEN 1 ELSE 0 END) +
+  (CASE WHEN "subject_id" IS NOT NULL THEN 1 ELSE 0 END) +
+  (CASE WHEN "meeting_id" IS NOT NULL THEN 1 ELSE 0 END) = 1
+);
 --> statement-breakpoint
 ALTER TABLE "assessments" ADD CONSTRAINT "assessments_kkm_range_chk"
   CHECK ("kkm" >= 0 AND "kkm" <= 100);

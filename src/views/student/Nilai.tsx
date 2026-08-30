@@ -7,7 +7,11 @@ import { Badge, Card, EmptyState, Meter, PageHeader, mono, serif } from "../../c
  * terhadap KKM-nya masing-masing, bukan terhadap satu ambang global.
  */
 
+type Scope = "program" | "tahapan" | "subject" | "meeting";
+
 type Baris = {
+  scope: Scope;
+  groupName: string | null;
   assessmentId: string;
   title: string;
   kind: "kuis" | "ujian" | "latihan";
@@ -20,6 +24,14 @@ type Baris = {
   score: number | null;
   passed: boolean | null;
   attemptId: string | null;
+};
+
+/** Penjelasan cakupan asesmen bagi peserta. */
+const SCOPE_TEXT: Record<Scope, (r: Baris) => string> = {
+  program: () => "Asesmen tingkat program",
+  tahapan: () => "Evaluasi tahapan · lintas mata pelajaran",
+  subject: () => "Ujian mata pelajaran",
+  meeting: (r) => `Pertemuan ${r.meetingNumber}`,
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -56,7 +68,7 @@ export default function Nilai() {
   // Kelompokkan per mata pelajaran agar mudah dibaca.
   const perMapel = new Map<string, Baris[]>();
   for (const r of rows) {
-    const k = r.subjectName ?? "Lainnya";
+    const k = r.groupName ?? r.subjectName ?? "Lainnya";
     perMapel.set(k, [...(perMapel.get(k) ?? []), r]);
   }
 
@@ -110,7 +122,7 @@ export default function Nilai() {
                           </Badge>
                         </div>
                         <div style={{ fontSize: 13.5, color: "var(--color-faint)", marginTop: 4 }}>
-                          {r.meetingNumber != null ? `Pertemuan ${r.meetingNumber}` : "Ujian mata pelajaran"}
+                          {SCOPE_TEXT[r.scope](r)}
                           {" · KKM "}
                           {r.kkm}
                           {r.weight != null && ` · bobot ${r.weight}%`}

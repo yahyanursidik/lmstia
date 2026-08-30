@@ -374,8 +374,16 @@ export async function pendingGrading(assessmentIds?: string[]) {
   return rows;
 }
 
-/** Ringkasan nilai peserta untuk satu tahapan — dipakai portal peserta. */
+/**
+ * Ringkasan nilai peserta untuk satu tahapan — dipakai portal peserta.
+ *
+ * Mencakup keempat tingkat penempelan: kuis pertemuan, ujian mata pelajaran,
+ * evaluasi tahapan, dan asesmen tingkat program.
+ */
 export async function studentScores(userId: string, tahapanId: string) {
+  const t = await db.query.tahapan.findFirst({ where: eq(s.tahapan.id, tahapanId) });
+  if (!t) return [];
+
   const rows = await db
     .select({
       assessmentId: s.assessments.id,
@@ -383,8 +391,13 @@ export async function studentScores(userId: string, tahapanId: string) {
       kind: s.assessments.kind,
       kkm: s.assessments.kkm,
       weight: s.assessments.weight,
+      programId: s.assessments.programId,
+      tahapanIdCol: s.assessments.tahapanId,
+      subjectIdCol: s.assessments.subjectId,
+      meetingIdCol: s.assessments.meetingId,
       subjectName: s.subjects.name,
       subjectSlug: s.subjects.slug,
+      subjectSeq: s.subjects.sequence,
       meetingNumber: s.meetings.number,
       status: s.assessmentAttempts.status,
       score: s.assessmentAttempts.score,
@@ -404,7 +417,14 @@ export async function studentScores(userId: string, tahapanId: string) {
         eq(s.assessmentAttempts.userId, userId),
       ),
     )
-    .where(and(eq(s.subjects.tahapanId, tahapanId), eq(s.assessments.publishStatus, "published")))
+    .where(
+      and(
+        eq(s.assessments.publishStatus, "published"),
+        sql`(${s.subjects.tahapanId} = ${tahapanId}
+             OR ${s.assessments.tahapanId} = ${tahapanId}
+             OR ${s.assessments.programId} = ${t.programId})`,
+      ),
+    )
     .orderBy(asc(s.subjects.sequence), asc(s.meetings.number));
 
   // Satu baris per kuis: ambil percobaan dengan nilai terbaik.
@@ -413,5 +433,18 @@ export async function studentScores(userId: string, tahapanId: string) {
     const cur = best.get(r.assessmentId);
     if (!cur || (r.score ?? -1) > (cur.score ?? -1)) best.set(r.assessmentId, r);
   }
-  return [...best.values()];
+
+  // Beri label cakupan agar portal peserta bisa mengelompokkan dengan benar:
+  // asesmen tingkat tahapan dan program tidak berada di bawah mata pelajaran.
+  return [...best.values()].map((r) => ({
+    ...r,
+    scope: r.meetingIdCol
+      ? ("meeting" as const)
+      : r.subjectIdCol
+        ? ("subject" as const)
+        : r.tahapanIdCol
+          ? ("tahapan" as const)
+          : ("program" as const),
+    groupName: r.meetingIdCol || r.subjectIdCol ? r.subjectName : r.tahapanIdCol ? t.name : "Program",
+  }));
 }

@@ -1,5 +1,5 @@
 {
-  "id": "89648bef-45e4-4ef8-8da0-2d7a1386699a",
+  "id": "ccc2c3d8-7956-429a-9089-4d070a331826",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -489,14 +489,26 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "meeting_id": {
-          "name": "meeting_id",
+        "program_id": {
+          "name": "program_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "tahapan_id": {
+          "name": "tahapan_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
         "subject_id": {
           "name": "subject_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "meeting_id": {
+          "name": "meeting_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
@@ -627,15 +639,58 @@
           "concurrently": false,
           "method": "btree",
           "with": {}
+        },
+        "assessments_tahapan_idx": {
+          "name": "assessments_tahapan_idx",
+          "columns": [
+            {
+              "expression": "tahapan_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "assessments_program_idx": {
+          "name": "assessments_program_idx",
+          "columns": [
+            {
+              "expression": "program_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         }
       },
       "foreignKeys": {
-        "assessments_meeting_id_meetings_id_fk": {
-          "name": "assessments_meeting_id_meetings_id_fk",
+        "assessments_program_id_programs_id_fk": {
+          "name": "assessments_program_id_programs_id_fk",
           "tableFrom": "assessments",
-          "tableTo": "meetings",
+          "tableTo": "programs",
           "columnsFrom": [
-            "meeting_id"
+            "program_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "assessments_tahapan_id_tahapan_id_fk": {
+          "name": "assessments_tahapan_id_tahapan_id_fk",
+          "tableFrom": "assessments",
+          "tableTo": "tahapan",
+          "columnsFrom": [
+            "tahapan_id"
           ],
           "columnsTo": [
             "id"
@@ -649,6 +704,19 @@
           "tableTo": "subjects",
           "columnsFrom": [
             "subject_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "assessments_meeting_id_meetings_id_fk": {
+          "name": "assessments_meeting_id_meetings_id_fk",
+          "tableFrom": "assessments",
+          "tableTo": "meetings",
+          "columnsFrom": [
+            "meeting_id"
           ],
           "columnsTo": [
             "id"

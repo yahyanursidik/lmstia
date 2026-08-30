@@ -298,16 +298,24 @@ export const materials = pgTable(
 /**
  * Kuis / Ujian.
  *
- * Menempel pada pertemuan (kuis pekanan) ATAU pada mata pelajaran (ujian
- * akhir mata pelajaran). Tepat satu di antaranya harus terisi — dijaga oleh
- * CHECK di migrasi dan divalidasi ulang oleh Zod.
+ * Dapat menempel pada salah satu dari empat tingkat hierarki:
+ *
+ *   Program        → ujian penempatan / uji kompetensi lintas tahapan
+ *   Tahapan        → evaluasi akhir caturwulan, lintas mata pelajaran
+ *   Mata Pelajaran → ujian akhir satu mata pelajaran
+ *   Pertemuan      → kuis pekanan
+ *
+ * Tepat satu induk yang boleh terisi — dijaga CHECK di migrasi dan
+ * divalidasi ulang oleh Zod.
  */
 export const assessments = pgTable(
   "assessments",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    meetingId: uuid("meeting_id").references(() => meetings.id, { onDelete: "cascade" }),
+    programId: uuid("program_id").references(() => programs.id, { onDelete: "cascade" }),
+    tahapanId: uuid("tahapan_id").references(() => tahapan.id, { onDelete: "cascade" }),
     subjectId: uuid("subject_id").references(() => subjects.id, { onDelete: "cascade" }),
+    meetingId: uuid("meeting_id").references(() => meetings.id, { onDelete: "cascade" }),
     kind: assessmentKindEnum("kind").notNull().default("kuis"),
     title: text("title").notNull(),
     description: text("description"),
@@ -327,7 +335,12 @@ export const assessments = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
-  (t) => [index("assessments_meeting_idx").on(t.meetingId), index("assessments_subject_idx").on(t.subjectId)],
+  (t) => [
+    index("assessments_meeting_idx").on(t.meetingId),
+    index("assessments_subject_idx").on(t.subjectId),
+    index("assessments_tahapan_idx").on(t.tahapanId),
+    index("assessments_program_idx").on(t.programId),
+  ],
 );
 
 export const assessmentQuestions = pgTable(
@@ -555,8 +568,10 @@ export const materialsRelations = relations(materials, ({ one, many }) => ({
 }));
 
 export const assessmentsRelations = relations(assessments, ({ one, many }) => ({
-  meeting: one(meetings, { fields: [assessments.meetingId], references: [meetings.id] }),
+  program: one(programs, { fields: [assessments.programId], references: [programs.id] }),
+  tahapan: one(tahapan, { fields: [assessments.tahapanId], references: [tahapan.id] }),
   subject: one(subjects, { fields: [assessments.subjectId], references: [subjects.id] }),
+  meeting: one(meetings, { fields: [assessments.meetingId], references: [meetings.id] }),
   questions: many(assessmentQuestions),
   attempts: many(assessmentAttempts),
 }));

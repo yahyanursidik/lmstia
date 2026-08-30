@@ -142,11 +142,16 @@ export const listQuery = z.object({
 
 export const questionTypeSchema = z.enum(["multiple_choice", "true_false", "essay"]);
 
-/** Kuis menempel pada pertemuan ATAU mata pelajaran — tepat satu. */
+/**
+ * Kuis menempel pada TEPAT SATU tingkat:
+ * program, tahapan, mata pelajaran, atau pertemuan.
+ */
 export const assessmentBody = z
   .object({
-    meetingId: z.string().uuid().nullable().optional(),
+    programId: z.string().uuid().nullable().optional(),
+    tahapanId: z.string().uuid().nullable().optional(),
     subjectId: z.string().uuid().nullable().optional(),
+    meetingId: z.string().uuid().nullable().optional(),
     kind: z.enum(["kuis", "ujian", "latihan"]),
     title: z.string().min(2, "Judul wajib diisi").max(300),
     description: z.string().max(2000).nullable().optional(),
@@ -160,10 +165,14 @@ export const assessmentBody = z
     availableUntil: z.coerce.date().nullable().optional(),
     publishStatus: z.enum(["draft", "review", "published"]).optional(),
   })
-  .refine((v) => !!v.meetingId !== !!v.subjectId, {
-    message: "Kuis harus menempel pada pertemuan atau mata pelajaran — pilih salah satu.",
-    path: ["meetingId"],
-  });
+  .refine(
+    (v) => [v.programId, v.tahapanId, v.subjectId, v.meetingId].filter(Boolean).length === 1,
+    {
+      message:
+        "Kuis harus menempel pada tepat satu tingkat: program, tahapan, mata pelajaran, atau pertemuan.",
+      path: ["induk"],
+    },
+  );
 
 export const questionBody = z
   .object({

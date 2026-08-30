@@ -458,6 +458,105 @@ async function main() {
     nQuestions += 3;
   }
 
+  // Asesmen lintas mata pelajaran: satu di tingkat tahapan, satu di tingkat
+  // program — menunjukkan keempat tingkat penempelan terpakai.
+  console.log("→ asesmen tahapan & program");
+
+  const [evaluasiTahapan] = await db
+    .insert(s.assessments)
+    .values({
+      tahapanId: cawu1.id,
+      kind: "ujian",
+      title: `Evaluasi Akhir ${cawu1.name}`,
+      description:
+        "Evaluasi penutup caturwulan yang mencakup seluruh mata pelajaran: Bahasa Arab, Aqidah, dan Adab.",
+      kkm: 75,
+      durationMinutes: 90,
+      weight: 30,
+      maxAttempts: 1,
+      shuffleQuestions: true,
+      showFeedback: false,
+      publishStatus: "published",
+    })
+    .returning();
+  nAssessments++;
+
+  await db.insert(s.assessmentQuestions).values([
+    {
+      assessmentId: evaluasiTahapan.id,
+      type: "multiple_choice",
+      prompt: "Apa prinsip utama sistem caturwulan di TIA?",
+      options: JSON.stringify([
+        "Satu caturwulan adalah unit belajar yang utuh dan tuntas",
+        "Peserta wajib menyelesaikan seluruh marhalah sekaligus",
+        "Materi dipercepat agar selesai lebih awal",
+        "Peserta otomatis lanjut ke caturwulan berikutnya",
+      ]),
+      answerKey: "0",
+      explanation: "Komitmen selalu per caturwulan, bukan per program.",
+      points: 5,
+      sequence: 1,
+    },
+    {
+      assessmentId: evaluasiTahapan.id,
+      type: "true_false",
+      prompt: "Pekan murojaah tidak memuat materi baru.",
+      answerKey: "true",
+      explanation: "Pekan 11 khusus untuk mengulang.",
+      points: 3,
+      sequence: 2,
+    },
+    {
+      assessmentId: evaluasiTahapan.id,
+      type: "essay",
+      prompt:
+        "Uraikan keterkaitan antara Bahasa Arab, Aqidah, dan Adab yang Anda rasakan sepanjang caturwulan ini.",
+      points: 12,
+      sequence: 3,
+    },
+  ]);
+  nQuestions += 3;
+
+  const [ujiPenempatan] = await db
+    .insert(s.assessments)
+    .values({
+      programId: program.id,
+      kind: "ujian",
+      title: "Uji Penempatan Program TIA",
+      description:
+        "Menentukan tahapan yang paling sesuai bagi calon peserta sebelum mendaftar caturwulan.",
+      kkm: 60,
+      durationMinutes: 45,
+      maxAttempts: 1,
+      shuffleQuestions: false,
+      showFeedback: true,
+      publishStatus: "published",
+    })
+    .returning();
+  nAssessments++;
+
+  await db.insert(s.assessmentQuestions).values([
+    {
+      assessmentId: ujiPenempatan.id,
+      type: "true_false",
+      prompt: "Saya sudah dapat membaca huruf hijaiyah berharakat.",
+      answerKey: "true",
+      points: 2,
+      sequence: 1,
+    },
+    {
+      assessmentId: ujiPenempatan.id,
+      type: "multiple_choice",
+      prompt: "Seberapa banyak waktu belajar yang realistis bagi Anda setiap pekan?",
+      options: JSON.stringify(["Kurang dari 2 jam", "2–4 jam", "4–6 jam", "Lebih dari 6 jam"]),
+      answerKey: "2",
+      explanation: "Beban belajar TIA dirancang sekitar 4–6 jam per pekan.",
+      points: 2,
+      sequence: 2,
+    },
+  ]);
+  nQuestions += 2;
+
   console.log("→ pendaftaran");
   await db.insert(s.enrollments).values(
     students.map((u, i) => ({

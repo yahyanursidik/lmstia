@@ -81,7 +81,14 @@ status, dan pilihan tampilan kartu/daftar berlaku di setiap tingkat.
 
 ## Kuis / Ujian
 
-Menempel pada **pertemuan** (kuis pekanan) atau **mata pelajaran** (ujian akhir).
+Menempel pada **tepat satu** dari empat tingkat hierarki:
+
+| Tingkat | Contoh |
+|---|---|
+| Program | Uji penempatan, lintas seluruh tahapan |
+| Tahapan | Evaluasi akhir caturwulan, lintas mata pelajaran |
+| Mata Pelajaran | Ujian akhir satu mata pelajaran |
+| Pertemuan | Kuis pekanan |
 Tiga tipe soal: pilihan ganda, benar-salah, dan esai. Setiap kuis punya **KKM**
 sendiri (0–100).
 

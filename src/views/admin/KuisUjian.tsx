@@ -30,8 +30,13 @@ type Kuis = {
   shuffleQuestions: boolean;
   showFeedback: boolean;
   publishStatus: "draft" | "review" | "published";
-  meetingId: string | null;
+  scope: Scope;
+  programId: string | null;
+  tahapanId: string | null;
   subjectId: string | null;
+  meetingId: string | null;
+  tahapanName: string | null;
+  programName: string | null;
   meetingNumber: number | null;
   meetingTitle: string | null;
   subjectName: string | null;
@@ -77,8 +82,27 @@ const KIND_TONE: Record<string, { bg: string; fg: string }> = {
   latihan: { bg: "#e2ecf5", fg: "#2f5b80" },
 };
 
+type Scope = "program" | "tahapan" | "subject" | "meeting";
+
+const SCOPE_BADGE: Record<Scope, { label: string; bg: string; fg: string }> = {
+  program: { label: "Program", bg: "#eae4f2", fg: "#5b4a7a" },
+  tahapan: { label: "Tahapan", bg: "#e2ecf5", fg: "#2f5b80" },
+  subject: { label: "Mata pelajaran", bg: "#e6ede7", fg: "#1f3d34" },
+  meeting: { label: "Pertemuan", bg: "#ecebe6", fg: "#6d675e" },
+};
+
+/** Baris konteks di bawah judul: menyebut induk sesuai tingkatnya. */
+const SCOPE_LABEL: Record<Scope, (k: Kuis) => string> = {
+  program: (k) => `${k.programName ?? "Program"} · seluruh tahapan`,
+  tahapan: (k) => `${k.tahapanName ?? "Tahapan"} · lintas mata pelajaran`,
+  subject: (k) => `${k.subjectName ?? "—"} · seluruh pertemuan`,
+  meeting: (k) => `${k.subjectName ?? "—"} · Pertemuan ${k.meetingNumber}`,
+};
+
 type Draft = {
-  induk: "meeting" | "subject";
+  induk: Scope;
+  programId: string;
+  tahapanId: string;
   meetingId: string;
   subjectId: string;
   kind: "kuis" | "ujian" | "latihan";
@@ -95,6 +119,8 @@ type Draft = {
 
 const kosong: Draft = {
   induk: "meeting",
+  programId: "",
+  tahapanId: "",
   meetingId: "",
   subjectId: "",
   kind: "kuis",
@@ -113,6 +139,7 @@ export default function KuisUjian() {
   const { user } = useAuth();
   const canWrite = user?.role === "academic_admin" || user?.role === "super_admin";
 
+  const programs = useResource<{ id: string; name: string }[]>("/admin/programs");
   const tahapanList = useResource<Tahapan[]>("/admin/tahapan");
   const [tahapanId, setTahapanId] = useState<string | null>(null);
   const tid =
@@ -131,7 +158,7 @@ export default function KuisUjian() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<"semua" | "kuis" | "ujian" | "perlu-dinilai">("semua");
+  const [filter, setFilter] = useState<string>("semua");
 
   // Pertemuan dimuat hanya ketika formulir memilih induk "pertemuan".
   const meetings = useResource<Meeting[]>(
@@ -146,7 +173,11 @@ export default function KuisUjian() {
       const cocok = !q || r.title.toLowerCase().includes(q) || (r.subjectName ?? "").toLowerCase().includes(q);
       const lolos =
         filter === "semua" ||
-        (filter === "perlu-dinilai" ? r.pendingGrading > 0 : r.kind === filter);
+        (filter === "perlu-dinilai"
+          ? r.pendingGrading > 0
+          : filter.startsWith("scope:")
+            ? r.scope === filter.slice(6)
+            : r.kind === filter);
       return cocok && lolos;
     });
   }, [rows, query, filter]);
@@ -163,7 +194,9 @@ export default function KuisUjian() {
     setErr(null);
     setEditingId(k.id);
     setDraft({
-      induk: k.meetingId ? "meeting" : "subject",
+      induk: k.scope,
+      programId: k.programId ?? "",
+      tahapanId: k.tahapanId ?? "",
       meetingId: k.meetingId ?? "",
       subjectId: k.subjectId ?? "",
       kind: k.kind,
@@ -182,10 +215,13 @@ export default function KuisUjian() {
   async function simpan() {
     if (!draft) return;
     setBusy(true);
-    // Tepat satu induk yang dikirim — server juga menolak bila keduanya terisi.
+    // Tepat satu induk yang dikirim; tiga sisanya dikosongkan. Server dan
+    // CHECK di basis data menolak bila lebih dari satu terisi.
     const body = {
-      meetingId: draft.induk === "meeting" ? draft.meetingId || null : null,
+      programId: draft.induk === "program" ? draft.programId || null : null,
+      tahapanId: draft.induk === "tahapan" ? draft.tahapanId || null : null,
       subjectId: draft.induk === "subject" ? draft.subjectId || null : null,
+      meetingId: draft.induk === "meeting" ? draft.meetingId || null : null,
       kind: draft.kind,
       title: draft.title,
       description: draft.description || null,
@@ -289,13 +325,15 @@ export default function KuisUjian() {
                   { v: "semua", l: "Semua" },
                   { v: "kuis", l: "Kuis" },
                   { v: "ujian", l: "Ujian" },
+                  { v: "scope:program", l: "Program" },
+                  { v: "scope:tahapan", l: "Tahapan" },
                   { v: "perlu-dinilai", l: `Perlu dinilai${totalPerluDinilai ? ` (${totalPerluDinilai})` : ""}` },
                 ].map((f) => (
                   <button
                     key={f.v}
                     type="button"
                     className={filter === f.v ? "btn-solid-sm" : "btn-sm"}
-                    onClick={() => setFilter(f.v as typeof filter)}
+                    onClick={() => setFilter(f.v)}
                   >
                     {f.l}
                   </button>
@@ -336,27 +374,71 @@ export default function KuisUjian() {
                 />
               </Field>
 
-              <Field label="Menempel pada" hint="Kuis biasanya per pertemuan; ujian akhir per mata pelajaran.">
+              <Field
+                label="Menempel pada"
+                hint="Menentukan cakupan asesmen. Pilihan di bawahnya menyesuaikan."
+              >
                 <Select
                   value={draft.induk}
-                  onChange={(v) => setDraft({ ...draft, induk: v, meetingId: "" })}
+                  onChange={(v) =>
+                    setDraft({
+                      ...draft,
+                      induk: v,
+                      // Kosongkan tingkat yang tidak dipakai agar tidak terkirim ganda.
+                      programId: v === "program" ? draft.programId : "",
+                      tahapanId: v === "tahapan" ? draft.tahapanId : "",
+                      subjectId: v === "subject" || v === "meeting" ? draft.subjectId : "",
+                      meetingId: v === "meeting" ? draft.meetingId : "",
+                    })
+                  }
                   options={[
-                    { value: "meeting", label: "Pertemuan" },
+                    { value: "program", label: "Program — lintas seluruh tahapan" },
+                    { value: "tahapan", label: "Tahapan — lintas mata pelajaran" },
                     { value: "subject", label: "Mata pelajaran" },
+                    { value: "meeting", label: "Pertemuan" },
                   ]}
                 />
               </Field>
 
-              <Field label="Mata pelajaran">
-                <Select
-                  value={draft.subjectId}
-                  onChange={(v) => setDraft({ ...draft, subjectId: v, meetingId: "" })}
-                  options={[
-                    { value: "", label: "— pilih —" },
-                    ...(subjects.data ?? []).map((s) => ({ value: s.id, label: s.name })),
-                  ]}
-                />
-              </Field>
+              {/* Rantai bertingkat: hanya tingkat yang relevan yang ditampilkan. */}
+              {draft.induk === "program" && (
+                <Field label="Program">
+                  <Select
+                    value={draft.programId}
+                    onChange={(v) => setDraft({ ...draft, programId: v })}
+                    options={[
+                      { value: "", label: programs.loading ? "Memuat…" : "— pilih —" },
+                      ...(programs.data ?? []).map((p) => ({ value: p.id, label: p.name })),
+                    ]}
+                  />
+                </Field>
+              )}
+
+              {draft.induk === "tahapan" && (
+                <Field label="Tahapan">
+                  <Select
+                    value={draft.tahapanId}
+                    onChange={(v) => setDraft({ ...draft, tahapanId: v })}
+                    options={[
+                      { value: "", label: "— pilih —" },
+                      ...(tahapanList.data ?? []).map((t) => ({ value: t.id, label: t.name })),
+                    ]}
+                  />
+                </Field>
+              )}
+
+              {(draft.induk === "subject" || draft.induk === "meeting") && (
+                <Field label="Mata pelajaran">
+                  <Select
+                    value={draft.subjectId}
+                    onChange={(v) => setDraft({ ...draft, subjectId: v, meetingId: "" })}
+                    options={[
+                      { value: "", label: "— pilih —" },
+                      ...(subjects.data ?? []).map((s) => ({ value: s.id, label: s.name })),
+                    ]}
+                  />
+                </Field>
+              )}
 
               {draft.induk === "meeting" && (
                 <Field label="Pertemuan">
@@ -425,6 +507,7 @@ export default function KuisUjian() {
                     <div style={{ flex: 1, minWidth: 240 }}>
                       <div style={{ display: "flex", gap: 9, alignItems: "center", flexWrap: "wrap" }}>
                         <Badge bg={KIND_TONE[k.kind].bg} fg={KIND_TONE[k.kind].fg}>{k.kind}</Badge>
+                        <Badge bg={SCOPE_BADGE[k.scope].bg} fg={SCOPE_BADGE[k.scope].fg}>{SCOPE_BADGE[k.scope].label}</Badge>
                         <span style={{ fontSize: 16.5, fontWeight: 700 }}>{k.title}</span>
                         <Badge bg={PUBLISH_TONE[k.publishStatus].bg} fg={PUBLISH_TONE[k.publishStatus].fg}>
                           {PUBLISH_LABEL[k.publishStatus]}
@@ -434,8 +517,7 @@ export default function KuisUjian() {
                         )}
                       </div>
                       <div style={{ fontSize: 14, color: "var(--color-faint)", marginTop: 6 }}>
-                        {k.subjectName}
-                        {k.meetingNumber != null ? ` · Pertemuan ${k.meetingNumber}` : " · ujian mata pelajaran"}
+                        {SCOPE_LABEL[k.scope](k)}
                         {" · KKM "}{k.kkm}
                         {" · "}{k.questionCount} soal / {k.totalPoints} poin
                         {" · "}{k.attemptCount} percobaan
