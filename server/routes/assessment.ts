@@ -3,7 +3,7 @@ import { badRequest, notFound } from "../lib/errors";
 import { ADMIN, STAFF, requireAuth, requireRole } from "../middleware/auth";
 import * as learner from "../repositories/learner";
 import * as svc from "../services/assessment";
-import { assessmentBody, gradeBody, questionBody, submitAttemptBody, uuidParam } from "../validators/schemas";
+import { assessmentBody, assessmentPatchBody, gradeBody, questionBody, submitAttemptBody, uuidParam } from "../validators/schemas";
 import { db } from "../db/client";
 import * as s from "../db/schema";
 import { and, eq, sql } from "drizzle-orm";
@@ -385,7 +385,7 @@ assessmentAdminRoutes.post("/", canWrite, async (c) => {
 assessmentAdminRoutes.patch("/:id", canWrite, async (c) => {
   const id = readId(c.req.param("id"));
   if (!id.success) return badRequest(c, id.error);
-  const p = assessmentBody.partial().safeParse(await c.req.json().catch(() => ({})));
+  const p = assessmentPatchBody.safeParse(await c.req.json().catch(() => ({})));
   if (!p.success) return badRequest(c, p.error);
   const [row] = await db
     .update(s.assessments)

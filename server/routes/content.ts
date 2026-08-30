@@ -6,7 +6,9 @@ import * as learner from "../repositories/learner";
 import * as service from "../services/learning";
 import {
   assessmentBody,
+  assessmentPatchBody,
   materialBody,
+  materialPatchBody,
   meetingBody,
   programBody,
   subjectBody,
@@ -218,7 +220,7 @@ contentRoutes.post("/materials", canWrite, async (c) => {
 contentRoutes.patch("/materials/:id", canWrite, async (c) => {
   const id = readId(c.req.param("id"));
   if (!id.success) return badRequest(c, id.error);
-  const p = materialBody.partial().safeParse(await c.req.json().catch(() => ({})));
+  const p = materialPatchBody.safeParse(await c.req.json().catch(() => ({})));
   if (!p.success) return badRequest(c, p.error);
   const [row] = await academic.updateMaterial(id.data.id, clean(p.data));
   if (!row) return notFound(c, "Materi tidak ditemukan.");
@@ -252,7 +254,7 @@ contentRoutes.post("/assessments", canWrite, async (c) => {
 contentRoutes.patch("/assessments/:id", canWrite, async (c) => {
   const id = readId(c.req.param("id"));
   if (!id.success) return badRequest(c, id.error);
-  const p = assessmentBody.partial().safeParse(await c.req.json().catch(() => ({})));
+  const p = assessmentPatchBody.safeParse(await c.req.json().catch(() => ({})));
   if (!p.success) return badRequest(c, p.error);
   const [row] = await academic.updateAssessment(id.data.id, clean(p.data));
   if (!row) return notFound(c, "Kuis tidak ditemukan.");

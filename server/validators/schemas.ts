@@ -101,26 +101,40 @@ export const materialTypeSchema = z.enum([
   "link",
 ]);
 
-export const materialBody = z
-  .object({
-    meetingId: z.string().uuid("meetingId harus berupa UUID"),
-    title: z.string().min(2, "Judul materi wajib diisi").max(300),
-    description: z.string().max(2000).optional().nullable(),
-    type: materialTypeSchema,
-    url: z.string().url("URL materi tidak valid").max(1000).optional().nullable().or(z.literal("")),
-    content: z.string().max(20000).optional().nullable(),
-    thumbnailUrl: z.string().url().max(1000).optional().nullable().or(z.literal("")),
-    durationMinutes: z.number().int().min(0).max(1000).optional(),
-    sequence: z.number().int().min(1),
-    isRequired: z.boolean().optional(),
-    isEssential: z.boolean().optional(),
-    publishStatus: publishStatus.optional(),
-  })
-  // Tipe `article` menyimpan isi inline; tipe lain wajib punya tautan sumber.
-  .refine((v) => (v.type === "article" ? !!v.content : !!v.url), {
-    message: "Materi non-artikel wajib memiliki URL; materi artikel wajib memiliki konten.",
-    path: ["url"],
-  });
+/**
+ * Bentuk dasar dipisah dari aturannya.
+ *
+ * Zod v4 menolak `.partial()` pada skema yang sudah diberi `.refine()`, jadi
+ * PATCH harus dibangun dari objek dasar lalu diberi aturan yang sama —
+ * bukan dari skema yang sudah ter-refine.
+ */
+const materialBase = z.object({
+  meetingId: z.string().uuid("meetingId harus berupa UUID"),
+  title: z.string().min(2, "Judul materi wajib diisi").max(300),
+  description: z.string().max(2000).optional().nullable(),
+  type: materialTypeSchema,
+  url: z.string().url("URL materi tidak valid").max(1000).optional().nullable().or(z.literal("")),
+  content: z.string().max(20000).optional().nullable(),
+  thumbnailUrl: z.string().url().max(1000).optional().nullable().or(z.literal("")),
+  durationMinutes: z.number().int().min(0).max(1000).optional(),
+  sequence: z.number().int().min(1),
+  isRequired: z.boolean().optional(),
+  isEssential: z.boolean().optional(),
+  publishStatus: publishStatus.optional(),
+});
+
+/** Tipe `article` menyimpan isi inline; tipe lain wajib punya tautan sumber. */
+const aturanMateri = (v: { type?: string; url?: unknown; content?: unknown }) =>
+  // Pada PATCH, tipe boleh tidak dikirim — aturan ini hanya berlaku bila ada.
+  v.type === undefined ? true : v.type === "article" ? !!v.content : !!v.url;
+
+const pesanMateri = {
+  message: "Materi non-artikel wajib memiliki URL; materi artikel wajib memiliki konten.",
+  path: ["url"],
+};
+
+export const materialBody = materialBase.refine(aturanMateri, pesanMateri);
+export const materialPatchBody = materialBase.partial().refine(aturanMateri, pesanMateri);
 
 /* --- lain-lain ------------------------------------------------------- */
 
@@ -146,7 +160,7 @@ export const questionTypeSchema = z.enum(["multiple_choice", "true_false", "essa
  * Kuis menempel pada TEPAT SATU tingkat:
  * program, tahapan, mata pelajaran, atau pertemuan.
  */
-export const assessmentBody = z
+const assessmentBase = z
   .object({
     programId: z.string().uuid().nullable().optional(),
     tahapanId: z.string().uuid().nullable().optional(),
@@ -164,15 +178,38 @@ export const assessmentBody = z
     availableFrom: z.coerce.date().nullable().optional(),
     availableUntil: z.coerce.date().nullable().optional(),
     publishStatus: z.enum(["draft", "review", "published"]).optional(),
-  })
-  .refine(
-    (v) => [v.programId, v.tahapanId, v.subjectId, v.meetingId].filter(Boolean).length === 1,
-    {
-      message:
-        "Kuis harus menempel pada tepat satu tingkat: program, tahapan, mata pelajaran, atau pertemuan.",
-      path: ["induk"],
-    },
-  );
+  });
+
+type IndukKuis = {
+  programId?: string | null;
+  tahapanId?: string | null;
+  subjectId?: string | null;
+  meetingId?: string | null;
+};
+
+const pesanInduk = {
+  message:
+    "Kuis harus menempel pada tepat satu tingkat: program, tahapan, mata pelajaran, atau pertemuan.",
+  path: ["induk"],
+};
+
+/** Saat membuat: tepat satu induk wajib terisi. */
+const indukTepatSatu = (v: IndukKuis) =>
+  [v.programId, v.tahapanId, v.subjectId, v.meetingId].filter(Boolean).length === 1;
+
+/**
+ * Saat mengubah: induk boleh tidak disentuh sama sekali. Tetapi begitu salah
+ * satunya dikirim, aturan "tepat satu" tetap berlaku agar kuis tidak berakhir
+ * menggantung atau bercabang dua.
+ */
+const indukPatch = (v: IndukKuis) => {
+  const kunci = [v.programId, v.tahapanId, v.subjectId, v.meetingId];
+  const adaYangDikirim = kunci.some((k) => k !== undefined);
+  return !adaYangDikirim || kunci.filter(Boolean).length === 1;
+};
+
+export const assessmentBody = assessmentBase.refine(indukTepatSatu, pesanInduk);
+export const assessmentPatchBody = assessmentBase.partial().refine(indukPatch, pesanInduk);
 
 export const questionBody = z
   .object({
