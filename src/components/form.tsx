@@ -1,5 +1,6 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { mono, serif } from "./ui";
+import { Combobox } from "./Combobox";
 
 /** Kontrol formulir bersama untuk halaman CRUD admin. */
 
@@ -22,6 +23,13 @@ const labelStyle: React.CSSProperties = {
   marginBottom: 6,
 };
 
+/**
+ * Nama kolom dialirkan ke bawah lewat context supaya kontrol khusus seperti
+ * `Select` punya nama yang terbaca pembaca layar, tanpa setiap pemanggil
+ * harus mengulang `ariaLabel`.
+ */
+const NamaKolom = createContext<string | undefined>(undefined);
+
 export function Field({
   label,
   hint,
@@ -36,7 +44,7 @@ export function Field({
   return (
     <div style={span ? { gridColumn: "1 / -1" } : undefined}>
       <label style={labelStyle}>{label}</label>
-      {children}
+      <NamaKolom.Provider value={label}>{children}</NamaKolom.Provider>
       {hint && (
         <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 5, lineHeight: 1.5 }}>
           {hint}
@@ -110,23 +118,38 @@ export function Area({
   );
 }
 
+/**
+ * Pemilih.
+ *
+ * Memakai `Combobox` alih-alih `<select>` bawaan: dropdown bawaan peramban
+ * memaksakan sorot biru sistem yang jauh dari palet TIA, dan tidak bisa
+ * menampilkan baris keterangan. Kotak pencarian muncul sendiri ketika daftar
+ * mulai panjang (> 8 pilihan); daftar pendek tetap sesederhana select biasa,
+ * lengkap dengan lompat-ketik.
+ */
 export function Select<T extends string>({
   value,
   onChange,
   options,
+  ariaLabel,
+  disabled,
 }: {
   value: T;
   onChange: (v: T) => void;
-  options: { value: T; label: string }[];
+  options: { value: T; label: string; hint?: string }[];
+  ariaLabel?: string;
+  disabled?: boolean;
 }) {
+  const namaKolom = useContext(NamaKolom);
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value as T)} style={inputStyle}>
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <Combobox
+      value={value}
+      onChange={(v) => onChange(v as T)}
+      options={options}
+      searchable={options.length > 8}
+      disabled={disabled}
+      ariaLabel={ariaLabel ?? namaKolom}
+    />
   );
 }
 

@@ -26,6 +26,11 @@ export function Combobox({
   disabled = false,
   emptyText = "Tidak ada pilihan",
   ariaLabel,
+  /**
+   * Daftar pendek tidak perlu kotak pencarian — cukup dipilih. Mengetik huruf
+   * tetap melompat ke pilihan yang cocok, seperti `<select>` bawaan.
+   */
+  searchable = true,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -35,6 +40,7 @@ export function Combobox({
   disabled?: boolean;
   emptyText?: string;
   ariaLabel?: string;
+  searchable?: boolean;
 }) {
   const id = useId();
   const [open, setOpen] = useState(false);
@@ -49,12 +55,25 @@ export function Combobox({
 
   const hasil = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return options;
+    // Mode tanpa pencarian selalu menampilkan seluruh pilihan.
+    if (!searchable || !q) return options;
     // Cocokkan label maupun hint, supaya kode ("AR01") juga bisa dicari.
     return options.filter(
       (o) => o.label.toLowerCase().includes(q) || (o.hint ?? "").toLowerCase().includes(q),
     );
-  }, [options, query]);
+  }, [options, query, searchable]);
+
+  // Type-ahead untuk mode tanpa pencarian: menekan huruf melompat ke pilihan
+  // pertama yang diawali huruf itu.
+  const ketikRef = useRef({ buffer: "", waktu: 0 });
+  function typeAhead(ch: string) {
+    const now = Date.now();
+    const st = ketikRef.current;
+    st.buffer = now - st.waktu > 700 ? ch : st.buffer + ch;
+    st.waktu = now;
+    const i = options.findIndex((o) => o.label.toLowerCase().startsWith(st.buffer.toLowerCase()));
+    if (i >= 0) setSorot(i);
+  }
 
   // Tutup ketika klik di luar.
   useEffect(() => {
@@ -85,9 +104,11 @@ export function Combobox({
 
   function onKeyDown(e: React.KeyboardEvent) {
     if (disabled) return;
-    if (!open && (e.key === "ArrowDown" || e.key === "Enter")) {
+
+    if (!open && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) {
       setOpen(true);
-      setSorot(0);
+      // Buka pada pilihan yang sedang aktif, bukan selalu dari atas.
+      setSorot(Math.max(0, options.findIndex((o) => o.value === value)));
       e.preventDefault();
       return;
     }
@@ -99,7 +120,13 @@ export function Combobox({
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setSorot((i) => Math.max(i - 1, 0));
-    } else if (e.key === "Enter") {
+    } else if (e.key === "Home") {
+      e.preventDefault();
+      setSorot(0);
+    } else if (e.key === "End") {
+      e.preventDefault();
+      setSorot(hasil.length - 1);
+    } else if (e.key === "Enter" || (!searchable && e.key === " ")) {
       e.preventDefault();
       if (hasil[sorot]) pilih(hasil[sorot]);
     } else if (e.key === "Escape") {
@@ -109,6 +136,9 @@ export function Combobox({
     } else if (e.key === "Tab") {
       setOpen(false);
       setQuery("");
+    } else if (!searchable && e.key.length === 1 && /\S/.test(e.key)) {
+      e.preventDefault();
+      typeAhead(e.key);
     }
   }
 
@@ -126,15 +156,28 @@ export function Combobox({
           aria-autocomplete="list"
           aria-activedescendant={open && hasil[sorot] ? `${id}-opt-${sorot}` : undefined}
           aria-label={ariaLabel}
+          aria-haspopup="listbox"
           disabled={disabled}
-          value={open ? query : (terpilih?.label ?? "")}
-          placeholder={loading ? "Memuat…" : placeholder}
+          readOnly={!searchable}
+          value={searchable && open ? query : (terpilih?.label ?? "")}
+          placeholder={loading ? "Memuat…" : searchable ? placeholder : "— pilih —"}
           onChange={(e) => {
+            if (!searchable) return;
             setQuery(e.target.value);
             setSorot(0);
             if (!open) setOpen(true);
           }}
-          onFocus={() => !disabled && setOpen(true)}
+          onFocus={() => !disabled && searchable && setOpen(true)}
+          onClick={() => {
+            if (disabled) return;
+            // Daftar pendek dibuka/ditutup dengan klik, seperti select biasa.
+            if (!searchable) {
+              setOpen((v) => !v);
+              setSorot(Math.max(0, options.findIndex((o) => o.value === value)));
+            } else if (!open) {
+              setOpen(true);
+            }
+          }}
           onKeyDown={onKeyDown}
           style={{
             width: "100%",
@@ -145,7 +188,7 @@ export function Combobox({
             fontFamily: "var(--font-sans)",
             fontSize: 16,
             color: kosongTerpilih && !open ? "var(--color-faint)" : "var(--color-ink)",
-            cursor: disabled ? "not-allowed" : "text",
+            cursor: disabled ? "not-allowed" : searchable ? "text" : "pointer",
           }}
         />
         <span
@@ -160,7 +203,7 @@ export function Combobox({
             pointerEvents: "none",
           }}
         >
-          {open ? "⌕" : "▾"}
+          {searchable && open ? "⌕" : "▾"}
         </span>
       </div>
 
@@ -190,7 +233,7 @@ export function Combobox({
             <li style={{ padding: "12px 14px", fontSize: 14.5, color: "var(--color-muted)" }}>Memuat…</li>
           ) : hasil.length === 0 ? (
             <li style={{ padding: "12px 14px", fontSize: 14.5, color: "var(--color-muted)" }}>
-              {query ? `Tidak ada hasil untuk “${query}”` : emptyText}
+              {searchable && query ? `Tidak ada hasil untuk “${query}”` : emptyText}
             </li>
           ) : (
             hasil.map((o, i) => {
