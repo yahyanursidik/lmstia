@@ -98,7 +98,8 @@ diberi poin.
 
 - Peserta: **Nilai** → pilih kuis → kerjakan → hasil
 - Pengajar: **Penilaian Esai** → antrean → beri poin dan umpan balik
-- Admin: **Program Belajar** → pertemuan → *Kelola soal*
+- Admin: **Kuis & Ujian** → buat, atur KKM, kelola soal, lihat rekap hasil
+- Admin (alternatif): **Program Belajar** → pertemuan → *Kelola soal*
 
 Kunci jawaban tidak pernah dikirim ke peserta sebelum percobaan selesai
 dinilai, dan hanya bila kuis mengaktifkan umpan balik (showFeedback).

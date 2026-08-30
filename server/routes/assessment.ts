@@ -3,10 +3,10 @@ import { badRequest, notFound } from "../lib/errors";
 import { ADMIN, STAFF, requireAuth, requireRole } from "../middleware/auth";
 import * as learner from "../repositories/learner";
 import * as svc from "../services/assessment";
-import { gradeBody, questionBody, submitAttemptBody, uuidParam } from "../validators/schemas";
+import { assessmentBody, gradeBody, questionBody, submitAttemptBody, uuidParam } from "../validators/schemas";
 import { db } from "../db/client";
 import * as s from "../db/schema";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 const readId = (raw: string | undefined) => uuidParam.safeParse({ id: raw });
 
@@ -279,3 +279,105 @@ export async function scoresForStudent(userId: string, tahapanId: string) {
 }
 
 export { and };
+
+/* --- Daftar seluruh kuis satu tahapan (untuk halaman Kuis & Ujian) --- */
+
+assessmentAdminRoutes.get("/", async (c) => {
+  const tahapanId = c.req.query("tahapanId");
+  if (!tahapanId) return c.json({ data: [] });
+
+  // Kuis pertemuan dan ujian mata pelajaran digabung dalam satu daftar,
+  // masing-masing membawa konteks induknya.
+  const rows = await db
+    .select({
+      id: s.assessments.id,
+      kind: s.assessments.kind,
+      title: s.assessments.title,
+      description: s.assessments.description,
+      kkm: s.assessments.kkm,
+      durationMinutes: s.assessments.durationMinutes,
+      weight: s.assessments.weight,
+      maxAttempts: s.assessments.maxAttempts,
+      shuffleQuestions: s.assessments.shuffleQuestions,
+      showFeedback: s.assessments.showFeedback,
+      publishStatus: s.assessments.publishStatus,
+      meetingId: s.assessments.meetingId,
+      subjectId: s.assessments.subjectId,
+      meetingNumber: s.meetings.number,
+      meetingTitle: s.meetings.title,
+      subjectName: s.subjects.name,
+      subjectSlug: s.subjects.slug,
+    })
+    .from(s.assessments)
+    .leftJoin(s.meetings, eq(s.assessments.meetingId, s.meetings.id))
+    .leftJoin(
+      s.subjects,
+      sql`${s.subjects.id} = coalesce(${s.assessments.subjectId}, ${s.meetings.subjectId})`,
+    )
+    .where(eq(s.subjects.tahapanId, tahapanId));
+
+  // Hitung soal dan percobaan per kuis dalam satu query, bukan N+1.
+  const counts = await db
+    .select({
+      assessmentId: s.assessmentQuestions.assessmentId,
+      questionCount: sql<number>`count(*)::int`,
+      totalPoints: sql<number>`coalesce(sum(${s.assessmentQuestions.points}),0)::int`,
+    })
+    .from(s.assessmentQuestions)
+    .groupBy(s.assessmentQuestions.assessmentId);
+
+  const attempts = await db
+    .select({
+      assessmentId: s.assessmentAttempts.assessmentId,
+      total: sql<number>`count(*)::int`,
+      pending: sql<number>`count(*) filter (where ${s.assessmentAttempts.status} = 'menunggu_penilaian')::int`,
+    })
+    .from(s.assessmentAttempts)
+    .groupBy(s.assessmentAttempts.assessmentId);
+
+  const qc = new Map(counts.map((x) => [x.assessmentId, x]));
+  const ac = new Map(attempts.map((x) => [x.assessmentId, x]));
+
+  return c.json({
+    data: rows.map((r) => ({
+      ...r,
+      questionCount: qc.get(r.id)?.questionCount ?? 0,
+      totalPoints: qc.get(r.id)?.totalPoints ?? 0,
+      attemptCount: ac.get(r.id)?.total ?? 0,
+      pendingGrading: ac.get(r.id)?.pending ?? 0,
+    })),
+  });
+});
+
+/* --- CRUD kuis --- */
+
+assessmentAdminRoutes.post("/", canWrite, async (c) => {
+  const p = assessmentBody.safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+  const [row] = await db.insert(s.assessments).values(p.data).returning();
+  await learner.writeAudit(c.get("user")!.id, "assessment.create", "assessment", row.id);
+  return c.json({ data: row }, 201);
+});
+
+assessmentAdminRoutes.patch("/:id", canWrite, async (c) => {
+  const id = readId(c.req.param("id"));
+  if (!id.success) return badRequest(c, id.error);
+  const p = assessmentBody.partial().safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+  const [row] = await db
+    .update(s.assessments)
+    .set({ ...p.data, updatedAt: new Date() })
+    .where(eq(s.assessments.id, id.data.id))
+    .returning();
+  if (!row) return notFound(c, "Kuis tidak ditemukan.");
+  return c.json({ data: row });
+});
+
+assessmentAdminRoutes.delete("/:id", canWrite, async (c) => {
+  const id = readId(c.req.param("id"));
+  if (!id.success) return badRequest(c, id.error);
+  const [row] = await db.delete(s.assessments).where(eq(s.assessments.id, id.data.id)).returning();
+  if (!row) return notFound(c, "Kuis tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "assessment.delete", "assessment", id.data.id);
+  return c.body(null, 204);
+});

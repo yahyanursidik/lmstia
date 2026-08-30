@@ -229,6 +229,7 @@ const ADMIN_GROUPS: { label: string; items: { to: string; label: string }[] }[] 
     label: "Penilaian",
     items: [
       { to: "/admin/worksheet", label: "Worksheet" },
+      { to: "/admin/kuis", label: "Kuis & Ujian" },
       { to: "/admin/penilaian", label: "Penilaian Esai" },
       { to: "/admin/kehadiran", label: "Kehadiran" },
       { to: "/admin/nilai", label: "Nilai" },

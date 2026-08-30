@@ -25,6 +25,7 @@ import { Catatan, Caturwulan, Jadwal, Kelas, Murojaah, Profil, Progress } from "
 import AdminDashboard from "./views/admin/Dashboard";
 import Portofolio from "./views/admin/Portofolio";
 import Penilaian from "./views/admin/Penilaian";
+import KuisUjian from "./views/admin/KuisUjian";
 import {
   Kehadiran,
   Laporan,
@@ -105,6 +106,7 @@ export default function App() {
             <Route key={p} path={"/admin/" + p} element={<Navigate to="/admin/program" replace />} />
           ))}
           <Route path="/admin/worksheet" element={<Worksheet />} />
+          <Route path="/admin/kuis" element={<KuisUjian />} />
           <Route path="/admin/penilaian" element={<Penilaian />} />
           <Route path="/admin/quiz" element={<Navigate to="/admin/penilaian" replace />} />
           <Route path="/admin/kehadiran" element={<Kehadiran />} />
