@@ -6,11 +6,11 @@ import { RequireRole } from "./lib/auth";
 
 import Landing from "./views/public/Landing";
 import Login from "./views/public/Login";
+import DaftarProgram, { DaftarIndex } from "./views/public/DaftarProgram";
 import {
   CaraBelajar,
   CaturwulanDetail,
   CaturwulanList,
-  Daftar,
   Faq,
   PengajarPublik,
   Program,
@@ -27,11 +27,11 @@ import Portofolio from "./views/admin/Portofolio";
 import Penilaian from "./views/admin/Penilaian";
 import KuisUjian from "./views/admin/KuisUjian";
 import Pengguna from "./views/admin/Pengguna";
+import PendaftaranAdmin from "./views/admin/Pendaftaran";
 import {
   Kehadiran,
   Laporan,
   Nilai,
-  Pendaftaran,
   PengajarAdmin,
   Pengumuman,
   Worksheet,
@@ -62,7 +62,9 @@ export default function App() {
           <Route path="/cara-belajar" element={<CaraBelajar />} />
           <Route path="/pengajar" element={<PengajarPublik />} />
           <Route path="/faq" element={<Faq />} />
-          <Route path="/daftar" element={<Daftar />} />
+          <Route path="/daftar" element={<DaftarIndex />} />
+          {/* Tautan unik per program: halaman pengantar + formulir. */}
+          <Route path="/daftar/:slug" element={<DaftarProgram />} />
           <Route path="/login" element={<Login />} />
         </Route>
 
@@ -101,7 +103,7 @@ export default function App() {
           <Route path="/admin/pengguna" element={<Pengguna />} />
           {/* Halaman peserta lama masih memakai data contoh; manajemen pengguna menggantikannya. */}
           <Route path="/admin/peserta" element={<Navigate to="/admin/pengguna" replace />} />
-          <Route path="/admin/pendaftaran" element={<Pendaftaran />} />
+          <Route path="/admin/pendaftaran" element={<PendaftaranAdmin />} />
           <Route path="/admin/program" element={<Portofolio />} />
           {/* Menu lama diarahkan ke portofolio terpadu. */}
           {["tahapan", "mata-pelajaran", "pertemuan", "materi", "kurikulum", "caturwulan"].map((p) => (

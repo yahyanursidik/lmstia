@@ -51,6 +51,23 @@ export const educationEnum = pgEnum("education_level", [
  */
 export const accountStatusEnum = pgEnum("account_status", ["aktif", "nonaktif", "ditangguhkan"]);
 
+/** Pemisahan kelompok WhatsApp mengikuti adab pemisahan ikhwan dan akhwat. */
+export const genderEnum = pgEnum("gender", ["ikhwan", "akhwat"]);
+
+export const registrationStatusEnum = pgEnum("registration_status", [
+  "menunggu",
+  "disetujui",
+  "ditolak",
+]);
+
+/**
+ * Status formulir pendaftaran.
+ *
+ * `terbit` berarti tautannya dapat dibuka publik; apakah pendaftaran sedang
+ * menerima kiriman ditentukan terpisah oleh rentang waktu pendaftaran.
+ */
+export const formStatusEnum = pgEnum("form_status", ["draf", "terbit", "ditutup"]);
+
 export const publishStatusEnum = pgEnum("publish_status", ["draft", "review", "published"]);
 
 export const programStatusEnum = pgEnum("program_status", ["draft", "active", "archived"]);
@@ -615,3 +632,91 @@ export const assessmentAnswersRelations = relations(assessmentAnswers, ({ one })
   attempt: one(assessmentAttempts, { fields: [assessmentAnswers.attemptId], references: [assessmentAttempts.id] }),
   question: one(assessmentQuestions, { fields: [assessmentAnswers.questionId], references: [assessmentQuestions.id] }),
 }));
+
+/* --- Pendaftaran per program -------------------------------------- */
+
+/**
+ * Formulir pendaftaran — satu tautan unik per program.
+ *
+ * Dipisah dari tabel `programs` karena satu program dapat membuka pendaftaran
+ * berkali-kali (angkatan berikutnya) dengan rentang waktu, teks, dan tautan
+ * grup yang berbeda, sementara programnya sendiri tetap satu.
+ */
+export const registrationForms = pgTable(
+  "registration_forms",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    programId: uuid("program_id")
+      .notNull()
+      .references(() => programs.id, { onDelete: "cascade" }),
+    /** Bagian akhir tautan publik: /daftar/<slug>. */
+    slug: text("slug").notNull(),
+    title: text("title").notNull(),
+    headline: text("headline"),
+    /** Isi halaman pendaftaran, ditulis admin. */
+    description: text("description"),
+    /** Pernyataan istiqomah yang harus disetujui sebelum kiriman diterima. */
+    commitmentText: text("commitment_text")
+      .notNull()
+      .default(
+        "Saya berniat bersungguh-sungguh dan istiqomah mengikuti program ini sampai selesai, in syaa Allah.",
+      ),
+    /*
+     * Tautan undangan grup hanya diberikan setelah kiriman berhasil, dan
+     * tidak pernah ikut dalam konfigurasi formulir yang dibaca publik —
+     * kalau ikut, tautannya bisa dipanen tanpa mendaftar.
+     */
+    waIkhwanUrl: text("wa_ikhwan_url"),
+    waAkhwatUrl: text("wa_akhwat_url"),
+    opensAt: timestamp("opens_at", { withTimezone: true }),
+    closesAt: timestamp("closes_at", { withTimezone: true }),
+    status: formStatusEnum("status").notNull().default("draf"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("registration_forms_slug_idx").on(t.slug),
+    index("registration_forms_program_idx").on(t.programId),
+  ],
+);
+
+/**
+ * Kiriman pendaftaran.
+ *
+ * Terpisah dari `enrollments`: pendaftar belum tentu punya akun, dan
+ * pendaftaran baru menjadi keikutsertaan setelah ditinjau admin.
+ */
+export const registrations = pgTable(
+  "registrations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    formId: uuid("form_id")
+      .notNull()
+      .references(() => registrationForms.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone").notNull(),
+    gender: genderEnum("gender").notNull(),
+    country: text("country"),
+    province: text("province"),
+    city: text("city"),
+    education: educationEnum("education"),
+    segment: text("segment"),
+    reason: text("reason"),
+    /** Bukti persetujuan pernyataan istiqomah, beserta bunyi teks saat itu. */
+    commitmentAgreed: boolean("commitment_agreed").notNull().default(false),
+    commitmentSnapshot: text("commitment_snapshot"),
+    status: registrationStatusEnum("status").notNull().default("menunggu"),
+    note: text("note"),
+    /** Terisi bila pendaftaran sudah dikonversi menjadi akun pengguna. */
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
+    reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+    reviewedBy: uuid("reviewed_by").references(() => users.id, { onDelete: "set null" }),
+  },
+  (t) => [
+    /* Satu orang cukup sekali mendaftar pada satu formulir. */
+    uniqueIndex("registrations_form_email_idx").on(t.formId, t.email),
+    index("registrations_status_idx").on(t.status),
+  ],
+);
