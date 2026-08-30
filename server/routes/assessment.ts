@@ -313,6 +313,12 @@ assessmentAdminRoutes.get("/", async (c) => {
       subjectName: s.subjects.name,
       tahapanName: s.tahapan.name,
       programName: s.programs.name,
+      // Rantai leluhur yang sudah diselesaikan — dipakai formulir saat mengubah,
+      // agar Program/Tahapan/Mata pelajaran ikut terisi meski kuis menempel
+      // di tingkat yang lebih dalam.
+      resolvedSubjectId: s.subjects.id,
+      resolvedTahapanId: s.tahapan.id,
+      resolvedProgramId: s.programs.id,
     })
     .from(s.assessments)
     .leftJoin(s.meetings, eq(s.assessments.meetingId, s.meetings.id))
@@ -320,8 +326,14 @@ assessmentAdminRoutes.get("/", async (c) => {
       s.subjects,
       sql`${s.subjects.id} = coalesce(${s.assessments.subjectId}, ${s.meetings.subjectId})`,
     )
-    .leftJoin(s.tahapan, eq(s.assessments.tahapanId, s.tahapan.id))
-    .leftJoin(s.programs, eq(s.assessments.programId, s.programs.id))
+    .leftJoin(
+      s.tahapan,
+      sql`${s.tahapan.id} = coalesce(${s.assessments.tahapanId}, ${s.subjects.tahapanId})`,
+    )
+    .leftJoin(
+      s.programs,
+      sql`${s.programs.id} = coalesce(${s.assessments.programId}, ${s.tahapan.programId})`,
+    )
     .where(
       sql`(${s.subjects.tahapanId} = ${tahapanId} OR ${s.assessments.tahapanId} = ${tahapanId} OR ${s.assessments.programId} = ${t.programId})`,
     );

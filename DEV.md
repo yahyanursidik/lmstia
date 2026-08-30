@@ -106,6 +106,11 @@ diberi poin.
 - Peserta: **Nilai** → pilih kuis → kerjakan → hasil
 - Pengajar: **Penilaian Esai** → antrean → beri poin dan umpan balik
 - Admin: **Kuis & Ujian** → buat, atur KKM, kelola soal, lihat rekap hasil
+
+  Formulir selalu dimulai dari **Program**, lalu Tahapan → Mata Pelajaran →
+  Pertemuan. Tiap tingkat memuat dari induk yang dipilih, sehingga daftar
+  tidak pernah bercampur antarprogram. Semua pemilih mendukung ketik-untuk-
+  mencari dan navigasi papan ketik.
 - Admin (alternatif): **Program Belajar** → pertemuan → *Kelola soal*
 
 Kunci jawaban tidak pernah dikirim ke peserta sebelum percobaan selesai

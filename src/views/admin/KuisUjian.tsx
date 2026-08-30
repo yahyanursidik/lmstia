@@ -5,6 +5,7 @@ import { useAuth } from "../../lib/auth";
 import { Badge, Card, EmptyState, PageHeader, mono, serif } from "../../components/ui";
 import { Area, Check, DeleteButton, Field, FormPanel, Select, Text } from "../../components/form";
 import SoalEditor from "./SoalEditor";
+import { Combobox } from "../../components/Combobox";
 
 /**
  * Kuis & Ujian — satu tempat untuk seluruh asesmen pada tahapan berjalan.
@@ -14,7 +15,7 @@ import SoalEditor from "./SoalEditor";
  * menampung daftar, pembuatan, pengaturan KKM, bank soal, dan rekap hasil.
  */
 
-type Tahapan = { id: string; name: string; status: string };
+type Tahapan = { id: string; name: string; status: string; programId: string };
 type Subject = { id: string; name: string; code: string };
 type Meeting = { id: string; number: number; title: string };
 
@@ -37,6 +38,9 @@ type Kuis = {
   meetingId: string | null;
   tahapanName: string | null;
   programName: string | null;
+  resolvedProgramId: string | null;
+  resolvedTahapanId: string | null;
+  resolvedSubjectId: string | null;
   meetingNumber: number | null;
   meetingTitle: string | null;
   subjectName: string | null;
@@ -139,7 +143,7 @@ export default function KuisUjian() {
   const { user } = useAuth();
   const canWrite = user?.role === "academic_admin" || user?.role === "super_admin";
 
-  const programs = useResource<{ id: string; name: string }[]>("/admin/programs");
+  const programs = useResource<{ id: string; name: string; status: string }[]>("/admin/programs");
   const tahapanList = useResource<Tahapan[]>("/admin/tahapan");
   const [tahapanId, setTahapanId] = useState<string | null>(null);
   const tid =
@@ -149,7 +153,6 @@ export default function KuisUjian() {
     null;
 
   const list = useResource<Kuis[]>(tid ? `/admin/assessments?tahapanId=${tid}` : null);
-  const subjects = useResource<Subject[]>(tid ? `/admin/subjects?tahapanId=${tid}` : null);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -160,9 +163,16 @@ export default function KuisUjian() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<string>("semua");
 
-  // Pertemuan dimuat hanya ketika formulir memilih induk "pertemuan".
+  // Rantai formulir: tiap tingkat memuat dari induk yang dipilih DI DALAM
+  // formulir, bukan dari penyaring tahapan di kepala halaman.
+  const tahapanForm = useResource<Tahapan[]>(
+    draft?.programId ? `/admin/tahapan?programId=${draft.programId}` : null,
+  );
+  const subjectsForm = useResource<Subject[]>(
+    draft?.tahapanId ? `/admin/subjects?tahapanId=${draft.tahapanId}` : null,
+  );
   const meetings = useResource<Meeting[]>(
-    draft?.induk === "meeting" && draft.subjectId ? `/admin/meetings?subjectId=${draft.subjectId}` : null,
+    draft?.subjectId ? `/admin/meetings?subjectId=${draft.subjectId}` : null,
   );
   const rekap = useResource<Rekap>(rekapUntuk ? `/admin/assessments/${rekapUntuk}/results` : null);
 
@@ -187,7 +197,14 @@ export default function KuisUjian() {
   function buatBaru() {
     setErr(null);
     setEditingId(null);
-    setDraft({ ...kosong, subjectId: subjects.data?.[0]?.id ?? "" });
+    // Prefill dari konteks halaman: program dan tahapan yang sedang dilihat,
+    // supaya admin tidak mengulang pilihan yang sudah jelas.
+    const tahapanAktif = tahapanList.data?.find((t) => t.id === tid);
+    setDraft({
+      ...kosong,
+      programId: tahapanAktif?.programId ?? programs.data?.[0]?.id ?? "",
+      tahapanId: tid ?? "",
+    });
   }
 
   function ubah(k: Kuis) {
@@ -195,10 +212,12 @@ export default function KuisUjian() {
     setEditingId(k.id);
     setDraft({
       induk: k.scope,
-      programId: k.programId ?? "",
-      tahapanId: k.tahapanId ?? "",
+      // Rantai leluhur diisi dari hasil resolve server, bukan hanya kolom
+      // induk langsungnya — agar combobox di atasnya tidak tampak kosong.
+      programId: k.resolvedProgramId ?? k.programId ?? "",
+      tahapanId: k.resolvedTahapanId ?? k.tahapanId ?? "",
+      subjectId: k.resolvedSubjectId ?? k.subjectId ?? "",
       meetingId: k.meetingId ?? "",
-      subjectId: k.subjectId ?? "",
       kind: k.kind,
       title: k.title,
       description: k.description ?? "",
@@ -376,21 +395,14 @@ export default function KuisUjian() {
 
               <Field
                 label="Menempel pada"
-                hint="Menentukan cakupan asesmen. Pilihan di bawahnya menyesuaikan."
+                hint="Menentukan cakupan asesmen. Rantai di bawahnya menyesuaikan."
               >
                 <Select
                   value={draft.induk}
-                  onChange={(v) =>
-                    setDraft({
-                      ...draft,
-                      induk: v,
-                      // Kosongkan tingkat yang tidak dipakai agar tidak terkirim ganda.
-                      programId: v === "program" ? draft.programId : "",
-                      tahapanId: v === "tahapan" ? draft.tahapanId : "",
-                      subjectId: v === "subject" || v === "meeting" ? draft.subjectId : "",
-                      meetingId: v === "meeting" ? draft.meetingId : "",
-                    })
-                  }
+                  // Rantai yang sudah dipilih dipertahankan saat berpindah
+                  // cakupan — `simpan()` hanya mengirim satu induk, jadi tidak
+                  // perlu memaksa admin memilih ulang.
+                  onChange={(v) => setDraft({ ...draft, induk: v })}
                   options={[
                     { value: "program", label: "Program — lintas seluruh tahapan" },
                     { value: "tahapan", label: "Tahapan — lintas mata pelajaran" },
@@ -400,58 +412,82 @@ export default function KuisUjian() {
                 />
               </Field>
 
-              {/* Rantai bertingkat: hanya tingkat yang relevan yang ditampilkan. */}
-              {draft.induk === "program" && (
-                <Field label="Program">
-                  <Select
-                    value={draft.programId}
-                    onChange={(v) => setDraft({ ...draft, programId: v })}
-                    options={[
-                      { value: "", label: programs.loading ? "Memuat…" : "— pilih —" },
-                      ...(programs.data ?? []).map((p) => ({ value: p.id, label: p.name })),
-                    ]}
-                  />
-                </Field>
-              )}
+              {/*
+                Rantai selalu dimulai dari Program. Tanpa itu, daftar mata
+                pelajaran bisa bercampur antarprogram — membingungkan begitu
+                jumlah program bertambah banyak.
+              */}
+              <Field label="Program" hint="Ketik untuk mencari." span={draft.induk === "program"}>
+                <Combobox
+                  ariaLabel="Program"
+                  value={draft.programId}
+                  loading={programs.loading}
+                  placeholder="Cari program…"
+                  onChange={(v) =>
+                    // Mengganti program membatalkan seluruh pilihan di bawahnya.
+                    setDraft({ ...draft, programId: v, tahapanId: "", subjectId: "", meetingId: "" })
+                  }
+                  options={(programs.data ?? []).map((p) => ({
+                    value: p.id,
+                    label: p.name,
+                    hint: p.status === "active" ? "Aktif" : p.status,
+                  }))}
+                />
+              </Field>
 
-              {draft.induk === "tahapan" && (
-                <Field label="Tahapan">
-                  <Select
+              {draft.induk !== "program" && (
+                <Field label="Tahapan" hint={!draft.programId ? "Pilih program lebih dulu." : undefined}>
+                  <Combobox
+                    ariaLabel="Tahapan"
                     value={draft.tahapanId}
-                    onChange={(v) => setDraft({ ...draft, tahapanId: v })}
-                    options={[
-                      { value: "", label: "— pilih —" },
-                      ...(tahapanList.data ?? []).map((t) => ({ value: t.id, label: t.name })),
-                    ]}
+                    disabled={!draft.programId}
+                    loading={tahapanForm.loading}
+                    placeholder="Cari tahapan…"
+                    emptyText="Program ini belum punya tahapan"
+                    onChange={(v) => setDraft({ ...draft, tahapanId: v, subjectId: "", meetingId: "" })}
+                    options={(tahapanForm.data ?? []).map((t) => ({
+                      value: t.id,
+                      label: t.name,
+                      hint: t.status,
+                    }))}
                   />
                 </Field>
               )}
 
               {(draft.induk === "subject" || draft.induk === "meeting") && (
-                <Field label="Mata pelajaran">
-                  <Select
+                <Field label="Mata pelajaran" hint={!draft.tahapanId ? "Pilih tahapan lebih dulu." : undefined}>
+                  <Combobox
+                    ariaLabel="Mata pelajaran"
                     value={draft.subjectId}
+                    disabled={!draft.tahapanId}
+                    loading={subjectsForm.loading}
+                    placeholder="Cari mata pelajaran…"
+                    emptyText="Tahapan ini belum punya mata pelajaran"
                     onChange={(v) => setDraft({ ...draft, subjectId: v, meetingId: "" })}
-                    options={[
-                      { value: "", label: "— pilih —" },
-                      ...(subjects.data ?? []).map((s) => ({ value: s.id, label: s.name })),
-                    ]}
+                    options={(subjectsForm.data ?? []).map((s) => ({
+                      value: s.id,
+                      label: s.name,
+                      hint: s.code,
+                    }))}
                   />
                 </Field>
               )}
 
               {draft.induk === "meeting" && (
-                <Field label="Pertemuan">
-                  <Select
+                <Field label="Pertemuan" hint={!draft.subjectId ? "Pilih mata pelajaran lebih dulu." : undefined}>
+                  <Combobox
+                    ariaLabel="Pertemuan"
                     value={draft.meetingId}
+                    disabled={!draft.subjectId}
+                    loading={meetings.loading}
+                    placeholder="Cari pertemuan…"
+                    emptyText="Mata pelajaran ini belum punya pertemuan"
                     onChange={(v) => setDraft({ ...draft, meetingId: v })}
-                    options={[
-                      { value: "", label: meetings.loading ? "Memuat…" : "— pilih —" },
-                      ...(meetings.data ?? []).map((m) => ({
-                        value: m.id,
-                        label: `Pertemuan ${m.number} — ${m.title}`,
-                      })),
-                    ]}
+                    options={(meetings.data ?? []).map((m) => ({
+                      value: m.id,
+                      label: m.title,
+                      hint: `Pertemuan ${m.number}`,
+                    }))}
                   />
                 </Field>
               )}
