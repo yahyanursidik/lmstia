@@ -178,6 +178,26 @@ HAPUS_AKUN_DEMO=ya-saya-yakin npm run db:purge-demo
 `db:purge-demo` menolak berjalan selama belum ada super admin non-demo yang
 aktif, dan menyebutkan data apa saja yang ikut terhapus lewat cascade.
 
+
+### Bank Soal
+
+Soal di bank sengaja tidak terikat program, tahapan, atau mata pelajaran —
+itu justru alasan bank soal ada. Pengelompokannya memakai topik dan tag.
+
+Saat dipakai pada kuis atau ujian, isi soal **disalin**, bukan dirujuk.
+Menyunting soal di bank tidak mengubah asesmen yang sudah memakainya,
+sehingga ujian yang sudah lewat dan nilai yang sudah keluar tetap utuh.
+Kolom `assessment_questions.bank_question_id` hanya jejak asal-usul.
+
+Impor memakai CSV. Template dapat diunduh dari halaman Bank Soal, dan
+seluruh baris divalidasi di browser lebih dulu: baris bermasalah ditandai
+beserta alasannya dan tidak ikut terkirim. Di server, satu baris tidak sah
+membatalkan seluruh impor — impor separuh jalan meninggalkan bank dalam
+keadaan yang sulit ditelusuri.
+
+Kunci pilihan ganda ditulis manusia sebagai nomor pilihan (1–5) dan
+disimpan sebagai indeks 0-basis.
+
 ### Batasan yang perlu diketahui
 
 Rate limit login disimpan di tabel `login_attempts`, bukan di memori proses,

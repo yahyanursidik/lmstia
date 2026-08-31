@@ -70,6 +70,7 @@ export default function SoalEditor({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [ambilBank, setAmbilBank] = useState(false);
 
   const rows = list.data ?? [];
   const totalPoin = rows.reduce((n, r) => n + r.points, 0);
@@ -119,26 +120,50 @@ export default function SoalEditor({
   return (
     <section className="card" style={{ padding: 22, marginTop: 20 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
-        <h3 style={{ fontFamily: serif, fontSize: 20 }}>Bank Soal</h3>
+        <h3 style={{ fontFamily: serif, fontSize: 20 }}>Soal</h3>
         <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
           <span style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-muted)" }}>
             {rows.length} soal · {totalPoin} poin
           </span>
           {canWrite && (
-            <button
-              type="button"
-              className="btn-solid-sm"
-              onClick={() => {
-                setErr(null);
-                setEditingId(null);
-                setDraft(kosong(rows.length + 1));
-              }}
-            >
-              Tambah soal
-            </button>
+            <>
+              <button
+                type="button"
+                className="btn-sm"
+                onClick={() => {
+                  setErr(null);
+                  setDraft(null);
+                  setAmbilBank((v) => !v);
+                }}
+              >
+                {ambilBank ? "Tutup bank" : "Ambil dari bank"}
+              </button>
+              <button
+                type="button"
+                className="btn-solid-sm"
+                onClick={() => {
+                  setErr(null);
+                  setEditingId(null);
+                  setAmbilBank(false);
+                  setDraft(kosong(rows.length + 1));
+                }}
+              >
+                Tambah soal
+              </button>
+            </>
           )}
         </div>
       </div>
+
+      {ambilBank && (
+        <AmbilDariBank
+          assessmentId={assessmentId}
+          onSelesai={(n) => {
+            setAmbilBank(false);
+            if (n > 0) list.reload();
+          }}
+        />
+      )}
 
       {draft && (
         <FormPanel
@@ -354,3 +379,167 @@ export default function SoalEditor({
 }
 
 export { Check };
+
+/* --- mengambil soal dari Bank Soal ---------------------------------- */
+
+type SoalBank = {
+  id: string;
+  type: "multiple_choice" | "true_false" | "essay";
+  prompt: string;
+  options: string[] | null;
+  answerKey: string | null;
+  points: number;
+  topic: string | null;
+  difficulty: string;
+};
+
+const TIPE_RINGKAS: Record<string, string> = {
+  multiple_choice: "PG",
+  true_false: "B/S",
+  essay: "Esai",
+};
+
+/**
+ * Memilih soal dari bank untuk disalin ke asesmen ini.
+ *
+ * Isinya disalin, bukan dirujuk: menyunting soal di bank setelahnya tidak
+ * mengubah asesmen ini, sehingga ujian yang sudah berjalan tetap utuh.
+ */
+function AmbilDariBank({
+  assessmentId,
+  onSelesai,
+}: {
+  assessmentId: string;
+  onSelesai: (jumlah: number) => void;
+}) {
+  const [q, setQ] = useState("");
+  const [tipe, setTipe] = useState("");
+  const [pilih, setPilih] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const query = new URLSearchParams({ perPage: "50" });
+  if (q.trim()) query.set("q", q.trim());
+  if (tipe) query.set("type", tipe);
+  const bank = useResource<SoalBank[]>(`/admin/bank-soal?${query.toString()}`);
+
+  async function salin() {
+    if (!pilih.length) return;
+    setBusy(true);
+    const pesan = await mutate(() =>
+      api.post(`/admin/bank-soal/to-assessment/${assessmentId}`, { questionIds: pilih }),
+    );
+    setBusy(false);
+    if (pesan) return setErr(pesan);
+    const n = pilih.length;
+    setPilih([]);
+    onSelesai(n);
+  }
+
+  return (
+    <div
+      style={{
+        border: "1px solid var(--color-forest)",
+        borderRadius: 11,
+        padding: 18,
+        marginBottom: 18,
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <div style={{ fontFamily: serif, fontSize: 18 }}>Ambil dari Bank Soal</div>
+        <button
+          type="button"
+          className="btn-solid-sm"
+          disabled={busy || pilih.length === 0}
+          onClick={salin}
+          style={{ opacity: busy || pilih.length === 0 ? 0.55 : 1 }}
+        >
+          {busy ? "Menyalin…" : `Salin ${pilih.length} soal`}
+        </button>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 12 }}>
+        <input
+          type="search"
+          value={q}
+          placeholder="Cari pertanyaan atau topik…"
+          onChange={(e) => setQ(e.target.value)}
+          style={{
+            flex: "1 1 220px",
+            padding: "9px 12px",
+            border: "1px solid var(--color-line)",
+            borderRadius: 8,
+            background: "var(--color-surface)",
+            fontSize: 15,
+            fontFamily: "inherit",
+            color: "var(--color-ink)",
+          }}
+        />
+        {["", "multiple_choice", "true_false", "essay"].map((t) => (
+          <button
+            key={t || "semua"}
+            type="button"
+            className={tipe === t ? "btn-solid-sm" : "btn-sm"}
+            onClick={() => setTipe(t)}
+          >
+            {t ? TIPE_RINGKAS[t] : "Semua"}
+          </button>
+        ))}
+      </div>
+
+      {err && (
+        <div role="alert" style={{ fontSize: 14.5, color: "#8d4632", marginBottom: 10 }}>
+          {err}
+        </div>
+      )}
+
+      {bank.loading && <div style={{ color: "var(--color-faint)" }}>Memuat bank soal…</div>}
+      {bank.data && bank.data.length === 0 && (
+        <div style={{ fontSize: 15, color: "var(--color-faint)", lineHeight: 1.6 }}>
+          Bank soal masih kosong atau tidak ada yang cocok. Tambahkan lewat menu Bank Soal.
+        </div>
+      )}
+
+      {bank.data && bank.data.length > 0 && (
+        <div style={{ display: "grid", gap: 8, maxHeight: 340, overflowY: "auto" }}>
+          {bank.data.map((s) => {
+            const dipilih = pilih.includes(s.id);
+            return (
+              <label
+                key={s.id}
+                style={{
+                  display: "flex",
+                  gap: 10,
+                  alignItems: "flex-start",
+                  border: "1px solid var(--color-line)",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  cursor: "pointer",
+                  background: dipilih ? "var(--color-paper)" : "transparent",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={dipilih}
+                  onChange={() =>
+                    setPilih((v) => (dipilih ? v.filter((x) => x !== s.id) : [...v, s.id]))
+                  }
+                  style={{ marginTop: 3 }}
+                />
+                <span style={{ minWidth: 0 }}>
+                  <span style={{ fontFamily: mono, fontSize: 11.5, color: "var(--color-faint)" }}>
+                    {TIPE_RINGKAS[s.type]} · {s.points} poin
+                    {s.topic ? ` · ${s.topic}` : ""}
+                  </span>
+                  <span style={{ display: "block", fontSize: 15.5, lineHeight: 1.5, marginTop: 3 }}>
+                    {s.prompt}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

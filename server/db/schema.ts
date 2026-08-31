@@ -416,6 +416,15 @@ export const assessmentQuestions = pgTable(
     explanation: text("explanation"),
     points: integer("points").notNull().default(1),
     sequence: integer("sequence").notNull().default(1),
+    /**
+     * Asal soal bila diambil dari bank — jejak, bukan acuan hidup.
+     *
+     * Isinya SALINAN, bukan rujukan. Bila soal asesmen ikut berubah setiap
+     * kali soal bank disunting, ujian yang sudah lewat dan percobaan yang
+     * sudah dinilai ikut berubah diam-diam. Kolom ini hanya untuk menelusuri
+     * asalnya, dan dibiarkan null bila soal banknya kelak dihapus.
+     */
+    bankQuestionId: uuid("bank_question_id"),
   },
   (t) => [index("assessment_questions_seq_idx").on(t.assessmentId, t.sequence)],
 );
@@ -748,3 +757,43 @@ export const loginAttempts = pgTable("login_attempts", {
   n: integer("n").notNull().default(0),
   resetAt: timestamp("reset_at", { withTimezone: true }).notNull(),
 });
+
+/* --- Bank Soal ----------------------------------------------------- */
+
+export const difficultyEnum = pgEnum("difficulty", ["mudah", "sedang", "sulit"]);
+
+/**
+ * Bank soal — kumpulan soal yang dapat dipakai ulang.
+ *
+ * Sengaja TIDAK ditautkan ke program, tahapan, atau mata pelajaran mana pun.
+ * Begitu soal terikat pada satu program, ia berhenti bisa dipakai di program
+ * lain — padahal itu justru alasan bank soal ada. Pengelompokannya memakai
+ * `topic` dan `tags`, yang tidak membatasi pemakaian.
+ */
+export const questionBank = pgTable(
+  "question_bank",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    type: questionTypeEnum("type").notNull().default("multiple_choice"),
+    prompt: text("prompt").notNull(),
+    /** Pilihan ganda: JSON array of string. Benar-salah dan esai: null. */
+    options: text("options"),
+    /**
+     * Pilihan ganda: indeks jawaban benar ("0".."n").
+     * Benar-salah: "true" | "false".
+     * Esai: null — dinilai manual.
+     */
+    answerKey: text("answer_key"),
+    explanation: text("explanation"),
+    points: integer("points").notNull().default(1),
+    /** Pengelompokan bebas, mis. "Bahasa Arab — Huruf Hijaiyah". */
+    topic: text("topic"),
+    /** Label dipisah koma; disimpan apa adanya agar mudah dicari. */
+    tags: text("tags"),
+    difficulty: difficultyEnum("difficulty").notNull().default("sedang"),
+    createdBy: uuid("created_by").references(() => users.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("question_bank_topic_idx").on(t.topic), index("question_bank_type_idx").on(t.type)],
+);

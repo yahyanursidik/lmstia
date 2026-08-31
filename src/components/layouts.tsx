@@ -238,6 +238,7 @@ const ADMIN_GROUPS: {
     items: [
       { to: "/admin/worksheet", label: "Worksheet" },
       { to: "/admin/kuis", label: "Kuis & Ujian" },
+      { to: "/admin/bank-soal", label: "Bank Soal" },
       { to: "/admin/penilaian", label: "Penilaian Esai" },
       { to: "/admin/kehadiran", label: "Kehadiran" },
       { to: "/admin/nilai", label: "Nilai" },

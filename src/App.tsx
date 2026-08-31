@@ -28,6 +28,7 @@ import Penilaian from "./views/admin/Penilaian";
 import KuisUjian from "./views/admin/KuisUjian";
 import Pengguna from "./views/admin/Pengguna";
 import PendaftaranAdmin from "./views/admin/Pendaftaran";
+import BankSoal from "./views/admin/BankSoal";
 import {
   Kehadiran,
   Laporan,
@@ -124,6 +125,7 @@ export default function App() {
           ))}
           <Route path="/admin/worksheet" element={<Worksheet />} />
           <Route path="/admin/kuis" element={<KuisUjian />} />
+          <Route path="/admin/bank-soal" element={<BankSoal />} />
           <Route path="/admin/penilaian" element={<Penilaian />} />
           <Route path="/admin/quiz" element={<Navigate to="/admin/penilaian" replace />} />
           <Route path="/admin/kehadiran" element={<Kehadiran />} />
