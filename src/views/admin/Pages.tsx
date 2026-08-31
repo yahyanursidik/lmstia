@@ -16,6 +16,7 @@ import {
 } from "../../components/ui";
 import { Area, Field, FormPanel, Select, Text } from "../../components/form";
 import { Combobox } from "../../components/Combobox";
+import { Drawer } from "../../components/Drawer";
 import { useAuth } from "../../lib/auth";
 import SoalEditor from "./SoalEditor";
 
@@ -1300,34 +1301,23 @@ export function Laporan() {
         </div>
       )}
 
-      {/* --- rincian satu peserta --- */}
-      {buka && (
-        <Card padding={22} style={{ marginBottom: 20 }}>
+      {/* Rincian sebagai panel geser: tabel tetap di tempatnya. */}
+      <Drawer
+        open={!!buka}
+        onClose={() => setBuka(null)}
+        title={rinci.data?.peserta.name ?? "Memuat…"}
+        subtitle={
+          rinci.data
+            ? [rinci.data.peserta.email, rinci.data.peserta.phone, rinci.data.peserta.city]
+                .filter(Boolean)
+                .join(" · ")
+            : undefined
+        }
+      >
+        <>
           {rinci.loading && <div style={{ color: "var(--color-faint)" }}>Memuat rincian…</div>}
           {rinci.data && (
             <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  flexWrap: "wrap",
-                  marginBottom: 18,
-                }}
-              >
-                <div>
-                  <div style={{ fontFamily: serif, fontSize: 23 }}>{rinci.data.peserta.name}</div>
-                  <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 4 }}>
-                    {[rinci.data.peserta.email, rinci.data.peserta.phone, rinci.data.peserta.city]
-                      .filter(Boolean)
-                      .join(" · ")}
-                  </div>
-                </div>
-                <button type="button" className="btn-sm" onClick={() => setBuka(null)}>
-                  Tutup
-                </button>
-              </div>
-
               <div className="eyebrow" style={{ marginBottom: 10 }}>
                 Progres per mata pelajaran
               </div>
@@ -1417,8 +1407,8 @@ export function Laporan() {
               )}
             </>
           )}
-        </Card>
-      )}
+        </>
+      </Drawer>
 
       <Card padding={20}>
         {lap.data && (

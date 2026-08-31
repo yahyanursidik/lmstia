@@ -13,6 +13,7 @@ import {
 } from "../../components/ui";
 import { Area, Field, FormPanel, Select, Text } from "../../components/form";
 import { Combobox } from "../../components/Combobox";
+import { Drawer } from "../../components/Drawer";
 import { EDUCATION_LABEL } from "../../data/wilayah";
 
 /**
@@ -591,21 +592,35 @@ function TabPendaftar() {
         </div>
       )}
 
-      {terpilih && (
-        <Card padding={22} style={{ marginBottom: 18 }}>
-          <div
-            style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 16 }}
-          >
-            <div>
-              <div style={{ fontFamily: serif, fontSize: 23 }}>{terpilih.name}</div>
-              <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 4 }}>
-                {terpilih.email} · {terpilih.phone}
-              </div>
-            </div>
-            <button type="button" className="btn-sm" onClick={() => setBuka(null)}>
-              Tutup
-            </button>
-          </div>
+      {/* Rincian sebagai panel geser: tabel tetap di tempatnya. */}
+      <Drawer
+        open={!!terpilih}
+        onClose={() => {
+          setBuka(null);
+          setCatatan("");
+        }}
+        title={terpilih?.name ?? ""}
+        subtitle={terpilih ? `${terpilih.email} · ${terpilih.phone}` : undefined}
+        actions={
+          terpilih ? (
+            <>
+              <button type="button" className="btn-solid-sm" onClick={() => tinjau(terpilih.id, "disetujui")}>
+                Setujui
+              </button>
+              <button
+                type="button"
+                className="btn-sm"
+                style={{ color: "#8d4632", borderColor: "#e8cdc3" }}
+                onClick={() => tinjau(terpilih.id, "ditolak")}
+              >
+                Tolak
+              </button>
+            </>
+          ) : undefined
+        }
+      >
+        {terpilih && (
+        <>
 
           <div
             style={{
@@ -645,21 +660,9 @@ function TabPendaftar() {
             <Area value={catatan} onChange={setCatatan} />
           </div>
 
-          <div style={{ display: "flex", gap: 9, flexWrap: "wrap" }}>
-            <button type="button" className="btn-solid-sm" onClick={() => tinjau(terpilih.id, "disetujui")}>
-              Setujui
-            </button>
-            <button
-              type="button"
-              className="btn-sm"
-              style={{ color: "#8d4632", borderColor: "#e8cdc3" }}
-              onClick={() => tinjau(terpilih.id, "ditolak")}
-            >
-              Tolak
-            </button>
-          </div>
-        </Card>
-      )}
+        </>
+        )}
+      </Drawer>
 
       <Card padding={20}>
         {daftar.loading && <div style={{ color: "var(--color-faint)" }}>Memuat pendaftar…</div>}

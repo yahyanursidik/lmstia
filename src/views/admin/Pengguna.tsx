@@ -2,9 +2,10 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { api } from "../../lib/api";
 import { mutate, usePagedResource, useResource } from "../../lib/useApi";
 import { useAuth } from "../../lib/auth";
-import { Badge, Card, DataTable, EmptyState, PageHeader, mono, serif, type Column } from "../../components/ui";
+import { Badge, Card, DataTable, EmptyState, PageHeader, mono, type Column } from "../../components/ui";
 import { Area, Field, FormPanel, Select, Text } from "../../components/form";
 import { Combobox } from "../../components/Combobox";
+import { Drawer } from "../../components/Drawer";
 import {
   ACCOUNT_STATUS_LABEL,
   EDUCATION_LABEL,
@@ -519,39 +520,30 @@ export default function Pengguna() {
         </div>
       )}
 
-      {/* --- detail & ubah --- */}
-      {pilih && (
-        <Card padding={22} style={{ marginBottom: 20 }}>
+      {/* --- rincian: panel geser, supaya tabel tidak berpindah posisi --- */}
+      <Drawer
+        open={!!pilih}
+        onClose={() => {
+          setPilih(null);
+          setUbah(null);
+          setErr(null);
+        }}
+        title={d?.name ?? "Memuat…"}
+        subtitle={d?.email}
+        actions={
+          d && !ubah ? (
+            <button type="button" className="btn-solid-sm" onClick={() => setUbah({ ...d })}>
+              Ubah profil
+            </button>
+          ) : undefined
+        }
+      >
+        <>
           {detail.loading && <div style={{ color: "var(--color-faint)" }}>Memuat profil…</div>}
           {detail.error && <div role="alert">{detail.error}</div>}
 
           {d && !ubah && (
             <>
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 16,
-                  flexWrap: "wrap",
-                  marginBottom: 18,
-                }}
-              >
-                <div>
-                  <div style={{ fontFamily: serif, fontSize: 24 }}>{d.name}</div>
-                  <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 4 }}>
-                    {d.email}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "flex-start", flexWrap: "wrap" }}>
-                  <button type="button" className="btn-solid-sm" onClick={() => setUbah({ ...d })}>
-                    Ubah
-                  </button>
-                  <button type="button" className="btn-sm" onClick={() => setPilih(null)}>
-                    Tutup
-                  </button>
-                </div>
-              </div>
-
               <div
                 style={{
                   display: "grid",
@@ -741,8 +733,8 @@ export default function Pengguna() {
               </Field>
             </FormPanel>
           )}
-        </Card>
-      )}
+        </>
+      </Drawer>
 
       {/* --- daftar --- */}
       <Card padding={20}>
