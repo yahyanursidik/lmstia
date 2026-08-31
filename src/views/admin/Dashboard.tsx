@@ -1,257 +1,294 @@
 import { Link } from "react-router";
-import * as repo from "../../domain/repository";
-import { CURRENT_WEEK, TOTAL_WEEKS } from "../../domain/repository";
-import { COMPETENCY_TONE, ENGAGEMENT_LABEL, ENGAGEMENT_TONE } from "../../domain/types";
-import { Badge, Card, CardTitle, DataTable, PageHeader, mono, serif, type Column } from "../../components/ui";
-import type { Participant } from "../../domain/types";
+import { useResource } from "../../lib/useApi";
+import { Badge, Card, CardTitle, EmptyState, Meter, mono, serif } from "../../components/ui";
 
-/** Bars scale from attendance %; the trailing bar is exercise completion. */
-const SCALE = 1.45;
-const SCALE_2 = 1.35;
+/**
+ * Dasbor admin — menjawab "siapa yang perlu didampingi sekarang?"
+ *
+ * Isinya berasal dari basis data. Sebelumnya menampilkan angka contoh yang
+ * ditulis di kode, sehingga dasbor bisa terlihat sehat sementara keadaan
+ * sebenarnya tidak.
+ */
 
-function Chart() {
-  const data = repo.engagementByWeek();
-  return (
-    <div className="chart-scroll">
-      <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 170 }}>
-        {data.map((h, i) => (
-          <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
-            <div style={{ width: "100%", display: "flex", gap: 2, alignItems: "flex-end", height: 150 }}>
-              <div
-                style={{
-                  flex: 1,
-                  borderRadius: "3px 3px 0 0",
-                  background: "var(--color-forest)",
-                  height: h ? Math.round(h * SCALE) : 3,
-                }}
-              />
-              <div
-                style={{
-                  flex: 1,
-                  borderRadius: "3px 3px 0 0",
-                  background: "var(--color-sage)",
-                  height: h ? Math.round((h - 12) * SCALE_2) : 3,
-                }}
-              />
-            </div>
-            <div style={{ fontFamily: mono, fontSize: 11, color: "var(--color-faint)" }}>P{i + 1}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
+type Overview = {
+  tahapan: { id: string; name: string; title: string | null };
+  totals: { participants: number; onTrack: number; needsFollowUp: number };
+  engagement: { engagement: string; n: number }[];
+  competency: { competency: string | null; n: number }[];
+  needsFollowUp: {
+    userId: string;
+    name: string;
+    email: string;
+    engagement: string;
+    progress: number;
+    className: string | null;
+  }[];
+};
+
+type Peserta = {
+  userId: string;
+  name: string;
+  email: string;
+  className: string | null;
+  status: string;
+  engagement: string;
+  progress: number;
+};
+
+const ENGAGEMENT_LABEL: Record<string, string> = {
+  on_track: "Sesuai jalur",
+  needs_attention: "Perlu perhatian",
+  at_risk: "Berisiko",
+  inactive: "Tidak aktif",
+};
+
+const ENGAGEMENT_TONE: Record<string, { bg: string; fg: string }> = {
+  on_track: { bg: "#e4ede4", fg: "#2f5638" },
+  needs_attention: { bg: "#f6eddb", fg: "#8a6a25" },
+  at_risk: { bg: "#f7e6e0", fg: "#8d4632" },
+  inactive: { bg: "#ece9e3", fg: "#6b6459" },
+};
+
+const COMPETENCY_LABEL: Record<string, string> = {
+  sudah_dikuasai: "Sudah dikuasai",
+  perlu_murojaah: "Perlu murojaah",
+  belum_dikuasai: "Belum dikuasai",
+};
 
 export default function AdminDashboard() {
-  const kpi = repo.adminKpi();
-  const breakdown = repo.competencyBreakdown();
-  const followUp = repo.needsFollowUp();
-  const readiness = repo.contentReadiness().filter((r) => r.course.id === "co-arab");
+  const o = useResource<Overview>("/admin/overview");
+  const peserta = useResource<Peserta[]>("/admin/participants");
 
-  const cards = [
-    { label: "PESERTA AKTIF", nilai: String(kpi.active), delta: `dari ${kpi.total} terdaftar`, tone: "#807a70" },
-    { label: "KEHADIRAN PERTEMUAN 8", nilai: "86%", delta: "+4% dari pekan lalu", tone: "var(--color-forest)" },
-    { label: "PERLU PENDAMPINGAN", nilai: String(kpi.risk), delta: "tindak lanjut diperlukan", tone: "var(--color-amber)" },
-    { label: "PENDAFTARAN BARU", nilai: String(kpi.pendingReg), delta: "menunggu persetujuan", tone: "var(--color-amber)" },
-  ];
+  if (o.loading) {
+    return (
+      <div style={{ color: "var(--color-faint)" }}>Memuat dasbor…</div>
+    );
+  }
 
-  const columns: Column<Participant>[] = [
-    {
-      key: "nama",
-      head: "PESERTA",
-      width: "1.4fr",
-      render: (p) => (
-        <div>
-          <div style={{ fontWeight: 700 }}>{p.name}</div>
-          <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>{p.className}</div>
-        </div>
-      ),
-    },
-    { key: "segmen", head: "SEGMEN", width: ".9fr", secondary: true, render: (p) => <span style={{ color: "var(--color-muted)", fontSize: 14.5 }}>{p.segment}</span> },
-    { key: "hadir", head: "KEHADIRAN", width: ".8fr", secondary: true, render: (p) => <span style={{ fontFamily: mono, fontSize: 14.5 }}>{p.attendance}</span> },
-    { key: "latihan", head: "LATIHAN", width: ".8fr", secondary: true, render: (p) => <span style={{ fontFamily: mono, fontSize: 14.5 }}>{p.exercises}</span> },
-    {
-      key: "status",
-      head: "STATUS",
-      width: "1.1fr",
-      render: (p) => (
-        <Badge bg={ENGAGEMENT_TONE[p.engagement].bg} fg={ENGAGEMENT_TONE[p.engagement].fg}>
-          {ENGAGEMENT_LABEL[p.engagement]}
-        </Badge>
-      ),
-    },
-    {
-      key: "aksi",
-      head: "AKSI",
-      width: "120px",
-      secondary: true,
-      render: () => (
-        <button type="button" className="btn-sm" style={{ padding: "7px 12px", fontSize: 14 }}>
-          Kirim jalur
-        </button>
-      ),
-    },
-  ];
+  if (o.error || !o.data) {
+    return (
+      <EmptyState
+        title="Dasbor belum dapat dimuat"
+        hint={o.error ?? "Belum ada caturwulan yang berjalan."}
+      />
+    );
+  }
+
+  const d = o.data;
+  const rata = (peserta.data ?? []).length
+    ? Math.round(
+        (peserta.data ?? []).reduce((a, p) => a + p.progress, 0) / (peserta.data ?? []).length,
+      )
+    : 0;
 
   return (
     <>
-      <PageHeader
-        eyebrow={`Marhalah I'dad · ${repo.activeTerm.name}`}
-        title="Keberlangsungan Belajar"
-        actions={
-          <>
-            <Link to="/admin/laporan" className="btn-sm">
-              Ekspor laporan cawu
-            </Link>
-            <Link to="/admin/pendaftaran" className="btn-solid-sm">
-              Buka registrasi Cawu 2
-            </Link>
-          </>
-        }
-      />
-
-      <div className="kpi-grid quad" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-        {cards.map((k) => (
-          <Card key={k.label} padding={20}>
-            <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".11em", color: "var(--color-soft)" }}>
-              {k.label}
-            </div>
-            <div style={{ fontFamily: serif, fontSize: 36, lineHeight: 1.1, marginTop: 12 }}>{k.nilai}</div>
-            <div style={{ fontSize: 14.5, color: k.tone, marginTop: 8 }}>{k.delta}</div>
-          </Card>
-        ))}
-      </div>
-
-      <div className="split" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 20, marginBottom: 20 }}>
-        <Card>
-          <CardTitle aside="Kehadiran & penyelesaian latihan">Keterlibatan per Pertemuan</CardTitle>
-          <Chart />
-          <div
-            style={{
-              display: "flex",
-              gap: 20,
-              marginTop: 20,
-              paddingTop: 16,
-              borderTop: "1px solid var(--color-line-soft)",
-              fontSize: 14,
-              color: "var(--color-muted)",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ width: 9, height: 9, borderRadius: 2, background: "var(--color-forest)" }} />
-              Kehadiran
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ width: 9, height: 9, borderRadius: 2, background: "var(--color-sage)" }} />
-              Latihan &amp; worksheet
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <CardTitle aside={`${repo.allParticipants().length} peserta · ${repo.activeTerm.name}`}>
-            Kategori Hasil Belajar
-          </CardTitle>
-          {breakdown.map((g) => (
-            <div key={g.nama} style={{ marginBottom: 18 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", fontSize: 15.5, marginBottom: 8, gap: 12 }}>
-                <span style={{ fontWeight: 700 }}>{g.nama}</span>
-                <span style={{ fontFamily: mono, fontSize: 14, color: "var(--color-muted)" }}>{g.n} peserta</span>
-              </div>
-              <div style={{ height: 8, borderRadius: 4, background: "#ece6da", overflow: "hidden" }}>
-                <div
-                  style={{
-                    height: 8,
-                    borderRadius: 4,
-                    background: COMPETENCY_TONE[g.nama].fg,
-                    width: `${g.pct}%`,
-                  }}
-                />
-              </div>
-            </div>
-          ))}
-        </Card>
-      </div>
-
-      <div style={{ marginBottom: 20 }}>
-        <CardTitle aside={`${followUp.length} peserta`}>Peserta yang Perlu Pendampingan</CardTitle>
-        <DataTable
-          columns={columns}
-          rows={followUp}
-          empty="Tidak ada peserta yang perlu pendampingan pertemuan ini."
-        />
-        <div style={{ fontSize: 14.5, color: "#5c564d", lineHeight: 1.55, marginTop: 12 }}>
-          Peserta berstatus <strong>Perlu perhatian</strong> atau <strong>Berisiko tertinggal</strong> otomatis
-          ditawarkan Jalur Mengejar Ketertinggalan: 1 video inti, 1 PDF ringkas, 1 latihan wajib, 1 cek pemahaman.
+      <header style={{ marginBottom: 26 }}>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>
+          {d.tahapan.name}
         </div>
-      </div>
+        <h1 style={{ fontSize: 32 }}>Keberlangsungan Belajar</h1>
+        <p
+          style={{
+            margin: "12px 0 0",
+            fontSize: 17,
+            lineHeight: 1.6,
+            color: "var(--color-body)",
+            maxWidth: 620,
+          }}
+        >
+          Yang ditampilkan bukan sekadar jumlah peserta, melainkan siapa yang perlu didampingi
+          lebih dulu.
+        </p>
+      </header>
 
-      <div className="split-even" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div
+        className="quad"
+        style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}
+      >
         <Card>
-          <CardTitle>Kesiapan Konten Pertemuan {CURRENT_WEEK + 1}–{TOTAL_WEEKS}</CardTitle>
-          {readiness.map((r) => (
-            <div
-              key={r.week.id}
-              style={{ display: "flex", alignItems: "center", gap: 14, padding: "13px 0", borderTop: "1px solid var(--color-line-soft)" }}
-            >
-              <div style={{ width: 62, flex: "none", fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                PERTEMUAN {r.week.number}
-              </div>
-              <div style={{ flex: 1, fontSize: 15.5, minWidth: 0 }}>{r.week.title}</div>
-              <div
-                style={{
-                  fontSize: 13,
-                  fontWeight: 700,
-                  whiteSpace: "nowrap",
-                  color:
-                    r.status === "published"
-                      ? "var(--color-forest)"
-                      : r.status === "review"
-                        ? "#8a6a25"
-                        : "#8d4632",
-                }}
-              >
-                {r.status === "published" ? "Siap" : r.status === "review" ? "Perlu review" : "Draf"}
-              </div>
-            </div>
-          ))}
-        </Card>
-
-        <Card tone="forest">
-          <div className="eyebrow eyebrow-on-dark" style={{ marginBottom: 14 }}>
-            Penutupan caturwulan
+          <div className="eyebrow" style={{ marginBottom: 10 }}>
+            Peserta
           </div>
-          <div style={{ fontFamily: serif, fontSize: 23, lineHeight: 1.3 }}>
-            Materi Inti → Pertemuan Murojaah → Evaluasi Akhir → Umpan Balik
+          <div style={{ fontFamily: serif, fontSize: 32, lineHeight: 1 }}>
+            {d.totals.participants}
+          </div>
+        </Card>
+        <Card>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>
+            Sesuai jalur
+          </div>
+          <div style={{ fontFamily: serif, fontSize: 32, lineHeight: 1 }}>{d.totals.onTrack}</div>
+        </Card>
+        <Card>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>
+            Perlu tindak lanjut
           </div>
           <div
             style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: 11,
-              marginTop: 22,
-              paddingTop: 20,
-              borderTop: "1px solid rgba(238,242,238,.16)",
-              fontSize: 15.5,
+              fontFamily: serif,
+              fontSize: 32,
+              lineHeight: 1,
+              color: d.totals.needsFollowUp ? "#8d4632" : undefined,
             }}
           >
-            {[
-              ["Kehadiran & keterlibatan", "20%"],
-              ["Latihan & worksheet", "30%"],
-              ["Quiz / cek pemahaman", "20%"],
-              ["Evaluasi akhir", "30%"],
-            ].map(([k, v]) => (
-              <div key={k} style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
-                <span style={{ color: "rgba(238,242,238,.7)" }}>{k}</span>
-                <span style={{ fontWeight: 700 }}>{v}</span>
-              </div>
-            ))}
+            {d.totals.needsFollowUp}
           </div>
-          <button type="button" className="btn-light" style={{ marginTop: 24 }}>
-            Terbitkan Syahadah Cawu 1
-          </button>
         </Card>
+        <Card>
+          <div className="eyebrow" style={{ marginBottom: 10 }}>
+            Rata-rata progres
+          </div>
+          <div style={{ fontFamily: serif, fontSize: 32, lineHeight: 1 }}>{rata}%</div>
+        </Card>
+      </div>
+
+      <div
+        className="split"
+        style={{ display: "grid", gridTemplateColumns: "1.25fr .85fr", gap: 22, alignItems: "start" }}
+      >
+        <div>
+          <Card padding={22}>
+            <CardTitle aside={`${d.needsFollowUp.length} peserta`}>
+              Perlu pendampingan lebih dulu
+            </CardTitle>
+            {d.needsFollowUp.length === 0 ? (
+              <EmptyState
+                title="Tidak ada yang perlu pendampingan"
+                hint="Seluruh peserta berada pada jalur yang wajar."
+              />
+            ) : (
+              <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+                {d.needsFollowUp.map((p) => {
+                  const tone = ENGAGEMENT_TONE[p.engagement] ?? ENGAGEMENT_TONE.inactive!;
+                  return (
+                    <div
+                      key={p.userId}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                        border: "1px solid var(--color-line)",
+                        borderRadius: 9,
+                        padding: "12px 14px",
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{p.name}</div>
+                        <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
+                          {p.email}
+                          {p.className ? ` · ${p.className}` : ""}
+                        </div>
+                      </div>
+                      <Badge bg={tone.bg} fg={tone.fg}>
+                        {ENGAGEMENT_LABEL[p.engagement] ?? p.engagement}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ marginTop: 16 }}>
+              <Link to="/admin/pengguna" className="btn-sm">
+                Kelola pengguna →
+              </Link>
+            </div>
+          </Card>
+
+          <Card padding={22} style={{ marginTop: 20 }}>
+            <CardTitle aside={`${(peserta.data ?? []).length} peserta`}>Progres peserta</CardTitle>
+            {peserta.loading && (
+              <div style={{ color: "var(--color-faint)", marginTop: 12 }}>Memuat…</div>
+            )}
+            {peserta.data && peserta.data.length === 0 && (
+              <EmptyState title="Belum ada peserta terdaftar" />
+            )}
+            {peserta.data && peserta.data.length > 0 && (
+              <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
+                {peserta.data.slice(0, 8).map((p) => (
+                  <div key={p.userId}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        marginBottom: 6,
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <span style={{ fontWeight: 600 }}>{p.name}</span>
+                      <span
+                        style={{ fontFamily: mono, fontSize: 13.5, color: "var(--color-faint)" }}
+                      >
+                        {p.progress}%
+                      </span>
+                    </div>
+                    <Meter percent={p.progress} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        <div>
+          <Card padding={22}>
+            <CardTitle>Keterlibatan</CardTitle>
+            <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
+              {d.engagement.length === 0 && (
+                <div style={{ color: "var(--color-faint)", fontSize: 15 }}>Belum ada data.</div>
+              )}
+              {d.engagement.map((e) => (
+                <div
+                  key={e.engagement}
+                  style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
+                >
+                  <span>{ENGAGEMENT_LABEL[e.engagement] ?? e.engagement}</span>
+                  <span style={{ fontFamily: mono, fontWeight: 700 }}>{e.n}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card padding={22} style={{ marginTop: 20 }}>
+            <CardTitle>Capaian</CardTitle>
+            <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
+              {d.competency.length === 0 && (
+                <div style={{ color: "var(--color-faint)", fontSize: 15 }}>
+                  Belum ada capaian yang dinilai.
+                </div>
+              )}
+              {d.competency.map((c) => (
+                <div
+                  key={c.competency ?? "belum"}
+                  style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
+                >
+                  <span>
+                    {c.competency ? COMPETENCY_LABEL[c.competency] ?? c.competency : "Belum dinilai"}
+                  </span>
+                  <span style={{ fontFamily: mono, fontWeight: 700 }}>{c.n}</span>
+                </div>
+              ))}
+            </div>
+          </Card>
+
+          <Card padding={22} style={{ marginTop: 20 }} tone="sand">
+            <CardTitle>Pintasan</CardTitle>
+            <div style={{ display: "grid", gap: 9, marginTop: 14 }}>
+              <Link to="/admin/program" className="btn-sm">
+                Portofolio kurikulum
+              </Link>
+              <Link to="/admin/kuis" className="btn-sm">
+                Kuis &amp; ujian
+              </Link>
+              <Link to="/admin/pendaftaran" className="btn-sm">
+                Pendaftaran
+              </Link>
+            </div>
+          </Card>
+        </div>
       </div>
     </>
   );

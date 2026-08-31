@@ -14,6 +14,7 @@ import {
   subjectBody,
   tahapanBody,
   uuidParam,
+  announcementBody,
 } from "../validators/schemas";
 
 /**
@@ -288,4 +289,50 @@ contentRoutes.get("/overview", async (c) => c.json({ data: await service.getAdmi
 contentRoutes.get("/participants", async (c) => {
   const t = await service.getRunningTahapanOrThrow();
   return c.json({ data: await learner.listEnrollments(t.id) });
+});
+
+/* --- Rekap & pengumuman -------------------------------------------- */
+
+/** Rekap nilai seluruh peserta tahapan berjalan. */
+contentRoutes.get("/nilai", async (c) => {
+  const t = await service.getRunningTahapanOrThrow();
+  return c.json({ data: { tahapan: t.name, rows: await learner.nilaiRekap(t.id) } });
+});
+
+/** Rekap kehadiran seluruh peserta tahapan berjalan. */
+contentRoutes.get("/kehadiran", async (c) => {
+  const t = await service.getRunningTahapanOrThrow();
+  return c.json({ data: { tahapan: t.name, rows: await learner.kehadiranRekap(t.id) } });
+});
+
+contentRoutes.get("/announcements", async (c) =>
+  c.json({ data: await academic.listAllAnnouncements() }),
+);
+
+contentRoutes.post("/announcements", canWrite, async (c) => {
+  const p = announcementBody.safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+  const [row] = await academic.createAnnouncement(clean(p.data));
+  await learner.writeAudit(c.get("user")!.id, "announcement.create", "announcement", row.id);
+  return c.json({ data: row }, 201);
+});
+
+contentRoutes.patch("/announcements/:id", canWrite, async (c) => {
+  const id = readId(c.req.param("id"));
+  if (!id.success) return badRequest(c, id.error);
+  const p = announcementBody.partial().safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+  const [row] = await academic.updateAnnouncement(id.data.id, clean(p.data));
+  if (!row) return notFound(c, "Pengumuman tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "announcement.update", "announcement", row.id);
+  return c.json({ data: row });
+});
+
+contentRoutes.delete("/announcements/:id", canWrite, async (c) => {
+  const id = readId(c.req.param("id"));
+  if (!id.success) return badRequest(c, id.error);
+  const [row] = await academic.deleteAnnouncement(id.data.id);
+  if (!row) return notFound(c, "Pengumuman tidak ditemukan.");
+  await learner.writeAudit(c.get("user")!.id, "announcement.delete", "announcement", id.data.id);
+  return c.body(null, 204);
 });

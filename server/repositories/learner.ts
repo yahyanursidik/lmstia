@@ -385,3 +385,50 @@ export const meetingProgressForSubject = (userId: string, subjectId: string) =>
     )
     .where(and(eq(s.meetings.subjectId, subjectId), eq(s.materials.publishStatus, "published")))
     .groupBy(s.meetings.id);
+
+/* --- Rekap admin: nilai & kehadiran -------------------------------- */
+
+/**
+ * Rekap nilai seluruh peserta satu tahapan, dalam satu query.
+ *
+ * Menghitung per peserta di aplikasi berarti satu query per orang; pada
+ * driver HTTP itu berbanding lurus dengan jumlah peserta.
+ */
+export const nilaiRekap = (tahapanId: string) =>
+  db
+    .select({
+      userId: s.users.id,
+      name: s.users.name,
+      email: s.users.email,
+      className: s.enrollments.className,
+      percobaan: sql<number>`count(${s.assessmentAttempts.id})::int`,
+      dinilai: sql<number>`(count(*) filter (where ${s.assessmentAttempts.status} = 'dinilai'))::int`,
+      lulus: sql<number>`(count(*) filter (where ${s.assessmentAttempts.passed} = true))::int`,
+      rataRata: sql<number | null>`round(avg(${s.assessmentAttempts.score}))::int`,
+    })
+    .from(s.enrollments)
+    .innerJoin(s.users, eq(s.users.id, s.enrollments.userId))
+    .leftJoin(s.assessmentAttempts, eq(s.assessmentAttempts.userId, s.users.id))
+    .where(eq(s.enrollments.tahapanId, tahapanId))
+    .groupBy(s.users.id, s.users.name, s.users.email, s.enrollments.className)
+    .orderBy(asc(s.users.name));
+
+/** Rekap kehadiran per peserta pada satu tahapan. */
+export const kehadiranRekap = (tahapanId: string) =>
+  db
+    .select({
+      userId: s.users.id,
+      name: s.users.name,
+      className: s.enrollments.className,
+      hadir: sql<number>`(count(*) filter (where ${s.attendance.status} = 'hadir'))::int`,
+      izin: sql<number>`(count(*) filter (where ${s.attendance.status} = 'izin'))::int`,
+      sakit: sql<number>`(count(*) filter (where ${s.attendance.status} = 'sakit'))::int`,
+      alpa: sql<number>`(count(*) filter (where ${s.attendance.status} = 'alpa'))::int`,
+      tercatat: sql<number>`count(${s.attendance.id})::int`,
+    })
+    .from(s.enrollments)
+    .innerJoin(s.users, eq(s.users.id, s.enrollments.userId))
+    .leftJoin(s.attendance, eq(s.attendance.userId, s.users.id))
+    .where(eq(s.enrollments.tahapanId, tahapanId))
+    .groupBy(s.users.id, s.users.name, s.enrollments.className)
+    .orderBy(asc(s.users.name));

@@ -1,115 +1,246 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import * as repo from "../../domain/repository";
-import { CURRENT_WEEK } from "../../domain/repository";
-import {
-  COMPETENCY_TONE,
-  ENGAGEMENT_LABEL,
-  ENGAGEMENT_TONE,
-  type Announcement,
-  type Instructor,
-  type Participant,
-  type Registration,
-} from "../../domain/types";
+import { api } from "../../lib/api";
+import { mutate, useResource } from "../../lib/useApi";
 import {
   Badge,
   Card,
   CardTitle,
   DataTable,
   EmptyState,
-  Meter,
   PageHeader,
   mono,
   serif,
   type Column,
 } from "../../components/ui";
+import { Area, Field, FormPanel, Select, Text } from "../../components/form";
 
-/* --- /admin/peserta --------------------------------------------- */
+/**
+ * Halaman admin pendukung: worksheet, kehadiran, nilai, pengajar,
+ * pengumuman, dan laporan.
+ *
+ * Seluruhnya membaca basis data. Rekap nilai dan kehadiran dihitung di
+ * server dengan satu query agregat, bukan satu query per peserta.
+ */
 
-export function Peserta() {
-  const [filter, setFilter] = useState<"semua" | "perlu">("semua");
-  const all = repo.allParticipants();
-  const rows = filter === "semua" ? all : repo.needsFollowUp();
+/* --- tipe bersama -------------------------------------------------- */
 
-  const columns: Column<Participant>[] = [
+type Overview = {
+  tahapan: { id: string; name: string; title: string | null };
+  totals: { participants: number; onTrack: number; needsFollowUp: number };
+  engagement: { engagement: string; n: number }[];
+  competency: { competency: string | null; n: number }[];
+  needsFollowUp: { userId: string; name: string; email: string; engagement: string }[];
+};
+
+type BarisNilai = {
+  userId: string;
+  name: string;
+  email: string;
+  className: string | null;
+  percobaan: number;
+  dinilai: number;
+  lulus: number;
+  rataRata: number | null;
+};
+
+type BarisHadir = {
+  userId: string;
+  name: string;
+  className: string | null;
+  hadir: number;
+  izin: number;
+  sakit: number;
+  alpa: number;
+  tercatat: number;
+};
+
+type Pengajar = { id: string; name: string; email: string; title: string | null; bio: string | null };
+
+type Mapel = { id: string; name: string; code: string; role: string; instructorId: string | null };
+
+type PengumumanRow = {
+  id: string;
+  tahapanId: string | null;
+  title: string;
+  body: string;
+  audience: string;
+  status: "draft" | "review" | "published";
+  publishedAt: string | null;
+  createdAt: string;
+};
+
+type Asesmen = {
+  id: string;
+  title: string;
+  kind: string;
+  kkm: number;
+  publishStatus: string;
+  meetingId: string | null;
+  subjectId: string | null;
+};
+
+const ENGAGEMENT_LABEL: Record<string, string> = {
+  on_track: "Sesuai jalur",
+  needs_attention: "Perlu perhatian",
+  at_risk: "Berisiko",
+  inactive: "Tidak aktif",
+};
+
+const COMPETENCY_LABEL: Record<string, string> = {
+  sudah_dikuasai: "Sudah dikuasai",
+  perlu_murojaah: "Perlu murojaah",
+  belum_dikuasai: "Belum dikuasai",
+};
+
+const STATUS_TERBIT: Record<string, string> = {
+  draft: "Draf",
+  review: "Tinjau",
+  published: "Terbit",
+};
+
+function Shell({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
+/* --- Worksheet & Kuis (daftar asesmen) ----------------------------- */
+
+export function Worksheet() {
+  const asesmen = useResource<Asesmen[]>("/admin/assessments");
+
+  const rows = (asesmen.data ?? []).filter((a) => a.kind === "latihan" || a.kind === "kuis");
+
+  const kolom: Column<Asesmen>[] = [
     {
-      key: "nama",
-      head: "PESERTA",
-      width: "1.5fr",
-      render: (p) => (
+      key: "judul",
+      head: "ASESMEN",
+      width: "2fr",
+      render: (a) => (
         <div>
-          <div style={{ fontWeight: 700 }}>{p.name}</div>
-          <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>{p.email}</div>
+          <div style={{ fontWeight: 700 }}>{a.title}</div>
+          <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
+            KKM {a.kkm}
+          </div>
         </div>
       ),
     },
-    { key: "kelas", head: "KELAS", width: ".8fr", secondary: true, render: (p) => <span style={{ fontSize: 14.5, color: "var(--color-muted)" }}>{p.className}</span> },
-    { key: "segmen", head: "SEGMEN", width: "1fr", secondary: true, render: (p) => <span style={{ fontSize: 14.5, color: "var(--color-muted)" }}>{p.segment}</span> },
-    { key: "hadir", head: "KEHADIRAN", width: ".8fr", secondary: true, render: (p) => <span style={{ fontFamily: mono, fontSize: 14.5 }}>{p.attendance}</span> },
     {
-      key: "capaian",
-      head: "CAPAIAN",
-      width: "1.1fr",
-      render: (p) => (
-        <Badge bg={COMPETENCY_TONE[p.competency].bg} fg={COMPETENCY_TONE[p.competency].fg}>
-          {p.competency}
-        </Badge>
-      ),
+      key: "jenis",
+      head: "JENIS",
+      width: "1fr",
+      render: (a) => <span style={{ fontSize: 14.5 }}>{a.kind}</span>,
     },
     {
       key: "status",
-      head: "KETERLIBATAN",
-      width: "1.1fr",
-      secondary: true,
-      render: (p) => (
-        <Badge bg={ENGAGEMENT_TONE[p.engagement].bg} fg={ENGAGEMENT_TONE[p.engagement].fg}>
-          {ENGAGEMENT_LABEL[p.engagement]}
+      head: "STATUS",
+      width: "1fr",
+      render: (a) => (
+        <Badge
+          bg={a.publishStatus === "published" ? "#e4ede4" : "#ece9e3"}
+          fg={a.publishStatus === "published" ? "#2f5638" : "#6b6459"}
+        >
+          {STATUS_TERBIT[a.publishStatus] ?? a.publishStatus}
         </Badge>
       ),
     },
   ];
 
   return (
-    <>
+    <Shell>
       <PageHeader
-        eyebrow={repo.activeTerm.name}
-        title="Peserta"
-        lead="Daftar peserta caturwulan berjalan beserta capaian dan status keterlibatannya."
+        eyebrow="Penilaian"
+        title="Worksheet & Latihan"
+        lead="Seluruh latihan dan kuis yang terpasang pada kurikulum."
         actions={
-          <>
-            <button type="button" className={filter === "semua" ? "btn-solid-sm" : "btn-sm"} onClick={() => setFilter("semua")}>
-              Semua peserta
-            </button>
-            <button type="button" className={filter === "perlu" ? "btn-solid-sm" : "btn-sm"} onClick={() => setFilter("perlu")}>
-              Perlu tindak lanjut
-            </button>
-          </>
+          <Link to="/admin/kuis" className="btn-solid-sm">
+            Kelola di Kuis &amp; Ujian →
+          </Link>
         }
       />
-      <DataTable columns={columns} rows={rows} empty="Tidak ada peserta pada filter ini." />
-      <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 14, lineHeight: 1.6 }}>
-        Aturan peringatan dini: 7 hari tanpa aktivitas → perlu perhatian; 14 hari tanpa aktivitas atau tertinggal ≥ 2
-        pertemuan → berisiko tertinggal.
-      </div>
-    </>
+      <Card padding={20}>
+        {asesmen.loading && <div style={{ color: "var(--color-faint)" }}>Memuat…</div>}
+        {asesmen.error && <div role="alert">{asesmen.error}</div>}
+        {asesmen.data && (
+          <DataTable columns={kolom} rows={rows} empty="Belum ada worksheet atau latihan" />
+        )}
+      </Card>
+    </Shell>
   );
 }
 
-/* --- /admin/pendaftaran ------------------------------------------ */
+/* --- Kehadiran ------------------------------------------------------ */
 
-export function Pendaftaran() {
-  const rows = repo.allRegistrations();
-  const tone = {
-    menunggu: { bg: "#f6eddb", fg: "#8a6a25" },
-    disetujui: { bg: "#e6ede7", fg: "#1f3d34" },
-    ditolak: { bg: "#f7e6e0", fg: "#8d4632" },
-  } as const;
+export function Kehadiran() {
+  const d = useResource<{ tahapan: string; rows: BarisHadir[] }>("/admin/kehadiran");
 
-  const columns: Column<Registration>[] = [
+  const kolom: Column<BarisHadir>[] = [
     {
       key: "nama",
-      head: "PENDAFTAR",
-      width: "1.5fr",
+      head: "PESERTA",
+      width: "1.6fr",
+      render: (r) => (
+        <div>
+          <div style={{ fontWeight: 700 }}>{r.name}</div>
+          {r.className && (
+            <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
+              {r.className}
+            </div>
+          )}
+        </div>
+      ),
+    },
+    { key: "hadir", head: "HADIR", width: ".7fr", render: (r) => <span style={{ fontFamily: mono }}>{r.hadir}</span> },
+    { key: "izin", head: "IZIN", width: ".7fr", secondary: true, render: (r) => <span style={{ fontFamily: mono }}>{r.izin}</span> },
+    { key: "sakit", head: "SAKIT", width: ".7fr", secondary: true, render: (r) => <span style={{ fontFamily: mono }}>{r.sakit}</span> },
+    { key: "alpa", head: "ALPA", width: ".7fr", render: (r) => <span style={{ fontFamily: mono }}>{r.alpa}</span> },
+    {
+      key: "persen",
+      head: "PERSENTASE",
+      width: "1.1fr",
+      render: (r) => (
+        <span style={{ fontFamily: mono }}>
+          {r.tercatat ? Math.round((r.hadir / r.tercatat) * 100) + "%" : "—"}
+        </span>
+      ),
+    },
+  ];
+
+  return (
+    <Shell>
+      <PageHeader
+        eyebrow={d.data?.tahapan ?? "Kehadiran"}
+        title="Kehadiran"
+        lead="Rekap kehadiran peserta pada caturwulan berjalan."
+      />
+      <Card padding={20}>
+        {d.loading && <div style={{ color: "var(--color-faint)" }}>Memuat kehadiran…</div>}
+        {d.error && <div role="alert">{d.error}</div>}
+        {d.data && (
+          <>
+            <DataTable columns={kolom} rows={d.data.rows} empty="Belum ada peserta" />
+            {d.data.rows.every((r) => r.tercatat === 0) && (
+              <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 14, lineHeight: 1.6 }}>
+                Belum ada kehadiran yang tercatat. Baris kehadiran muncul setelah pengampu
+                mencatatnya pada pertemuan yang mewajibkan kehadiran.
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+    </Shell>
+  );
+}
+
+/* --- Nilai ---------------------------------------------------------- */
+
+export function Nilai() {
+  const d = useResource<{ tahapan: string; rows: BarisNilai[] }>("/admin/nilai");
+
+  const kolom: Column<BarisNilai>[] = [
+    {
+      key: "nama",
+      head: "PESERTA",
+      width: "1.8fr",
       render: (r) => (
         <div>
           <div style={{ fontWeight: 700 }}>{r.name}</div>
@@ -117,339 +248,471 @@ export function Pendaftaran() {
         </div>
       ),
     },
-    { key: "segmen", head: "SEGMEN", width: "1fr", secondary: true, render: (r) => <span style={{ fontSize: 14.5, color: "var(--color-muted)" }}>{r.segment}</span> },
-    { key: "tgl", head: "DIKIRIM", width: "1fr", secondary: true, render: (r) => <span style={{ fontFamily: mono, fontSize: 14 }}>{r.submittedAt}</span> },
     {
-      key: "status",
-      head: "STATUS",
-      width: "1fr",
-      render: (r) => (
-        <Badge bg={tone[r.status].bg} fg={tone[r.status].fg}>
-          {r.status}
-        </Badge>
-      ),
+      key: "kelas",
+      head: "KELAS",
+      width: ".9fr",
+      secondary: true,
+      render: (r) => <span style={{ fontSize: 14.5 }}>{r.className ?? "—"}</span>,
     },
     {
-      key: "aksi",
-      head: "AKSI",
-      width: "150px",
+      key: "percobaan",
+      head: "PERCOBAAN",
+      width: ".9fr",
       secondary: true,
+      render: (r) => <span style={{ fontFamily: mono }}>{r.percobaan}</span>,
+    },
+    {
+      key: "lulus",
+      head: "LULUS",
+      width: ".8fr",
+      render: (r) => <span style={{ fontFamily: mono }}>{r.lulus}</span>,
+    },
+    {
+      key: "rata",
+      head: "RATA-RATA",
+      width: "1fr",
       render: (r) =>
-        r.status === "menunggu" ? (
-          <div style={{ display: "flex", gap: 6 }}>
-            <button type="button" className="btn-solid-sm" style={{ padding: "6px 10px", fontSize: 13 }}>
-              Setujui
-            </button>
-            <button type="button" className="btn-sm" style={{ padding: "6px 10px", fontSize: 13 }}>
-              Tolak
-            </button>
-          </div>
+        r.rataRata === null ? (
+          <span style={{ color: "var(--color-faint)" }}>—</span>
         ) : (
-          <span style={{ fontSize: 14, color: "var(--color-faint)" }}>—</span>
+          <span style={{ fontFamily: mono, fontWeight: 700 }}>{r.rataRata}</span>
         ),
     },
   ];
 
   return (
-    <>
+    <Shell>
       <PageHeader
-        eyebrow={repo.activeTerm.name}
-        title="Pendaftaran"
-        lead="Persetujuan dilakukan per caturwulan. Menyetujui pendaftaran tidak mendaftarkan peserta ke caturwulan berikutnya."
-      />
-      <DataTable columns={columns} rows={rows} empty="Belum ada pendaftaran masuk." />
-    </>
-  );
-}
-
-/* --- /admin/kehadiran --------------------------------------------- */
-
-export function Kehadiran() {
-  const participants = repo.allParticipants();
-  const columns: Column<Participant>[] = [
-    { key: "nama", head: "PESERTA", width: "1.5fr", render: (p) => <span style={{ fontWeight: 700 }}>{p.name}</span> },
-    { key: "kelas", head: "KELAS", width: "1fr", secondary: true, render: (p) => <span style={{ fontSize: 14.5, color: "var(--color-muted)" }}>{p.className}</span> },
-    { key: "hadir", head: "KEHADIRAN", width: "1fr", render: (p) => <span style={{ fontFamily: mono, fontSize: 15 }}>{p.attendance}</span> },
-    {
-      key: "bar",
-      head: "PERSENTASE",
-      width: "1.4fr",
-      secondary: true,
-      render: (p) => {
-        const [a, b] = p.attendance.split("/").map(Number);
-        return <Meter percent={Math.round((a / b) * 100)} label={`Kehadiran ${p.name}`} />;
-      },
-    },
-    {
-      key: "status",
-      head: "STATUS",
-      width: "1.1fr",
-      render: (p) => (
-        <Badge bg={ENGAGEMENT_TONE[p.engagement].bg} fg={ENGAGEMENT_TONE[p.engagement].fg}>
-          {ENGAGEMENT_LABEL[p.engagement]}
-        </Badge>
-      ),
-    },
-  ];
-  return (
-    <>
-      <PageHeader
-        eyebrow={`${repo.activeTerm.name} · Pertemuan ${CURRENT_WEEK}`}
-        title="Kehadiran"
-        lead="Rekap kehadiran kelas Bahasa Arab sampai pertemuan berjalan."
-      />
-      <DataTable columns={columns} rows={participants} empty="Belum ada data kehadiran." />
-    </>
-  );
-}
-
-/* --- /admin/nilai ------------------------------------------------- */
-
-export function Nilai() {
-  const participants = repo.allParticipants();
-  const columns: Column<Participant>[] = [
-    { key: "nama", head: "PESERTA", width: "1.5fr", render: (p) => <span style={{ fontWeight: 700 }}>{p.name}</span> },
-    { key: "hadir", head: "KEHADIRAN 20%", width: "1fr", secondary: true, render: (p) => <span style={{ fontFamily: mono, fontSize: 14.5 }}>{p.attendance}</span> },
-    { key: "latihan", head: "LATIHAN 30%", width: "1fr", secondary: true, render: (p) => <span style={{ fontFamily: mono, fontSize: 14.5 }}>{p.exercises}</span> },
-    {
-      key: "capaian",
-      head: "KATEGORI",
-      width: "1.2fr",
-      render: (p) => (
-        <Badge bg={COMPETENCY_TONE[p.competency].bg} fg={COMPETENCY_TONE[p.competency].fg}>
-          {p.competency}
-        </Badge>
-      ),
-    },
-  ];
-  return (
-    <>
-      <PageHeader
-        eyebrow={repo.activeTerm.name}
+        eyebrow={d.data?.tahapan ?? "Nilai"}
         title="Nilai"
-        lead="Bobot: kehadiran 20% · latihan & worksheet 30% · kuis 20% · evaluasi akhir 30%."
+        lead="Rekap hasil kuis dan ujian peserta pada caturwulan berjalan."
         actions={
-          <button type="button" className="btn-sm">
-            Ekspor CSV
-          </button>
+          <Link to="/admin/penilaian" className="btn-sm">
+            Penilaian esai →
+          </Link>
         }
       />
-      <DataTable columns={columns} rows={participants} empty="Belum ada nilai tercatat." />
-    </>
+      <Card padding={20}>
+        {d.loading && <div style={{ color: "var(--color-faint)" }}>Memuat nilai…</div>}
+        {d.error && <div role="alert">{d.error}</div>}
+        {d.data && (
+          <>
+            <DataTable columns={kolom} rows={d.data.rows} empty="Belum ada peserta" />
+            {d.data.rows.every((r) => r.percobaan === 0) && (
+              <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 14, lineHeight: 1.6 }}>
+                Belum ada percobaan kuis yang tercatat. Angka muncul setelah peserta mengerjakan
+                kuis atau ujian.
+              </div>
+            )}
+          </>
+        )}
+      </Card>
+    </Shell>
   );
 }
 
-/* --- /admin/worksheet & /admin/quiz -------------------------------- */
+/* --- Pengajar ------------------------------------------------------- */
 
-function AssessmentList({ kind }: { kind: "worksheet" | "quiz" }) {
-  const label = kind === "worksheet" ? "Worksheet" : "Quiz";
-  const type = kind === "worksheet" ? "worksheet" : "quiz";
-  const items = repo
-    .allCourses()
-    .flatMap((c) =>
-      repo
-        .weeksOf(c.id)
-        .flatMap((w) => repo.lessonsOf(w.id).filter((l) => l.type === type).map((l) => ({ c, w, l }))),
-    )
-    .slice(0, 14);
+export function PengajarAdmin() {
+  const pengajar = useResource<Pengajar[]>("/admin/instructors");
+  const mapel = useResource<Mapel[]>("/admin/subjects");
 
   return (
-    <>
+    <Shell>
       <PageHeader
-        eyebrow={repo.activeTerm.name}
-        title={label}
-        lead={
-          kind === "worksheet"
-            ? "Worksheet menghubungkan materi antarmata pelajaran dalam satu tema pekanan."
-            : "Cek pemahaman bersifat formatif — untuk melihat bagian mana yang perlu murojaah, bukan menghakimi."
-        }
+        eyebrow="Orang"
+        title="Pengajar"
+        lead="Pengampu mata pelajaran. Profil dan jabatan disunting di Manajemen Pengguna."
         actions={
-          <button type="button" className="btn-solid-sm">
-            Tambah {label.toLowerCase()}
-          </button>
+          <Link to="/admin/pengguna?role=instructor" className="btn-sm">
+            Kelola pengguna →
+          </Link>
         }
       />
-      {items.length === 0 ? (
-        <EmptyState title={`Belum ada ${label.toLowerCase()}`} />
-      ) : (
-        <div style={{ display: "grid", gap: 10 }}>
-          {items.map(({ c, w, l }) => (
-            <Card key={l.id} padding={18}>
-              <div className="split" style={{ display: "grid", gridTemplateColumns: "160px 1fr 120px", gap: 16, alignItems: "center" }}>
-                <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                  {c.code} · PERTEMUAN {w.number}
+
+      {pengajar.loading && <div style={{ color: "var(--color-faint)" }}>Memuat pengajar…</div>}
+      {pengajar.error && <div role="alert">{pengajar.error}</div>}
+
+      {pengajar.data && pengajar.data.length === 0 && (
+        <EmptyState title="Belum ada pengajar" hint="Tambahkan pengguna berperan Pengajar." />
+      )}
+
+      {pengajar.data && pengajar.data.length > 0 && (
+        <div style={{ display: "grid", gap: 14 }}>
+          {pengajar.data.map((p) => {
+            const diampu = (mapel.data ?? []).filter((m) => m.instructorId === p.id);
+            return (
+              <Card key={p.id} padding={22}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontFamily: serif, fontSize: 20 }}>{p.name}</div>
+                    <div style={{ fontSize: 14, color: "var(--color-faint)", marginTop: 3 }}>
+                      {p.title ?? "Jabatan belum diisi"}
+                    </div>
+                  </div>
+                  <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-muted)" }}>
+                    {diampu.length} mata pelajaran
+                  </div>
                 </div>
-                <div style={{ fontSize: 16, minWidth: 0 }}>{w.title}</div>
-                <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                  <Badge
-                    bg={l.publishStatus === "published" ? "#e6ede7" : l.publishStatus === "review" ? "#f6eddb" : "#ecebe6"}
-                    fg={l.publishStatus === "published" ? "#1f3d34" : l.publishStatus === "review" ? "#8a6a25" : "#6d675e"}
+                {p.bio && (
+                  <div
+                    style={{
+                      fontSize: 15.5,
+                      lineHeight: 1.65,
+                      color: "var(--color-body)",
+                      marginTop: 12,
+                    }}
                   >
-                    {l.publishStatus === "published" ? "Terbit" : l.publishStatus === "review" ? "Review" : "Draf"}
+                    {p.bio}
+                  </div>
+                )}
+                {diampu.length > 0 && (
+                  <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                    {diampu.map((m) => (
+                      <Badge key={m.id} bg="#e6ecef" fg="#38525e">
+                        {m.name}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+/* --- Pengumuman ----------------------------------------------------- */
+
+export function Pengumuman() {
+  const list = useResource<PengumumanRow[]>("/admin/announcements");
+  const [draf, setDraf] = useState<Partial<PengumumanRow> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function simpan() {
+    if (!draf) return;
+    setBusy(true);
+    const body = {
+      title: draf.title,
+      body: draf.body,
+      audience: draf.audience || "Semua",
+      status: draf.status ?? "draft",
+    };
+    const m = await mutate(() =>
+      draf.id
+        ? api.patch(`/admin/announcements/${draf.id}`, body)
+        : api.post("/admin/announcements", body),
+    );
+    setBusy(false);
+    if (m) return setErr(m);
+    setErr(null);
+    setDraf(null);
+    list.reload();
+  }
+
+  async function hapus(id: string) {
+    const m = await mutate(() => api.del(`/admin/announcements/${id}`));
+    if (m) return setErr(m);
+    setErr(null);
+    list.reload();
+  }
+
+  return (
+    <Shell>
+      <PageHeader
+        eyebrow="Orang"
+        title="Pengumuman"
+        lead="Pengumuman terbit tampil pada dasbor peserta."
+        actions={
+          !draf && (
+            <button
+              type="button"
+              className="btn-solid-sm"
+              onClick={() => setDraf({ title: "", body: "", audience: "Semua", status: "draft" })}
+            >
+              + Pengumuman baru
+            </button>
+          )
+        }
+      />
+
+      {err && !draf && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 16,
+            padding: "12px 14px",
+            background: "#f7e6e0",
+            border: "1px solid #e8cdc3",
+            borderRadius: 8,
+            fontSize: 15,
+            color: "#8d4632",
+          }}
+        >
+          {err}
+        </div>
+      )}
+
+      {draf && (
+        <FormPanel
+          title={draf.id ? "Ubah pengumuman" : "Pengumuman baru"}
+          error={err}
+          busy={busy}
+          onSubmit={simpan}
+          onCancel={() => {
+            setDraf(null);
+            setErr(null);
+          }}
+        >
+          <Field label="Judul" span>
+            <Text value={draf.title ?? ""} onChange={(v) => setDraf({ ...draf, title: v })} />
+          </Field>
+          <Field label="Isi" span>
+            <Area value={draf.body ?? ""} onChange={(v) => setDraf({ ...draf, body: v })} />
+          </Field>
+          <Field label="Sasaran">
+            <Text value={draf.audience ?? ""} onChange={(v) => setDraf({ ...draf, audience: v })} />
+          </Field>
+          <Field label="Status">
+            <Select
+              value={draf.status ?? "draft"}
+              onChange={(v) => setDraf({ ...draf, status: v as PengumumanRow["status"] })}
+              options={Object.entries(STATUS_TERBIT).map(([value, label]) => ({ value, label }))}
+            />
+          </Field>
+        </FormPanel>
+      )}
+
+      {list.loading && <div style={{ color: "var(--color-faint)" }}>Memuat pengumuman…</div>}
+      {list.error && <div role="alert">{list.error}</div>}
+      {list.data && list.data.length === 0 && <EmptyState title="Belum ada pengumuman" />}
+
+      {list.data && list.data.length > 0 && (
+        <div style={{ display: "grid", gap: 12 }}>
+          {list.data.map((a) => (
+            <Card key={a.id} padding={20}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 14,
+                  flexWrap: "wrap",
+                  alignItems: "flex-start",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 17 }}>{a.title}</div>
+                  <div
+                    style={{
+                      fontSize: 15,
+                      lineHeight: 1.65,
+                      color: "var(--color-muted)",
+                      marginTop: 6,
+                    }}
+                  >
+                    {a.body}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: mono,
+                      fontSize: 12.5,
+                      color: "var(--color-faint)",
+                      marginTop: 8,
+                    }}
+                  >
+                    {a.audience.toUpperCase()}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                  <Badge
+                    bg={a.status === "published" ? "#e4ede4" : "#ece9e3"}
+                    fg={a.status === "published" ? "#2f5638" : "#6b6459"}
+                  >
+                    {STATUS_TERBIT[a.status]}
                   </Badge>
+                  <button type="button" className="btn-sm" onClick={() => setDraf({ ...a })}>
+                    Ubah
+                  </button>
+                  <HapusDuaLangkah onConfirm={() => hapus(a.id)} />
                 </div>
               </div>
             </Card>
           ))}
         </div>
       )}
-    </>
+    </Shell>
   );
 }
 
-export const Worksheet = () => <AssessmentList kind="worksheet" />;
-export const Quiz = () => <AssessmentList kind="quiz" />;
-
-/* --- /admin/pengajar ----------------------------------------------- */
-
-export function PengajarAdmin() {
-  const rows = repo.allInstructors();
-  const columns: Column<Instructor>[] = [
-    {
-      key: "nama",
-      head: "PENGAJAR",
-      width: "1.5fr",
-      render: (i) => (
-        <div>
-          <div style={{ fontWeight: 700 }}>{i.name}</div>
-          <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>{i.title}</div>
-        </div>
-      ),
-    },
-    { key: "fokus", head: "FOKUS", width: "1fr", secondary: true, render: (i) => <span style={{ fontSize: 14.5, color: "var(--color-muted)" }}>{i.focus}</span> },
-    {
-      key: "kelas",
-      head: "MATA PELAJARAN",
-      width: "1.4fr",
-      secondary: true,
-      render: (i) => (
-        <span style={{ fontSize: 14.5 }}>{repo.allCourses().find((c) => c.instructorId === i.id)?.name ?? "—"}</span>
-      ),
-    },
-  ];
-  return (
-    <>
-      <PageHeader
-        eyebrow="Orang"
-        title="Pengajar"
-        lead="Pengajar mengampu kelas, memeriksa latihan, memberi umpan balik, dan mencatat kehadiran."
-        actions={
-          <button type="button" className="btn-solid-sm">
-            Tambah pengajar
-          </button>
-        }
-      />
-      <DataTable columns={columns} rows={rows} empty="Belum ada pengajar." />
-    </>
-  );
-}
-
-/* --- /admin/pengumuman --------------------------------------------- */
-
-export function Pengumuman() {
-  const rows = repo.allAnnouncements();
-  const columns: Column<Announcement>[] = [
-    {
-      key: "judul",
-      head: "PENGUMUMAN",
-      width: "2fr",
-      render: (a) => (
-        <div>
-          <div style={{ fontWeight: 700 }}>{a.title}</div>
-          <div style={{ fontSize: 14, color: "var(--color-muted)", marginTop: 4, lineHeight: 1.5 }}>{a.body}</div>
-        </div>
-      ),
-    },
-    { key: "audience", head: "PENERIMA", width: ".8fr", secondary: true, render: (a) => <span style={{ fontSize: 14.5 }}>{a.audience}</span> },
-    { key: "tgl", head: "TERBIT", width: "1fr", secondary: true, render: (a) => <span style={{ fontFamily: mono, fontSize: 14 }}>{a.publishedAt}</span> },
-    {
-      key: "status",
-      head: "STATUS",
-      width: ".9fr",
-      render: (a) => (
-        <Badge
-          bg={a.status === "published" ? "#e6ede7" : a.status === "review" ? "#f6eddb" : "#ecebe6"}
-          fg={a.status === "published" ? "#1f3d34" : a.status === "review" ? "#8a6a25" : "#6d675e"}
-        >
-          {a.status === "published" ? "Terbit" : a.status === "review" ? "Review" : "Draf"}
-        </Badge>
-      ),
-    },
-  ];
-  return (
-    <>
-      <PageHeader
-        eyebrow="Orang"
-        title="Pengumuman"
-        actions={
-          <button type="button" className="btn-solid-sm">
-            Tulis pengumuman
-          </button>
-        }
-      />
-      <DataTable columns={columns} rows={rows} empty="Belum ada pengumuman." />
-    </>
-  );
-}
-
-/* --- /admin/laporan ------------------------------------------------- */
+/* --- Laporan -------------------------------------------------------- */
 
 export function Laporan() {
-  const kpi = repo.adminKpi();
-  const breakdown = repo.competencyBreakdown();
+  const o = useResource<Overview>("/admin/overview");
+
   return (
-    <>
+    <Shell>
       <PageHeader
-        eyebrow={repo.activeTerm.name}
+        eyebrow={o.data?.tahapan.name ?? "Laporan"}
         title="Laporan"
-        lead="Ringkasan caturwulan berjalan untuk tim akademik."
-        actions={
-          <button type="button" className="btn-sm">
-            Ekspor CSV
-          </button>
-        }
+        lead="Ringkasan keterlibatan dan capaian peserta pada caturwulan berjalan."
       />
-      <div className="quad" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 20 }}>
-        {[
-          { k: "PESERTA TERDAFTAR", v: String(kpi.total) },
-          { k: "SESUAI JALUR", v: String(kpi.active) },
-          { k: "PERLU PENDAMPINGAN", v: String(kpi.risk) },
-          { k: "PERTEMUAN BERJALAN", v: `${CURRENT_WEEK}/12` },
-        ].map((x) => (
-          <Card key={x.k} padding={20}>
-            <div style={{ fontFamily: mono, fontSize: 11, letterSpacing: ".11em", color: "var(--color-soft)" }}>{x.k}</div>
-            <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1.1, marginTop: 12 }}>{x.v}</div>
-          </Card>
-        ))}
-      </div>
 
-      <Card style={{ marginBottom: 20 }}>
-        <CardTitle>Kategori hasil belajar</CardTitle>
-        {breakdown.map((g) => (
-          <div key={g.nama} style={{ padding: "14px 0", borderTop: "1px solid var(--color-line-soft)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 14, fontSize: 15.5, marginBottom: 8 }}>
-              <span style={{ fontWeight: 700 }}>{g.nama}</span>
-              <span style={{ fontFamily: mono, fontSize: 14, color: "var(--color-muted)" }}>
-                {g.n} peserta · {g.pct}%
-              </span>
-            </div>
-            <Meter percent={g.pct} label={g.nama} />
+      {o.loading && <div style={{ color: "var(--color-faint)" }}>Memuat laporan…</div>}
+      {o.error && <div role="alert">{o.error}</div>}
+
+      {o.data && (
+        <>
+          <div
+            className="quad"
+            style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}
+          >
+            <Card>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>
+                Peserta
+              </div>
+              <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>
+                {o.data.totals.participants}
+              </div>
+            </Card>
+            <Card>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>
+                Sesuai jalur
+              </div>
+              <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>
+                {o.data.totals.onTrack}
+              </div>
+            </Card>
+            <Card>
+              <div className="eyebrow" style={{ marginBottom: 10 }}>
+                Perlu tindak lanjut
+              </div>
+              <div
+                style={{
+                  fontFamily: serif,
+                  fontSize: 34,
+                  lineHeight: 1,
+                  color: o.data.totals.needsFollowUp ? "#8d4632" : undefined,
+                }}
+              >
+                {o.data.totals.needsFollowUp}
+              </div>
+            </Card>
           </div>
-        ))}
-      </Card>
 
-      <Card tone="sand">
-        <div style={{ fontSize: 15.5, lineHeight: 1.65, color: "var(--color-body)" }}>
-          Laporan akhir caturwulan memuat ringkasan penyelesaian, capaian per mata pelajaran, kompetensi yang sudah
-          dikuasai, materi yang perlu dimurojaah, umpan balik pengajar, rekomendasi tindak lanjut, dan status kelayakan
-          syahadah.
-        </div>
-        <div style={{ marginTop: 16 }}>
-          <Link to="/admin/nilai" className="btn-sm">
-            Lihat rekap nilai
-          </Link>
-        </div>
-      </Card>
-    </>
+          <div
+            className="split"
+            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}
+          >
+            <Card padding={22}>
+              <CardTitle>Keterlibatan</CardTitle>
+              <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
+                {o.data.engagement.map((e) => (
+                  <div
+                    key={e.engagement}
+                    style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
+                  >
+                    <span>{ENGAGEMENT_LABEL[e.engagement] ?? e.engagement}</span>
+                    <span style={{ fontFamily: mono, fontWeight: 700 }}>{e.n}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card padding={22}>
+              <CardTitle>Capaian</CardTitle>
+              <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
+                {o.data.competency.length === 0 && (
+                  <div style={{ color: "var(--color-faint)", fontSize: 15 }}>
+                    Belum ada capaian yang dinilai.
+                  </div>
+                )}
+                {o.data.competency.map((c) => (
+                  <div
+                    key={c.competency ?? "belum"}
+                    style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
+                  >
+                    <span>
+                      {c.competency ? COMPETENCY_LABEL[c.competency] ?? c.competency : "Belum dinilai"}
+                    </span>
+                    <span style={{ fontFamily: mono, fontWeight: 700 }}>{c.n}</span>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
+
+          {o.data.needsFollowUp.length > 0 && (
+            <Card padding={22} style={{ marginTop: 20 }}>
+              <CardTitle aside={`${o.data.needsFollowUp.length} peserta`}>
+                Perlu tindak lanjut
+              </CardTitle>
+              <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+                {o.data.needsFollowUp.map((p) => (
+                  <div
+                    key={p.userId}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      gap: 12,
+                      border: "1px solid var(--color-line)",
+                      borderRadius: 9,
+                      padding: "11px 14px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 600 }}>{p.name}</div>
+                      <div style={{ fontSize: 13, color: "var(--color-faint)" }}>{p.email}</div>
+                    </div>
+                    <Badge bg="#f7e6e0" fg="#8d4632">
+                      {ENGAGEMENT_LABEL[p.engagement] ?? p.engagement}
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+        </>
+      )}
+    </Shell>
+  );
+}
+
+/* --- potongan bersama ----------------------------------------------- */
+
+function HapusDuaLangkah({ onConfirm }: { onConfirm: () => void }) {
+  const [siap, setSiap] = useState(false);
+  if (!siap) {
+    return (
+      <button type="button" className="btn-sm" onClick={() => setSiap(true)}>
+        Hapus
+      </button>
+    );
+  }
+  return (
+    <span style={{ display: "inline-flex", gap: 6 }}>
+      <button
+        type="button"
+        className="btn-solid-sm"
+        style={{ background: "#8d4632", borderColor: "#8d4632" }}
+        onClick={onConfirm}
+      >
+        Ya, hapus
+      </button>
+      <button type="button" className="btn-sm" onClick={() => setSiap(false)}>
+        Batal
+      </button>
+    </span>
   );
 }

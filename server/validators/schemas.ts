@@ -265,3 +265,13 @@ export const gradeBody = z.object({
     .min(1, "Tidak ada penilaian yang dikirim.")
     .max(200),
 });
+
+/* --- Pengumuman ---------------------------------------------------- */
+
+export const announcementBody = z.object({
+  tahapanId: z.string().uuid().optional().nullable(),
+  title: z.string().trim().min(2, "Judul wajib diisi").max(200),
+  body: z.string().trim().min(2, "Isi pengumuman wajib diisi").max(4000),
+  audience: z.string().trim().max(80).optional().default("Semua"),
+  status: z.enum(["draft", "review", "published"]).optional().default("draft"),
+});

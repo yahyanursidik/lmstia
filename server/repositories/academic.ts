@@ -6,7 +6,7 @@
  * pernah menyentuh basis data secara langsung.
  */
 
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, desc, eq, gte } from "drizzle-orm";
 import { db } from "../db/client";
 import * as s from "../db/schema";
 
@@ -241,3 +241,17 @@ export const listMeetingNumbers = (subjectId: string) =>
     .from(s.meetings)
     .where(eq(s.meetings.subjectId, subjectId))
     .orderBy(asc(s.meetings.number));
+
+/* --- Pengumuman (admin) -------------------------------------------- */
+
+export const listAllAnnouncements = () =>
+  db.select().from(s.announcements).orderBy(desc(s.announcements.createdAt));
+
+export const createAnnouncement = (v: typeof s.announcements.$inferInsert) =>
+  db.insert(s.announcements).values(v).returning();
+
+export const updateAnnouncement = (id: string, v: Partial<typeof s.announcements.$inferInsert>) =>
+  db.update(s.announcements).set(v).where(eq(s.announcements.id, id)).returning();
+
+export const deleteAnnouncement = (id: string) =>
+  db.delete(s.announcements).where(eq(s.announcements.id, id)).returning({ id: s.announcements.id });
