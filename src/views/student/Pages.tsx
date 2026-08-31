@@ -1,12 +1,9 @@
 import { Link, useParams } from "react-router";
-import { useResource } from "../../lib/useApi";
-import * as repo from "../../domain/repository";
-import { CURRENT_WEEK } from "../../domain/repository";
-import {
-  LESSON_TYPE_LABEL,
-  WEEK_TYPE_LABEL,
-  type Week,
-} from "../../domain/types";
+import { useState } from "react";
+import { api } from "../../lib/api";
+import { mutate, useResource } from "../../lib/useApi";
+import { useAuth } from "../../lib/auth";
+import type { Dasbor } from "./Dashboard";
 import {
   Badge,
   Card,
@@ -17,7 +14,6 @@ import {
   mono,
   serif,
 } from "../../components/ui";
-import { useAuth } from "../../lib/auth";
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -28,111 +24,161 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 /** Status pill for a week in the caturwulan timeline. */
-function weekStatus(w: Week): { label: string; bg: string; fg: string } {
-  if (w.number < CURRENT_WEEK) return { label: "Selesai", bg: "#e6ede7", fg: "#1f3d34" };
-  if (w.number === CURRENT_WEEK) return { label: "Berjalan", bg: "#1f3d34", fg: "#f6f2ea" };
-  if (w.type === "REVIEW") return { label: "Murojaah", bg: "#f6eddb", fg: "#8a6a25" };
-  if (w.type === "ASSESSMENT") return { label: "Evaluasi", bg: "#f6eddb", fg: "#8a6a25" };
-  return { label: "Terkunci", bg: "#ecebe6", fg: "#6d675e" };
-}
 
 /* --- /belajar/caturwulan ---------------------------------------- */
 
 export function Caturwulan() {
-  const term = repo.activeTerm;
-  const arab = repo.courseBySlug("bahasa-arab-01")!;
-  const weeks = repo.weeksOf(arab.id);
-  const p = repo.termProgress();
+  const d = useResource<Dasbor>("/me/dashboard");
+
+  /*
+   * Timeline diambil dari mata pelajaran intensif caturwulan ini — bukan slug
+   * yang ditulis keras — supaya halaman ini tetap benar ketika kurikulumnya
+   * berganti. Bila tidak ada yang bertanda intensif, mata pelajaran pertama
+   * dipakai sebagai gantinya.
+   */
+  const inti =
+    d.data?.subjects.find((s) => s.role === "INTENSIVE") ?? d.data?.subjects[0] ?? null;
+  const kelas = useResource<KelasData>(inti ? `/me/kelas/${inti.slug}` : null);
+
+  if (d.loading) {
+    return (
+      <Shell>
+        <div style={{ color: "var(--color-faint)" }}>Memuat caturwulan…</div>
+      </Shell>
+    );
+  }
+  if (d.error || !d.data) {
+    return (
+      <Shell>
+        <EmptyState title="Caturwulan belum dapat dimuat" hint={d.error ?? undefined} />
+      </Shell>
+    );
+  }
+
+  const data = d.data;
+  const rata = data.subjects.length
+    ? Math.round(data.subjects.reduce((a, s) => a + s.percent, 0) / data.subjects.length)
+    : 0;
+  const pertemuan = kelas.data?.meetings ?? [];
+  const terbuka = pertemuan.filter((m) => !m.locked).length;
 
   return (
     <Shell>
       <PageHeader
-        eyebrow={`${term.name} · Marhalah I'dad`}
-        title={term.title}
-        lead="Seluruh perjalanan caturwulan ini dalam satu tampilan. Materi lanjutan terbuka bertahap seiring pertemuan berjalan."
+        eyebrow={data.tahapan.name}
+        title={data.tahapan.title ?? data.tahapan.name}
+        lead="Satu caturwulan adalah unit belajar yang utuh. Selesaikan yang ini lebih dulu, baru pertimbangkan yang berikutnya."
       />
 
-      <Card tone="forest" padding={26} style={{ marginBottom: 24 }}>
-        <div className="split" style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 30, alignItems: "center" }}>
+      <Card padding={0} style={{ overflow: "hidden", marginBottom: 30 }}>
+        <div
+          style={{
+            background: "var(--color-forest)",
+            color: "var(--color-paper)",
+            padding: 26,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 24,
+            flexWrap: "wrap",
+          }}
+        >
           <div>
             <div className="eyebrow eyebrow-on-dark" style={{ marginBottom: 10 }}>
               Progres caturwulan
             </div>
             <div style={{ fontFamily: serif, fontSize: 30 }}>
-              Pertemuan {p.week} dari {p.total}
+              {terbuka} dari {pertemuan.length} pertemuan terbuka
             </div>
             <div style={{ fontSize: 16, color: "rgba(238,242,238,.7)", marginTop: 8 }}>
-              Setelah caturwulan ini selesai, tersedia jeda 1–2 pekan sebelum Anda memutuskan untuk melanjutkan.
+              Setelah caturwulan ini selesai, tersedia jeda 1–2 pekan sebelum Anda memutuskan untuk
+              melanjutkan.
             </div>
           </div>
-          <div style={{ fontFamily: serif, fontSize: 46, lineHeight: 1 }}>{p.percent}%</div>
+          <div style={{ fontFamily: serif, fontSize: 46, lineHeight: 1 }}>{rata}%</div>
         </div>
       </Card>
 
-      <CardTitle>Timeline 12 pertemuan</CardTitle>
-      <div style={{ display: "grid", gap: 8, marginBottom: 36 }}>
-        {weeks.map((w) => {
-          const s = weekStatus(w);
-          const done = repo.weekCompletion(w.id);
-          return (
-            <div
-              key={w.id}
-              className="split"
-              style={{
-                display: "grid",
-                gridTemplateColumns: "86px 1fr 130px 110px",
-                gap: 16,
-                alignItems: "center",
-                padding: "14px 18px",
-                background: w.number === CURRENT_WEEK ? "var(--color-mist)" : "var(--color-surface)",
-                border: `1px solid ${w.number === CURRENT_WEEK ? "#d6e0d8" : "var(--color-line)"}`,
-                borderRadius: 8,
-                fontSize: 16,
-              }}
-            >
-              <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-faint)" }}>
-                PERTEMUAN {w.number}
-              </div>
-              <div style={{ minWidth: 0 }}>
-                {w.locked ? (
-                  <span style={{ color: "var(--color-soft)" }}>{w.title}</span>
-                ) : (
-                  <Link to={`/belajar/kelas/${arab.slug}/pertemuan/${w.number}`} style={{ fontWeight: 600 }}>
-                    {w.title}
-                  </Link>
-                )}
-                <div style={{ fontSize: 14, color: "var(--color-soft)", marginTop: 2 }}>
-                  {WEEK_TYPE_LABEL[w.type]} · {done.done}/{done.total} bagian
+      {inti && (
+        <>
+          <CardTitle aside={inti.name}>Timeline pertemuan</CardTitle>
+          {kelas.loading && (
+            <div style={{ color: "var(--color-faint)", marginBottom: 30 }}>Memuat timeline…</div>
+          )}
+          <div style={{ display: "grid", gap: 8, marginBottom: 36 }}>
+            {pertemuan.map((m) => {
+              const s = statusPertemuan(m);
+              return (
+                <div
+                  key={m.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 14,
+                    padding: "12px 16px",
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-line)",
+                    borderRadius: 9,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 58,
+                      flex: "none",
+                      fontFamily: mono,
+                      fontSize: 12.5,
+                      color: "var(--color-faint)",
+                    }}
+                  >
+                    P{m.number}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    {m.locked ? (
+                      <span style={{ fontSize: 16, color: "var(--color-soft)" }}>{m.title}</span>
+                    ) : (
+                      <Link
+                        to={`/belajar/kelas/${inti.slug}/pertemuan/${m.number}`}
+                        style={{ fontSize: 16, fontWeight: 600 }}
+                      >
+                        {m.title}
+                      </Link>
+                    )}
+                  </div>
+                  <Badge bg={s.bg} fg={s.fg}>
+                    {s.label}
+                  </Badge>
                 </div>
-              </div>
-              <div className="col-hide">
-                <Meter percent={done.total ? Math.round((done.done / done.total) * 100) : 0} label={w.title} />
-              </div>
-              <div>
-                <Badge bg={s.bg} fg={s.fg}>
-                  {s.label}
-                </Badge>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+            })}
+          </div>
+        </>
+      )}
 
-      <CardTitle>Mata pelajaran</CardTitle>
-      <div style={{ display: "grid", gap: 14 }}>
-        {repo.coursesWithProgress().map((c) => (
-          <Card key={c.id}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
-              <Link to={`/belajar/kelas/${c.slug}`} style={{ fontSize: 18.5, fontWeight: 700 }}>
-                {c.name}
-              </Link>
-              <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-muted)" }}>{c.label}</div>
+      <CardTitle>Mata pelajaran caturwulan ini</CardTitle>
+      <div
+        className="split"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+          gap: 16,
+          marginTop: 14,
+        }}
+      >
+        {data.subjects.map((c) => (
+          <Card key={c.id} padding={22}>
+            <div className="eyebrow" style={{ marginBottom: 8 }}>
+              {PERAN_MAPEL[c.role] ?? c.role}
             </div>
-            <div style={{ fontSize: 15.5, color: "var(--color-body)", marginTop: 8, lineHeight: 1.6 }}>
-              {c.description}
-            </div>
+            <Link to={`/belajar/kelas/${c.slug}`} style={{ fontFamily: serif, fontSize: 20 }}>
+              {c.name}
+            </Link>
+            {c.deliveryModel && (
+              <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 8 }}>
+                {c.deliveryModel}
+              </div>
+            )}
             <div style={{ marginTop: 14 }}>
-              <Meter percent={c.percent} label={c.name} />
+              <Meter percent={c.percent} label={`${c.percent}% selesai`} />
             </div>
           </Card>
         ))}
@@ -140,8 +186,6 @@ export function Caturwulan() {
     </Shell>
   );
 }
-
-/* --- /belajar/kelas/:courseSlug --------------------------------- */
 
 /* --- /belajar/kelas/:slug --------------------------------------- */
 
@@ -437,71 +481,80 @@ export function Jadwal() {
 
 /* --- /belajar/murojaah ------------------------------------------ */
 
+type CatchUp = { subjectName: string; meetingNumber: number; title: string; type: string };
+
 export function Murojaah() {
-  const saved = repo.allNotes().filter((n) => n.bookmarkedForReview);
-  const arab = repo.courseBySlug("bahasa-arab-01")!;
-  const catchUp = repo.catchUpLessons(arab.id, CURRENT_WEEK);
+  const catchUp = useResource<CatchUp[]>("/me/catch-up");
+  const catatan = useResource<Catatan[]>("/me/notes");
 
   return (
     <Shell>
       <PageHeader
         eyebrow="Murojaah"
-        title="Mengulang adalah bagian inti, bukan tambahan"
-        lead="Materi yang Anda tandai untuk dimurojaah dikumpulkan di sini, bersama jalur ringkas bila Anda tertinggal."
+        title="Mengulang adalah bagian inti, bukan tambahan."
+        lead="Materi esensial yang belum Anda selesaikan, agar tertinggal tidak menumpuk."
       />
 
-      <div className="split" style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 20, alignItems: "start" }}>
-        <Card>
-          <CardTitle aside={`${saved.length} materi ditandai`}>Ditandai untuk murojaah</CardTitle>
-          {saved.length === 0 ? (
-            <EmptyState
-              title="Belum ada materi yang ditandai"
-              hint="Gunakan tombol Simpan untuk Murojaah pada halaman pelajaran."
-            />
-          ) : (
-            saved.map((n) => (
-              <div key={n.id} style={{ padding: "16px 0", borderTop: "1px solid var(--color-line-soft)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                  <div style={{ fontSize: 17.5, fontWeight: 700 }}>{n.lessonTitle}</div>
-                  <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>{n.courseName}</div>
-                </div>
-                <div style={{ fontSize: 15.5, lineHeight: 1.6, color: "var(--color-body)", marginTop: 8 }}>{n.body}</div>
-              </div>
-            ))
-          )}
-        </Card>
-
-        <Card tone="sand">
+      <div
+        className="split"
+        style={{ display: "grid", gridTemplateColumns: "1.15fr .85fr", gap: 24, alignItems: "start" }}
+      >
+        <Card padding={24}>
           <div className="eyebrow" style={{ marginBottom: 14 }}>
             Jalur mengejar ketertinggalan
           </div>
-          <div style={{ fontSize: 15.5, lineHeight: 1.6, color: "var(--color-body)", marginBottom: 16 }}>
-            Materi esensial pertemuan {CURRENT_WEEK} bila Anda perlu mengejar. Jalur ini bersifat suportif — bukan hukuman.
+
+          {catchUp.loading && <div style={{ color: "var(--color-faint)" }}>Memuat…</div>}
+          {catchUp.error && <div role="alert">{catchUp.error}</div>}
+
+          {catchUp.data && catchUp.data.length === 0 && (
+            <EmptyState
+              title="Tidak ada yang tertinggal"
+              hint="Seluruh materi esensial sudah Anda selesaikan. Gunakan sisa waktu untuk mengulang."
+            />
+          )}
+
+          {catchUp.data && catchUp.data.length > 0 && (
+            <div style={{ display: "grid", gap: 12 }}>
+              {catchUp.data.map((c, i) => (
+                <div
+                  key={`${c.subjectName}-${c.meetingNumber}-${i}`}
+                  style={{ border: "1px solid var(--color-line)", borderRadius: 9, padding: "13px 15px" }}
+                >
+                  <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
+                    {c.subjectName.toUpperCase()} · PERTEMUAN {c.meetingNumber}
+                  </div>
+                  <div style={{ fontSize: 16.5, fontWeight: 600, marginTop: 5 }}>{c.title}</div>
+                  <div style={{ fontSize: 13.5, color: "var(--color-muted)", marginTop: 4 }}>
+                    {c.type.toUpperCase()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card padding={24} tone="sand">
+          <div className="eyebrow" style={{ marginBottom: 12 }}>
+            Catatan Anda
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-            {catchUp.map((l) => (
-              <div
-                key={l.id}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  gap: 12,
-                  padding: "12px 14px",
-                  background: "var(--color-surface)",
-                  borderRadius: 8,
-                  fontSize: 15.5,
-                }}
-              >
-                <span style={{ fontWeight: 600 }}>{l.title}</span>
-                <span style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)", flex: "none" }}>
-                  {LESSON_TYPE_LABEL[l.type]}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop: 18 }}>
-            <Link to={`/belajar/kelas/${arab.slug}/pertemuan/${CURRENT_WEEK}`} className="btn-solid-sm" style={{ display: "inline-block" }}>
-              Mulai jalur ringkas →
+          {catatan.data && catatan.data.length === 0 && (
+            <div style={{ fontSize: 15, color: "var(--color-muted)", lineHeight: 1.6 }}>
+              Belum ada catatan. Tulis catatan saat mempelajari materi agar mudah diulang.
+            </div>
+          )}
+          {catatan.data && catatan.data.length > 0 && (
+            <div style={{ display: "grid", gap: 12 }}>
+              {catatan.data.slice(0, 4).map((n) => (
+                <div key={n.id} style={{ fontSize: 15, lineHeight: 1.65, color: "var(--color-body)" }}>
+                  {n.body}
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ marginTop: 16 }}>
+            <Link to="/belajar/catatan" className="btn-sm">
+              Semua catatan →
             </Link>
           </div>
         </Card>
@@ -513,75 +566,102 @@ export function Murojaah() {
 /* --- /belajar/progress ------------------------------------------ */
 
 export function Progress() {
-  const p = repo.termProgress();
-  const courses = repo.coursesWithProgress();
-  const bobot = [
-    { k: "Kehadiran & keterlibatan", v: "20%" },
-    { k: "Latihan & worksheet", v: "30%" },
-    { k: "Kuis / cek pemahaman", v: "20%" },
-    { k: "Evaluasi akhir", v: "30%" },
-  ];
+  const d = useResource<Dasbor>("/me/dashboard");
+
+  if (d.loading) {
+    return (
+      <Shell>
+        <div style={{ color: "var(--color-faint)" }}>Memuat progres…</div>
+      </Shell>
+    );
+  }
+  if (d.error || !d.data) {
+    return (
+      <Shell>
+        <EmptyState title="Progres belum dapat dimuat" hint={d.error ?? undefined} />
+      </Shell>
+    );
+  }
+
+  const data = d.data;
+  const rata = data.subjects.length
+    ? Math.round(data.subjects.reduce((a, s) => a + s.percent, 0) / data.subjects.length)
+    : 0;
 
   return (
     <Shell>
       <PageHeader
-        eyebrow={repo.activeTerm.name}
+        eyebrow={data.tahapan.name}
         title="Progres caturwulan berjalan"
         lead="Yang ditampilkan adalah kemajuan pada caturwulan ini saja — bukan persentase seluruh perjalanan TIA."
       />
 
-      <div className="quad" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}>
+      <div
+        className="quad"
+        style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}
+      >
         <Card>
           <div className="eyebrow" style={{ marginBottom: 10 }}>
-            Pertemuan
+            Mata pelajaran
           </div>
           <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>
-            {p.week}/{p.total}
+            {data.subjects.length}
           </div>
         </Card>
         <Card>
           <div className="eyebrow" style={{ marginBottom: 10 }}>
             Penyelesaian
           </div>
-          <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>{p.percent}%</div>
+          <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>{rata}%</div>
         </Card>
         <Card>
           <div className="eyebrow" style={{ marginBottom: 10 }}>
-            Status
+            Status pendaftaran
           </div>
-          <div style={{ fontFamily: serif, fontSize: 26, lineHeight: 1.2, color: "var(--color-forest)" }}>
-            Sesuai jalur
+          <div
+            style={{
+              fontFamily: serif,
+              fontSize: 24,
+              lineHeight: 1.2,
+              color: "var(--color-forest)",
+            }}
+          >
+            {data.enrollment ? data.enrollment.status : "Belum terdaftar"}
           </div>
         </Card>
       </div>
 
-      <Card style={{ marginBottom: 20 }}>
-        <CardTitle>Capaian per mata pelajaran</CardTitle>
-        {courses.map((c) => (
-          <div key={c.id} style={{ padding: "16px 0", borderTop: "1px solid var(--color-line-soft)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "baseline" }}>
-              <div style={{ fontSize: 17.5, fontWeight: 700 }}>{c.name}</div>
-              <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-muted)" }}>{c.percent}%</div>
-            </div>
-            <div style={{ marginTop: 10 }}>
-              <Meter percent={c.percent} label={c.name} />
-            </div>
+      <Card padding={24}>
+        <div className="eyebrow" style={{ marginBottom: 16 }}>
+          Per mata pelajaran
+        </div>
+        {data.subjects.length === 0 ? (
+          <EmptyState title="Belum ada mata pelajaran" />
+        ) : (
+          <div style={{ display: "grid", gap: 18 }}>
+            {data.subjects.map((s) => (
+              <div key={s.id}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    marginBottom: 7,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <Link to={`/belajar/kelas/${s.slug}`} style={{ fontWeight: 600 }}>
+                    {s.name}
+                  </Link>
+                  <span style={{ fontFamily: mono, fontSize: 13.5, color: "var(--color-faint)" }}>
+                    {s.percent}%
+                  </span>
+                </div>
+                <Meter percent={s.percent} />
+              </div>
+            ))}
           </div>
-        ))}
-      </Card>
-
-      <Card tone="forest">
-        <div className="eyebrow eyebrow-on-dark" style={{ marginBottom: 14 }}>
-          Bobot evaluasi akhir
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 11, fontSize: 15.5 }}>
-          {bobot.map((b) => (
-            <div key={b.k} style={{ display: "flex", justifyContent: "space-between", gap: 14 }}>
-              <span style={{ color: "rgba(238,242,238,.7)" }}>{b.k}</span>
-              <span style={{ fontWeight: 700 }}>{b.v}</span>
-            </div>
-          ))}
-        </div>
+        )}
       </Card>
     </Shell>
   );
@@ -589,34 +669,108 @@ export function Progress() {
 
 /* --- /belajar/catatan ------------------------------------------- */
 
+type Catatan = {
+  id: string;
+  materialId: string | null;
+  body: string;
+  isPrivate: boolean;
+  createdAt: string;
+};
+
 export function Catatan() {
-  const notes = repo.allNotes();
+  const catatan = useResource<Catatan[]>("/me/notes");
+  const [isi, setIsi] = useState("");
+  const [sibuk, setSibuk] = useState(false);
+  const [galat, setGalat] = useState<string | null>(null);
+
+  async function simpan(e: React.FormEvent) {
+    e.preventDefault();
+    if (!isi.trim()) return;
+    setSibuk(true);
+    const pesan = await mutate(() => api.post("/me/notes", { body: isi.trim() }));
+    setSibuk(false);
+    if (pesan) return setGalat(pesan);
+    setGalat(null);
+    setIsi("");
+    catatan.reload();
+  }
+
   return (
     <Shell>
       <PageHeader
         eyebrow="Catatan"
         title="Catatan belajar Anda"
-        lead="Catatan bersifat pribadi secara bawaan dan tidak dibagikan ke pengajar."
+        lead="Catatan bersifat pribadi dan hanya terlihat oleh Anda."
       />
-      {notes.length === 0 ? (
-        <EmptyState title="Belum ada catatan" hint="Catatan yang Anda tulis pada halaman pelajaran akan muncul di sini." />
-      ) : (
+
+      <Card padding={22} style={{ marginBottom: 20 }}>
+        <form onSubmit={simpan}>
+          <label className="eyebrow" style={{ display: "block", marginBottom: 8 }}>
+            Tulis catatan baru
+          </label>
+          <textarea
+            value={isi}
+            onChange={(e) => setIsi(e.target.value)}
+            placeholder="Apa yang ingin Anda ingat dari materi hari ini?"
+            style={{
+              width: "100%",
+              minHeight: 96,
+              resize: "vertical",
+              padding: "11px 13px",
+              border: "1px solid var(--color-line)",
+              borderRadius: 9,
+              background: "var(--color-surface)",
+              fontSize: 15.5,
+              fontFamily: "inherit",
+              color: "var(--color-ink)",
+            }}
+          />
+          {galat && (
+            <div role="alert" style={{ marginTop: 10, fontSize: 14.5, color: "#8d4632" }}>
+              {galat}
+            </div>
+          )}
+          <div style={{ marginTop: 12 }}>
+            <button
+              type="submit"
+              className="btn-solid-sm"
+              disabled={sibuk || !isi.trim()}
+              style={{ opacity: sibuk || !isi.trim() ? 0.55 : 1 }}
+            >
+              {sibuk ? "Menyimpan…" : "Simpan catatan"}
+            </button>
+          </div>
+        </form>
+      </Card>
+
+      {catatan.loading && <div style={{ color: "var(--color-faint)" }}>Memuat catatan…</div>}
+      {catatan.error && <div role="alert">{catatan.error}</div>}
+
+      {catatan.data && catatan.data.length === 0 && (
+        <EmptyState
+          title="Belum ada catatan"
+          hint="Catatan pertama Anda akan muncul di sini."
+        />
+      )}
+
+      {catatan.data && catatan.data.length > 0 && (
         <div style={{ display: "grid", gap: 12 }}>
-          {notes.map((n) => (
-            <Card key={n.id} padding={22}>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 17.5, fontWeight: 700 }}>{n.lessonTitle}</div>
-                <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>{n.createdAt}</div>
+          {catatan.data.map((n) => (
+            <Card key={n.id} padding={20}>
+              <div style={{ fontSize: 16, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{n.body}</div>
+              <div
+                style={{
+                  fontFamily: mono,
+                  fontSize: 12.5,
+                  color: "var(--color-faint)",
+                  marginTop: 10,
+                }}
+              >
+                {new Date(n.createdAt).toLocaleString("id-ID", {
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}
               </div>
-              <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 4 }}>{n.courseName}</div>
-              <div style={{ fontSize: 16, lineHeight: 1.65, color: "var(--color-body)", marginTop: 12 }}>{n.body}</div>
-              {n.bookmarkedForReview && (
-                <div style={{ marginTop: 12 }}>
-                  <Badge bg="#f6eddb" fg="#8a6a25">
-                    Ditandai untuk murojaah
-                  </Badge>
-                </div>
-              )}
             </Card>
           ))}
         </div>
@@ -629,55 +783,74 @@ export function Catatan() {
 
 export function Profil() {
   const { user, signOut } = useAuth();
-  const term = repo.activeTerm;
+  const d = useResource<Dasbor>("/me/dashboard");
 
   return (
     <Shell>
-      <PageHeader eyebrow="Profil" title={user?.name ?? "Peserta"} />
-      <div className="split" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}>
-        <Card>
-          <CardTitle>Data peserta</CardTitle>
-          {[
-            { k: "Nama", v: user?.name ?? "—" },
-            { k: "Email", v: user?.email ?? "—" },
-            { k: "Peran", v: "Peserta" },
-            { k: "Caturwulan aktif", v: `${term.name} — ${term.title}` },
-            { k: "Status", v: "Aktif" },
-          ].map((r) => (
-            <div
-              key={r.k}
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                gap: 16,
-                padding: "13px 0",
-                borderTop: "1px solid var(--color-line-soft)",
-                fontSize: 16,
-              }}
-            >
-              <span style={{ color: "var(--color-muted)" }}>{r.k}</span>
-              <span style={{ fontWeight: 600, textAlign: "right" }}>{r.v}</span>
+      <PageHeader eyebrow="Profil" title={user?.name ?? "Profil"} lead={user?.email} />
+
+      <div
+        className="split"
+        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}
+      >
+        <Card padding={24}>
+          <div className="eyebrow" style={{ marginBottom: 14 }}>
+            Caturwulan berjalan
+          </div>
+          {d.loading && <div style={{ color: "var(--color-faint)" }}>Memuat…</div>}
+          {d.data && (
+            <div style={{ fontSize: 15.5, lineHeight: 1.8 }}>
+              <div style={{ fontFamily: serif, fontSize: 20 }}>{d.data.tahapan.name}</div>
+              {d.data.tahapan.title && (
+                <div style={{ color: "var(--color-muted)", marginTop: 4 }}>
+                  {d.data.tahapan.title}
+                </div>
+              )}
+              {d.data.enrollment ? (
+                <div style={{ marginTop: 14 }}>
+                  <div>
+                    Status: <strong>{d.data.enrollment.status}</strong>
+                  </div>
+                  {d.data.enrollment.className && <div>Kelas: {d.data.enrollment.className}</div>}
+                  <div style={{ marginTop: 10 }}>
+                    <Meter percent={d.data.enrollment.progress} label="Progres tercatat" />
+                  </div>
+                </div>
+              ) : (
+                <div style={{ marginTop: 12, color: "var(--color-faint)" }}>
+                  Anda belum terdaftar pada caturwulan ini.
+                </div>
+              )}
             </div>
-          ))}
+          )}
         </Card>
 
-        <Card>
-          <CardTitle>Pengingat</CardTitle>
-          <div style={{ fontSize: 15.5, lineHeight: 1.6, color: "var(--color-body)" }}>
-            Pilih bagaimana Anda ingin diingatkan tentang kelas dan tenggat pekanan.
+        <Card padding={24}>
+          <div className="eyebrow" style={{ marginBottom: 14 }}>
+            Akun
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-            {["Email pengingat kelas", "Pengingat tenggat worksheet", "Ringkasan murojaah pekanan"].map((x) => (
-              <label key={x} style={{ display: "flex", gap: 10, alignItems: "center", fontSize: 16 }}>
-                <input type="checkbox" defaultChecked />
-                {x}
-              </label>
-            ))}
+          <div style={{ fontSize: 15.5, lineHeight: 1.9 }}>
+            <div>
+              Nama: <strong>{user?.name}</strong>
+            </div>
+            <div>Email: {user?.email}</div>
+            <div>Peran: {user?.role === "student" ? "Peserta" : user?.role}</div>
           </div>
-          <div style={{ marginTop: 22, paddingTop: 18, borderTop: "1px solid var(--color-line-soft)" }}>
-            <button type="button" className="btn-sm" onClick={signOut}>
-              Keluar dari akun
+          <div style={{ marginTop: 18 }}>
+            <button type="button" className="btn-sm" onClick={() => signOut()}>
+              Keluar
             </button>
+          </div>
+          <div
+            style={{
+              fontSize: 13.5,
+              color: "var(--color-faint)",
+              marginTop: 14,
+              lineHeight: 1.6,
+            }}
+          >
+            Perubahan data pribadi — nomor WhatsApp, domisili, pendidikan — dilakukan oleh admin
+            akademik. Hubungi mereka bila ada yang perlu diperbarui.
           </div>
         </Card>
       </div>

@@ -33,7 +33,7 @@ type Jadwal = {
 
 type Pengumuman = { id: string; title: string; body: string; publishedAt: string | null };
 
-type Dasbor = {
+export type Dasbor = {
   tahapan: { id: string; name: string; title: string | null; durationWeeks: number };
   enrollment: { status: string; progress: number; className: string | null } | null;
   subjects: Mapel[];
