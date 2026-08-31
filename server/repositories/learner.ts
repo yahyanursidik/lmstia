@@ -333,3 +333,26 @@ export const countSuperAdmins = async () => {
     .where(and(eq(s.users.role, "super_admin"), eq(s.users.accountStatus, "aktif")));
   return r.n;
 };
+
+/**
+ * Cacah materi dan yang sudah selesai, per pertemuan, untuk satu mata
+ * pelajaran — dalam satu query.
+ */
+export const meetingProgressForSubject = (userId: string, subjectId: string) =>
+  db
+    .select({
+      meetingId: s.meetings.id,
+      total: sql<number>`count(*)::int`,
+      done: sql<number>`(count(*) filter (where ${s.materialProgress.status} = 'completed'))::int`,
+    })
+    .from(s.materials)
+    .innerJoin(s.meetings, eq(s.meetings.id, s.materials.meetingId))
+    .leftJoin(
+      s.materialProgress,
+      and(
+        eq(s.materialProgress.materialId, s.materials.id),
+        eq(s.materialProgress.userId, userId),
+      ),
+    )
+    .where(and(eq(s.meetings.subjectId, subjectId), eq(s.materials.publishStatus, "published")))
+    .groupBy(s.meetings.id);

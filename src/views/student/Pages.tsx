@@ -1,8 +1,8 @@
 import { Link, useParams } from "react-router";
+import { useResource } from "../../lib/useApi";
 import * as repo from "../../domain/repository";
 import { CURRENT_WEEK } from "../../domain/repository";
 import {
-  ATTENDANCE_LABEL,
   LESSON_TYPE_LABEL,
   WEEK_TYPE_LABEL,
   type Week,
@@ -143,42 +143,113 @@ export function Caturwulan() {
 
 /* --- /belajar/kelas/:courseSlug --------------------------------- */
 
+/* --- /belajar/kelas/:slug --------------------------------------- */
+
+type PertemuanRingkas = {
+  id: string;
+  number: number;
+  title: string;
+  description: string | null;
+  type: string;
+  mode: string;
+  startsAt: string | null;
+  durationMinutes: number;
+  locked: boolean;
+  total: number;
+  done: number;
+  percent: number;
+};
+
+type KelasData = {
+  subject: {
+    id: string;
+    slug: string;
+    name: string;
+    code: string;
+    role: string;
+    description: string | null;
+    deliveryModel: string | null;
+    weeklyLoad: string | null;
+  };
+  meetings: PertemuanRingkas[];
+};
+
+const PERAN_MAPEL: Record<string, string> = {
+  INTENSIVE: "Intensif",
+  FOUNDATION: "Fondasi",
+  COMPANION: "Pendamping",
+};
+
+const MODE_LABEL: Record<string, string> = {
+  online: "Daring",
+  offline: "Tatap muka",
+  hybrid: "Hybrid",
+  mandiri: "Mandiri",
+};
+
+function statusPertemuan(m: PertemuanRingkas) {
+  if (m.locked) return { label: "Terkunci", bg: "#ece9e3", fg: "#807a70" };
+  if (m.total > 0 && m.done === m.total) return { label: "Selesai", bg: "#e4ede4", fg: "#2f5638" };
+  if (m.done > 0) return { label: "Berjalan", bg: "#f6eddb", fg: "#8a6a25" };
+  return { label: "Belum dimulai", bg: "#ece9e3", fg: "#544e45" };
+}
+
 export function Kelas() {
   const { courseSlug } = useParams();
-  const course = courseSlug ? repo.courseBySlug(courseSlug) : undefined;
+  const kelas = useResource<KelasData>(courseSlug ? `/me/kelas/${courseSlug}` : null);
 
-  if (!course) {
+  if (kelas.loading) {
     return (
       <Shell>
-        <EmptyState title="Mata pelajaran tidak ditemukan" hint="Periksa kembali tautan yang Anda buka." />
+        <div style={{ color: "var(--color-faint)" }}>Memuat mata pelajaran…</div>
       </Shell>
     );
   }
 
-  const weeks = repo.weeksOf(course.id);
-  const instructor = repo.instructorById(course.instructorId);
-  const percent = repo.courseProgress(course.id);
+  if (kelas.error || !kelas.data) {
+    return (
+      <Shell>
+        <EmptyState
+          title="Mata pelajaran tidak ditemukan"
+          hint="Periksa kembali tautan yang Anda buka."
+        />
+      </Shell>
+    );
+  }
+
+  const { subject: c, meetings } = kelas.data;
+  const terbuka = meetings.filter((m) => !m.locked);
+  const totalMateri = terbuka.reduce((a, m) => a + m.total, 0);
+  const totalSelesai = terbuka.reduce((a, m) => a + m.done, 0);
+  const percent = totalMateri ? Math.round((totalSelesai / totalMateri) * 100) : 0;
 
   return (
     <Shell>
       <PageHeader
-        eyebrow={`${repo.activeTerm.name} · ${course.role}`}
-        title={course.name}
-        lead={course.description}
+        eyebrow={`${c.code} · ${PERAN_MAPEL[c.role] ?? c.role}`}
+        title={c.name}
+        lead={c.description ?? undefined}
       />
 
-      <div className="split" style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 24, alignItems: "start" }}>
+      <div
+        className="split"
+        style={{ display: "grid", gridTemplateColumns: "1fr 300px", gap: 24, alignItems: "start" }}
+      >
         <div>
           <Card padding={0} style={{ overflow: "hidden" }}>
             <div style={{ padding: "18px 22px", borderBottom: "1px solid #ece6da" }}>
-              <h2 style={{ fontFamily: serif, fontSize: 20 }}>Unit mingguan</h2>
+              <h2 style={{ fontFamily: serif, fontSize: 20 }}>Daftar pertemuan</h2>
             </div>
-            {weeks.map((w) => {
-              const done = repo.weekCompletion(w.id);
-              const s = weekStatus(w);
+            {meetings.length === 0 && (
+              <div style={{ padding: 22 }}>
+                <EmptyState title="Belum ada pertemuan" />
+              </div>
+            )}
+            {meetings.map((m) => {
+              const s = statusPertemuan(m);
               return (
                 <div
-                  key={w.id}
+                  key={m.id}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -187,22 +258,30 @@ export function Kelas() {
                     borderTop: "1px solid var(--color-line-softer)",
                   }}
                 >
-                  <div style={{ width: 62, flex: "none", fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
-                    PERTEMUAN {w.number}
+                  <div
+                    style={{
+                      width: 62,
+                      flex: "none",
+                      fontFamily: mono,
+                      fontSize: 12.5,
+                      color: "var(--color-faint)",
+                    }}
+                  >
+                    PERTEMUAN {m.number}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    {w.locked ? (
-                      <span style={{ fontSize: 16.5, color: "var(--color-soft)" }}>{w.title}</span>
+                    {m.locked ? (
+                      <span style={{ fontSize: 16.5, color: "var(--color-soft)" }}>{m.title}</span>
                     ) : (
                       <Link
-                        to={`/belajar/kelas/${course.slug}/pertemuan/${w.number}`}
+                        to={`/belajar/kelas/${c.slug}/pertemuan/${m.number}`}
                         style={{ fontSize: 16.5, fontWeight: 600 }}
                       >
-                        {w.title}
+                        {m.title}
                       </Link>
                     )}
                     <div style={{ fontSize: 14, color: "var(--color-soft)", marginTop: 2 }}>
-                      {done.done}/{done.total} bagian selesai
+                      {m.locked ? "Belum dibuka" : `${m.done}/${m.total} bagian selesai`}
                     </div>
                   </div>
                   <Badge bg={s.bg} fg={s.fg}>
@@ -221,25 +300,29 @@ export function Kelas() {
             </div>
             <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>{percent}%</div>
             <div style={{ marginTop: 12 }}>
-              <Meter percent={percent} label={course.name} />
+              <Meter percent={percent} label={c.name} />
+            </div>
+            <div style={{ fontSize: 14, color: "var(--color-faint)", marginTop: 10 }}>
+              {terbuka.length} dari {meetings.length} pertemuan terbuka
             </div>
           </Card>
-          {instructor && (
-            <Card>
+          {(c.deliveryModel || c.weeklyLoad) && (
+            <Card tone="sand">
               <div className="eyebrow" style={{ marginBottom: 12 }}>
-                Pengajar
+                Pola belajar
               </div>
-              <div style={{ fontSize: 17.5, fontWeight: 700 }}>{instructor.name}</div>
-              <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 4 }}>{instructor.title}</div>
+              {c.deliveryModel && (
+                <div style={{ fontSize: 15.5, lineHeight: 1.6, color: "var(--color-body)" }}>
+                  {c.deliveryModel}
+                </div>
+              )}
+              {c.weeklyLoad && (
+                <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 8 }}>
+                  {c.weeklyLoad}
+                </div>
+              )}
             </Card>
           )}
-          <Card tone="sand">
-            <div className="eyebrow" style={{ marginBottom: 12 }}>
-              Pola belajar
-            </div>
-            <div style={{ fontSize: 15.5, lineHeight: 1.6, color: "var(--color-body)" }}>{course.deliveryModel}</div>
-            <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 8 }}>{course.weeklyLoad}</div>
-          </Card>
         </div>
       </div>
     </Shell>
@@ -248,50 +331,97 @@ export function Kelas() {
 
 /* --- /belajar/jadwal -------------------------------------------- */
 
+type JadwalItem = {
+  id: string;
+  number: number;
+  title: string;
+  mode: string;
+  liveUrl: string | null;
+  livePlatform: string | null;
+  location: string | null;
+  startsAt: string | null;
+  durationMinutes: number;
+  subjectName: string;
+  subjectSlug: string;
+};
+
 export function Jadwal() {
-  const sessions = repo.sessionsUpcoming();
+  const jadwal = useResource<JadwalItem[]>("/jadwal");
+
   return (
     <Shell>
       <PageHeader
         eyebrow="Jadwal"
         title="Agenda caturwulan berjalan"
-        lead="Kelas online, praktik tatap muka, dan Majlis Ta'sil bulanan. Kehadiran dicatat untuk kelas yang mewajibkannya."
+        lead="Kelas daring, praktik tatap muka, dan pertemuan terjadwal lainnya."
       />
-      {sessions.length === 0 ? (
-        <EmptyState title="Belum ada jadwal" hint="Jadwal akan muncul setelah pertemuan berjalan dibuka." />
-      ) : (
+
+      {jadwal.loading && <div style={{ color: "var(--color-faint)" }}>Memuat jadwal…</div>}
+      {jadwal.error && <div role="alert">{jadwal.error}</div>}
+
+      {jadwal.data && jadwal.data.length === 0 && (
+        <EmptyState
+          title="Belum ada jadwal"
+          hint="Jadwal muncul setelah pengampu menetapkan waktu pertemuan."
+        />
+      )}
+
+      {jadwal.data && jadwal.data.length > 0 && (
         <div style={{ display: "grid", gap: 10 }}>
-          {sessions.map((s) => {
-            const course = repo.courseById(s.courseId);
+          {jadwal.data.map((s) => {
+            const mulai = s.startsAt ? new Date(s.startsAt) : null;
             return (
               <Card key={s.id} padding={20}>
                 <div
                   className="split"
-                  style={{ display: "grid", gridTemplateColumns: "150px 1fr 130px", gap: 18, alignItems: "center" }}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "160px 1fr 150px",
+                    gap: 18,
+                    alignItems: "center",
+                  }}
                 >
                   <div>
-                    <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>{s.dayLabel}</div>
-                    <div style={{ fontSize: 15.5, fontWeight: 700, marginTop: 3 }}>{s.timeLabel}</div>
+                    <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
+                      {mulai
+                        ? mulai.toLocaleDateString("id-ID", {
+                            weekday: "long",
+                            day: "numeric",
+                            month: "short",
+                          })
+                        : "Belum dijadwalkan"}
+                    </div>
+                    <div style={{ fontSize: 15.5, fontWeight: 700, marginTop: 3 }}>
+                      {mulai
+                        ? mulai.toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
+                        : "—"}
+                    </div>
                   </div>
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 17.5, fontWeight: 600 }}>{s.title}</div>
+                    <Link
+                      to={`/belajar/kelas/${s.subjectSlug}/pertemuan/${s.number}`}
+                      style={{ fontSize: 17.5, fontWeight: 600 }}
+                    >
+                      Pertemuan {s.number}: {s.title}
+                    </Link>
                     <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 4 }}>
-                      {course?.name} ·{" "}
-                      {s.locationType === "online" ? "Online" : `Tatap muka — ${s.address}`}
+                      {s.subjectName} · {MODE_LABEL[s.mode] ?? s.mode}
+                      {s.location ? ` — ${s.location}` : ""}
                     </div>
                   </div>
                   <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    {s.attendance ? (
-                      <Badge bg="#e6ede7" fg="#1f3d34">
-                        {ATTENDANCE_LABEL[s.attendance]}
-                      </Badge>
-                    ) : s.meetingUrl ? (
-                      <span className="btn-sm" style={{ display: "inline-block" }}>
-                        Link kelas
-                      </span>
+                    {s.liveUrl ? (
+                      <a
+                        href={s.liveUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-solid-sm"
+                      >
+                        Masuk kelas →
+                      </a>
                     ) : (
-                      <Badge bg="#ecebe6" fg="#6d675e">
-                        Terjadwal
+                      <Badge bg="#ece9e3" fg="#544e45">
+                        {MODE_LABEL[s.mode] ?? s.mode}
                       </Badge>
                     )}
                   </div>

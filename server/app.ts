@@ -144,6 +144,11 @@ me.get("/nilai", async (c) => {
 });
 
 
+/** Daftar pertemuan satu mata pelajaran beserta progres pemanggil. */
+me.get("/kelas/:slug", async (c) =>
+  c.json({ data: await service.getKelas(c.get("user")!.id, c.req.param("slug")) }),
+);
+
 /**
  * Unit belajar satu pertemuan. Berada di bawah `/me` karena isinya bergantung
  * pada progres pemanggil, bukan konten publik semata.

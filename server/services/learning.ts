@@ -260,3 +260,54 @@ export async function getUnitBelajar(userId: string, slug: string, number: numbe
     selesai: terbit.filter((m) => statusMateri.get(m.id) === "completed").length,
   };
 }
+
+/**
+ * Daftar pertemuan satu mata pelajaran beserta progres pemanggil.
+ *
+ * Dipakai halaman Kelas peserta. Progres dihitung untuk seluruh pertemuan
+ * dalam satu query agregat, bukan satu query per pertemuan — mata pelajaran
+ * dengan belasan pertemuan tidak boleh berarti belasan perjalanan jaringan.
+ */
+export async function getKelas(userId: string, slug: string) {
+  const subject = await academic.findSubjectBySlug(slug);
+  if (!subject) throw new NotFoundError("Mata pelajaran tidak ditemukan");
+
+  const [meetings, rekap] = await Promise.all([
+    academic.listMeetings(subject.id),
+    learner.meetingProgressForSubject(userId, subject.id),
+  ]);
+
+  const per = new Map(rekap.map((r) => [r.meetingId, r]));
+
+  return {
+    subject: {
+      id: subject.id,
+      slug: subject.slug,
+      name: subject.name,
+      code: subject.code,
+      role: subject.role,
+      description: subject.description,
+      deliveryModel: subject.deliveryModel,
+      weeklyLoad: subject.weeklyLoad,
+    },
+    meetings: meetings.map((m) => {
+      const r = per.get(m.id);
+      const total = r?.total ?? 0;
+      const done = r?.done ?? 0;
+      return {
+        id: m.id,
+        number: m.number,
+        title: m.title,
+        description: m.description,
+        type: m.type,
+        mode: m.mode,
+        startsAt: m.startsAt,
+        durationMinutes: m.durationMinutes,
+        locked: m.isLocked || m.publishStatus !== "published",
+        total,
+        done,
+        percent: total ? Math.round((done / total) * 100) : 0,
+      };
+    }),
+  };
+}
