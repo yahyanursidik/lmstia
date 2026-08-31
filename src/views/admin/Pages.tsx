@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { api } from "../../lib/api";
 import { mutate, useResource } from "../../lib/useApi";
@@ -8,6 +8,7 @@ import {
   CardTitle,
   DataTable,
   EmptyState,
+  Meter,
   PageHeader,
   mono,
   serif,
@@ -27,14 +28,6 @@ import SoalEditor from "./SoalEditor";
  */
 
 /* --- tipe bersama -------------------------------------------------- */
-
-type Overview = {
-  tahapan: { id: string; name: string; title: string | null };
-  totals: { participants: number; onTrack: number; needsFollowUp: number };
-  engagement: { engagement: string; n: number }[];
-  competency: { competency: string | null; n: number }[];
-  needsFollowUp: { userId: string; name: string; email: string; engagement: string }[];
-};
 
 type BarisNilai = {
   userId: string;
@@ -78,10 +71,11 @@ const ENGAGEMENT_LABEL: Record<string, string> = {
   inactive: "Tidak aktif",
 };
 
-const COMPETENCY_LABEL: Record<string, string> = {
-  sudah_dikuasai: "Sudah dikuasai",
-  perlu_murojaah: "Perlu murojaah",
-  belum_dikuasai: "Belum dikuasai",
+const ENGAGEMENT_TONE: Record<string, { bg: string; fg: string }> = {
+  on_track: { bg: "#e4ede4", fg: "#2f5638" },
+  needs_attention: { bg: "#f6eddb", fg: "#8a6a25" },
+  at_risk: { bg: "#f7e6e0", fg: "#8d4632" },
+  inactive: { bg: "#ece9e3", fg: "#6b6459" },
 };
 
 const STATUS_TERBIT: Record<string, string> = {
@@ -991,136 +985,458 @@ export function Pengumuman() {
   );
 }
 
-/* --- Laporan -------------------------------------------------------- */
+/* --- Laporan progres per program ------------------------------------ */
+
+type BarisLaporan = {
+  userId: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  city: string | null;
+  tahapanName: string;
+  className: string | null;
+  status: string;
+  engagement: string;
+  competency: string | null;
+  lastActiveAt: string | null;
+  materi: { total: number; selesai: number; persen: number };
+  kehadiran: { hadir: number; izin: number; sakit: number; alpa: number; tercatat: number; persen: number };
+  asesmen: { percobaan: number; dinilai: number; menunggu: number; lulus: number; rataRata: number | null };
+};
+
+type LaporanProgram = {
+  program: { id: string; name: string };
+  ringkasan: {
+    peserta: number;
+    rataMateri: number;
+    selesaiPenuh: number;
+    belumMulai: number;
+    adaKehadiran: boolean;
+    adaAsesmen: boolean;
+  };
+  rows: BarisLaporan[];
+};
+
+type RincianPeserta = {
+  peserta: { id: string; name: string; email: string; phone: string | null; city: string | null; province: string | null };
+  pendaftaran: { id: string; tahapanName: string; status: string; className: string | null; progress: number }[];
+  mapel: { subjectId: string; subjectName: string; tahapanName: string; role: string; total: number; selesai: number; persen: number }[];
+  asesmen: {
+    attemptId: string;
+    title: string;
+    kind: string;
+    kkm: number;
+    status: string;
+    score: number | null;
+    passed: boolean | null;
+    submittedAt: string | null;
+    subjectName: string | null;
+    meetingNumber: number | null;
+  }[];
+};
+
+const PERAN_MAPEL_LAP: Record<string, string> = {
+  INTENSIVE: "Intensif",
+  FOUNDATION: "Fondasi",
+  COMPANION: "Pendamping",
+};
+
+const STATUS_PERCOBAAN: Record<string, string> = {
+  berlangsung: "Berlangsung",
+  menunggu_penilaian: "Menunggu penilaian",
+  dinilai: "Dinilai",
+};
+
+const tanggalSingkat = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }) : "—";
 
 export function Laporan() {
-  const o = useResource<Overview>("/admin/overview");
+  const programs = useResource<{ id: string; name: string; status: string }[]>("/admin/programs");
+  const [programId, setProgramId] = useState("");
+  const [q, setQ] = useState("");
+  const [buka, setBuka] = useState<string | null>(null);
+
+  const aktif =
+    programId || programs.data?.find((p) => p.status === "active")?.id || programs.data?.[0]?.id || "";
+  const lap = useResource<LaporanProgram>(aktif ? `/admin/laporan/program/${aktif}` : null);
+  const rinci = useResource<RincianPeserta>(
+    buka && aktif ? `/admin/laporan/peserta/${buka}?programId=${aktif}` : null,
+  );
+
+  const rows = useMemo(() => {
+    const k = q.trim().toLowerCase();
+    if (!k) return lap.data?.rows ?? [];
+    return (lap.data?.rows ?? []).filter(
+      (r) =>
+        r.name.toLowerCase().includes(k) ||
+        r.email.toLowerCase().includes(k) ||
+        (r.className ?? "").toLowerCase().includes(k),
+    );
+  }, [lap.data, q]);
+
+  function unduhCsv() {
+    if (!lap.data) return;
+    const judul = [
+      "nama", "email", "nomor_wa", "kota", "caturwulan", "kelas", "status",
+      "materi_selesai", "materi_total", "materi_persen",
+      "hadir", "izin", "sakit", "alpa", "kehadiran_persen",
+      "percobaan", "lulus", "rata_rata",
+    ];
+    const kutip = (v: unknown) => {
+      const s = v === null || v === undefined ? "" : String(v);
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const baris = lap.data.rows.map((r) =>
+      [
+        r.name, r.email, r.phone, r.city, r.tahapanName, r.className, r.status,
+        r.materi.selesai, r.materi.total, r.materi.persen,
+        r.kehadiran.hadir, r.kehadiran.izin, r.kehadiran.sakit, r.kehadiran.alpa, r.kehadiran.persen,
+        r.asesmen.percobaan, r.asesmen.lulus, r.asesmen.rataRata,
+      ].map(kutip).join(","),
+    );
+    const blob = new Blob(["﻿" + [judul.join(","), ...baris].join("\n")], {
+      type: "text/csv;charset=utf-8",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `laporan-progres-${lap.data.program.name.toLowerCase().replace(/[^a-z0-9]+/g, "-")}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  const kolom: Column<BarisLaporan>[] = [
+    {
+      key: "nama",
+      head: "PESERTA",
+      width: "1.7fr",
+      render: (r) => (
+        <button
+          type="button"
+          onClick={() => setBuka(buka === r.userId ? null : r.userId)}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            textAlign: "left",
+            cursor: "pointer",
+            font: "inherit",
+            color: "inherit",
+          }}
+        >
+          <div style={{ fontWeight: 700, textDecoration: "underline", textUnderlineOffset: 3 }}>
+            {r.name}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
+            {r.tahapanName}
+            {r.className ? ` · ${r.className}` : ""}
+          </div>
+        </button>
+      ),
+    },
+    {
+      key: "materi",
+      head: "MATERI",
+      width: "1.3fr",
+      render: (r) => (
+        <div>
+          <div style={{ fontFamily: mono, fontSize: 13.5 }}>
+            {r.materi.selesai}/{r.materi.total} · {r.materi.persen}%
+          </div>
+          <div style={{ marginTop: 5 }}>
+            <Meter percent={r.materi.persen} />
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: "hadir",
+      head: "KEHADIRAN",
+      width: "1fr",
+      secondary: true,
+      render: (r) =>
+        r.kehadiran.tercatat === 0 ? (
+          <span style={{ color: "var(--color-faint)" }}>—</span>
+        ) : (
+          <span style={{ fontFamily: mono, fontSize: 13.5 }}>
+            {r.kehadiran.hadir}/{r.kehadiran.tercatat} · {r.kehadiran.persen}%
+          </span>
+        ),
+    },
+    {
+      key: "nilai",
+      head: "NILAI",
+      width: "1fr",
+      render: (r) =>
+        r.asesmen.percobaan === 0 ? (
+          <span style={{ color: "var(--color-faint)" }}>—</span>
+        ) : (
+          <span style={{ fontFamily: mono, fontSize: 13.5 }}>
+            {r.asesmen.rataRata ?? "—"}
+            <span style={{ color: "var(--color-faint)" }}> · lulus {r.asesmen.lulus}</span>
+            {r.asesmen.menunggu > 0 && (
+              <span style={{ color: "#8a6a25" }}> · {r.asesmen.menunggu} menunggu</span>
+            )}
+          </span>
+        ),
+    },
+    {
+      key: "keterlibatan",
+      head: "KETERLIBATAN",
+      width: "1.1fr",
+      render: (r) => {
+        const tone = ENGAGEMENT_TONE[r.engagement] ?? ENGAGEMENT_TONE.inactive!;
+        return (
+          <Badge bg={tone.bg} fg={tone.fg}>
+            {ENGAGEMENT_LABEL[r.engagement] ?? r.engagement}
+          </Badge>
+        );
+      },
+    },
+  ];
+
+  const s = lap.data?.ringkasan;
 
   return (
     <Shell>
       <PageHeader
-        eyebrow={o.data?.tahapan.name ?? "Laporan"}
-        title="Laporan"
-        lead="Ringkasan keterlibatan dan capaian peserta pada caturwulan berjalan."
+        eyebrow="Laporan"
+        title="Progres Peserta"
+        lead="Perkembangan setiap peserta pada satu program: penyelesaian materi, kehadiran, dan hasil asesmen."
+        actions={
+          lap.data && lap.data.rows.length > 0 ? (
+            <button type="button" className="btn-sm" onClick={unduhCsv}>
+              Unduh CSV
+            </button>
+          ) : undefined
+        }
       />
 
-      {o.loading && <div style={{ color: "var(--color-faint)" }}>Memuat laporan…</div>}
-      {o.error && <div role="alert">{o.error}</div>}
+      <Card padding={18} style={{ marginBottom: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14 }}>
+          <div>
+            <label className="eyebrow" style={{ display: "block", marginBottom: 7 }}>
+              Program
+            </label>
+            <Combobox
+              value={aktif}
+              onChange={(v) => {
+                setProgramId(v);
+                setBuka(null);
+              }}
+              options={(programs.data ?? []).map((p) => ({
+                value: p.id,
+                label: p.name,
+                hint: p.status === "active" ? "aktif" : p.status,
+              }))}
+              loading={programs.loading}
+              ariaLabel="Program"
+            />
+          </div>
+          <div>
+            <label className="eyebrow" style={{ display: "block", marginBottom: 7 }}>
+              Cari peserta
+            </label>
+            <input
+              type="search"
+              value={q}
+              placeholder="Nama, email, atau kelas…"
+              onChange={(e) => setQ(e.target.value)}
+              style={{
+                width: "100%",
+                padding: "11px 13px",
+                border: "1px solid var(--color-line)",
+                borderRadius: 9,
+                background: "var(--color-surface)",
+                fontSize: 15.5,
+                fontFamily: "inherit",
+                color: "var(--color-ink)",
+              }}
+            />
+          </div>
+        </div>
+      </Card>
 
-      {o.data && (
-        <>
-          <div
-            className="quad"
-            style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 24 }}
-          >
-            <Card>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>
-                Peserta
-              </div>
-              <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>
-                {o.data.totals.participants}
-              </div>
-            </Card>
-            <Card>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>
-                Sesuai jalur
-              </div>
-              <div style={{ fontFamily: serif, fontSize: 34, lineHeight: 1 }}>
-                {o.data.totals.onTrack}
-              </div>
-            </Card>
-            <Card>
-              <div className="eyebrow" style={{ marginBottom: 10 }}>
-                Perlu tindak lanjut
-              </div>
+      {lap.loading && <div style={{ color: "var(--color-faint)" }}>Memuat laporan…</div>}
+      {lap.error && <div role="alert">{lap.error}</div>}
+
+      {s && (
+        <div
+          className="quad"
+          style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 22 }}
+        >
+          <Card>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Peserta
+            </div>
+            <div style={{ fontFamily: serif, fontSize: 32, lineHeight: 1 }}>{s.peserta}</div>
+          </Card>
+          <Card>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Rata-rata materi
+            </div>
+            <div style={{ fontFamily: serif, fontSize: 32, lineHeight: 1 }}>{s.rataMateri}%</div>
+          </Card>
+          <Card>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Selesai penuh
+            </div>
+            <div style={{ fontFamily: serif, fontSize: 32, lineHeight: 1 }}>{s.selesaiPenuh}</div>
+          </Card>
+          <Card>
+            <div className="eyebrow" style={{ marginBottom: 10 }}>
+              Belum mulai
+            </div>
+            <div
+              style={{
+                fontFamily: serif,
+                fontSize: 32,
+                lineHeight: 1,
+                color: s.belumMulai ? "#8a6a25" : undefined,
+              }}
+            >
+              {s.belumMulai}
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {/* --- rincian satu peserta --- */}
+      {buka && (
+        <Card padding={22} style={{ marginBottom: 20 }}>
+          {rinci.loading && <div style={{ color: "var(--color-faint)" }}>Memuat rincian…</div>}
+          {rinci.data && (
+            <>
               <div
                 style={{
-                  fontFamily: serif,
-                  fontSize: 34,
-                  lineHeight: 1,
-                  color: o.data.totals.needsFollowUp ? "#8d4632" : undefined,
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 16,
+                  flexWrap: "wrap",
+                  marginBottom: 18,
                 }}
               >
-                {o.data.totals.needsFollowUp}
-              </div>
-            </Card>
-          </div>
-
-          <div
-            className="split"
-            style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, alignItems: "start" }}
-          >
-            <Card padding={22}>
-              <CardTitle>Keterlibatan</CardTitle>
-              <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
-                {o.data.engagement.map((e) => (
-                  <div
-                    key={e.engagement}
-                    style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
-                  >
-                    <span>{ENGAGEMENT_LABEL[e.engagement] ?? e.engagement}</span>
-                    <span style={{ fontFamily: mono, fontWeight: 700 }}>{e.n}</span>
+                <div>
+                  <div style={{ fontFamily: serif, fontSize: 23 }}>{rinci.data.peserta.name}</div>
+                  <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 4 }}>
+                    {[rinci.data.peserta.email, rinci.data.peserta.phone, rinci.data.peserta.city]
+                      .filter(Boolean)
+                      .join(" · ")}
                   </div>
-                ))}
+                </div>
+                <button type="button" className="btn-sm" onClick={() => setBuka(null)}>
+                  Tutup
+                </button>
               </div>
-            </Card>
 
-            <Card padding={22}>
-              <CardTitle>Capaian</CardTitle>
-              <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
-                {o.data.competency.length === 0 && (
-                  <div style={{ color: "var(--color-faint)", fontSize: 15 }}>
-                    Belum ada capaian yang dinilai.
-                  </div>
-                )}
-                {o.data.competency.map((c) => (
-                  <div
-                    key={c.competency ?? "belum"}
-                    style={{ display: "flex", justifyContent: "space-between", gap: 12 }}
-                  >
-                    <span>
-                      {c.competency ? COMPETENCY_LABEL[c.competency] ?? c.competency : "Belum dinilai"}
-                    </span>
-                    <span style={{ fontFamily: mono, fontWeight: 700 }}>{c.n}</span>
-                  </div>
-                ))}
+              <div className="eyebrow" style={{ marginBottom: 10 }}>
+                Progres per mata pelajaran
               </div>
-            </Card>
-          </div>
-
-          {o.data.needsFollowUp.length > 0 && (
-            <Card padding={22} style={{ marginTop: 20 }}>
-              <CardTitle aside={`${o.data.needsFollowUp.length} peserta`}>
-                Perlu tindak lanjut
-              </CardTitle>
-              <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-                {o.data.needsFollowUp.map((p) => (
-                  <div
-                    key={p.userId}
-                    style={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      gap: 12,
-                      border: "1px solid var(--color-line)",
-                      borderRadius: 9,
-                      padding: "11px 14px",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{p.name}</div>
-                      <div style={{ fontSize: 13, color: "var(--color-faint)" }}>{p.email}</div>
+              {rinci.data.mapel.length === 0 ? (
+                <EmptyState title="Belum ada materi terbit pada program ini" />
+              ) : (
+                <div style={{ display: "grid", gap: 14, marginBottom: 20 }}>
+                  {rinci.data.mapel.map((m) => (
+                    <div key={m.subjectId}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          gap: 12,
+                          marginBottom: 6,
+                          flexWrap: "wrap",
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>
+                          {m.subjectName}{" "}
+                          <span style={{ fontSize: 13, color: "var(--color-faint)", fontWeight: 400 }}>
+                            {m.tahapanName} · {PERAN_MAPEL_LAP[m.role] ?? m.role}
+                          </span>
+                        </span>
+                        <span style={{ fontFamily: mono, fontSize: 13.5, color: "var(--color-faint)" }}>
+                          {m.selesai}/{m.total} · {m.persen}%
+                        </span>
+                      </div>
+                      <Meter percent={m.persen} />
                     </div>
-                    <Badge bg="#f7e6e0" fg="#8d4632">
-                      {ENGAGEMENT_LABEL[p.engagement] ?? p.engagement}
-                    </Badge>
-                  </div>
-                ))}
+                  ))}
+                </div>
+              )}
+
+              <div className="eyebrow" style={{ marginBottom: 10 }}>
+                Hasil asesmen
               </div>
-            </Card>
+              {rinci.data.asesmen.length === 0 ? (
+                <div style={{ fontSize: 15, color: "var(--color-faint)", lineHeight: 1.6 }}>
+                  Belum ada kuis atau ujian yang dikerjakan pada program ini.
+                </div>
+              ) : (
+                <div style={{ display: "grid", gap: 10 }}>
+                  {rinci.data.asesmen.map((a) => (
+                    <div
+                      key={a.attemptId}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        gap: 12,
+                        flexWrap: "wrap",
+                        border: "1px solid var(--color-line)",
+                        borderRadius: 9,
+                        padding: "11px 14px",
+                      }}
+                    >
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600 }}>{a.title}</div>
+                        <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
+                          {[a.subjectName, a.meetingNumber !== null ? `Pertemuan ${a.meetingNumber}` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                          {" · "}
+                          {tanggalSingkat(a.submittedAt)}
+                        </div>
+                      </div>
+                      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                        <span style={{ fontFamily: mono, fontSize: 13.5, color: "var(--color-faint)" }}>
+                          KKM {a.kkm}
+                        </span>
+                        {a.score === null ? (
+                          <Badge bg="#f6eddb" fg="#8a6a25">
+                            {STATUS_PERCOBAAN[a.status] ?? a.status}
+                          </Badge>
+                        ) : (
+                          <Badge
+                            bg={a.passed ? "#e4ede4" : "#f7e6e0"}
+                            fg={a.passed ? "#2f5638" : "#8d4632"}
+                          >
+                            {a.score} · {a.passed ? "Lulus" : "Belum lulus"}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
-        </>
+        </Card>
       )}
+
+      <Card padding={20}>
+        {lap.data && (
+          <>
+            <DataTable
+              columns={kolom}
+              rows={rows}
+              empty={q ? "Tidak ada peserta yang cocok" : "Program ini belum punya peserta terdaftar"}
+            />
+            {s && !s.adaKehadiran && !s.adaAsesmen && lap.data.rows.length > 0 && (
+              <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 14, lineHeight: 1.6 }}>
+                Kolom kehadiran dan nilai masih kosong karena belum ada kehadiran yang dicatat dan
+                belum ada kuis yang dikerjakan — bukan karena peserta tidak hadir atau tidak lulus.
+              </div>
+            )}
+          </>
+        )}
+      </Card>
     </Shell>
   );
 }

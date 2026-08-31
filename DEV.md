@@ -198,6 +198,28 @@ keadaan yang sulit ditelusuri.
 Kunci pilihan ganda ditulis manusia sebagai nomor pilihan (1–5) dan
 disimpan sebagai indeks 0-basis.
 
+
+### Laporan progres peserta
+
+`/admin/laporan` menampilkan progres setiap peserta pada satu program:
+penyelesaian materi, kehadiran, dan hasil asesmen, dengan rincian per mata
+pelajaran dan daftar percobaan kuis.
+
+Setiap metrik dihitung satu query untuk SELURUH peserta sekaligus, bukan
+satu query per peserta. Pada driver Neon berbasis HTTP, menghitung per
+peserta membuat jumlah perjalanan jaringan tumbuh seiring jumlah peserta.
+
+Dua keputusan yang memengaruhi angkanya:
+
+- Materi berstatus draf tidak masuk penyebut. Peserta tidak pernah
+  ditawari materi itu, jadi menghitungnya membuat progres terlihat lebih
+  buruk daripada kenyataan.
+- Rata-rata nilai hanya menghitung percobaan yang sudah dinilai. Percobaan
+  yang masih menunggu penilaian esai bernilai null dan tidak dianggap nol.
+
+Halaman ini juga mengunduh CSV berisi seluruh baris, dengan BOM UTF-8 agar
+Excel membacanya dengan benar.
+
 ### Batasan yang perlu diketahui
 
 Rate limit login disimpan di tabel `login_attempts`, bukan di memori proses,

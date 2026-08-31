@@ -22,6 +22,7 @@ import { assessmentAdminRoutes, quizRoutes } from "./routes/assessment";
 import { userRoutes } from "./routes/users";
 import { daftarRoutes, registrationAdminRoutes } from "./routes/registration";
 import { bankRoutes } from "./routes/bank";
+import { reportRoutes } from "./routes/report";
 import * as assess from "./services/assessment";
 import { bookmarkBody, noteBody, slugParam, uuidParam } from "./validators/schemas";
 
@@ -228,6 +229,7 @@ app.route("/kuis", quizRoutes);
 app.route("/daftar", daftarRoutes);
 app.route("/admin/registrations", registrationAdminRoutes);
 app.route("/admin/bank-soal", bankRoutes);
+app.route("/admin/laporan", reportRoutes);
 app.route("/admin/users", userRoutes);
 app.route("/admin/assessments", assessmentAdminRoutes);
 app.route("/admin", contentRoutes);
