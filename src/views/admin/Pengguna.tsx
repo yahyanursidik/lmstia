@@ -3,7 +3,7 @@ import { api } from "../../lib/api";
 import { mutate, usePagedResource, useResource } from "../../lib/useApi";
 import { useAuth } from "../../lib/auth";
 import { Badge, Card, DataTable, EmptyState, PageHeader, mono, serif, type Column } from "../../components/ui";
-import { Field, FormPanel, Select, Text } from "../../components/form";
+import { Area, Field, FormPanel, Select, Text } from "../../components/form";
 import { Combobox } from "../../components/Combobox";
 import {
   ACCOUNT_STATUS_LABEL,
@@ -35,6 +35,8 @@ type Pengguna = {
   education: string | null;
   accountStatus: "aktif" | "nonaktif" | "ditangguhkan";
   segment: string | null;
+  title: string | null;
+  bio: string | null;
   isDemo: boolean;
   lastLoginAt: string | null;
   createdAt: string;
@@ -294,6 +296,8 @@ export default function Pengguna() {
       province: ubah.province || null,
       city: ubah.city || null,
       segment: ubah.segment || null,
+      title: ubah.title || null,
+      bio: ubah.bio || null,
     };
     const m = await mutate(() => api.patch(`/admin/users/${pilih}`, body));
     setBusy(false);
@@ -567,6 +571,7 @@ export default function Pengguna() {
                   nilai={d.education ? EDUCATION_LABEL[d.education] : null}
                 />
                 <Baris label="Segmen" nilai={d.segment} />
+                <Baris label="Jabatan" nilai={d.title} />
                 <Baris
                   label="Terakhir masuk"
                   nilai={d.lastLoginAt ? new Date(d.lastLoginAt).toLocaleString("id-ID") : null}
@@ -721,6 +726,18 @@ export default function Pengguna() {
 
               <Field label="Segmen" hint="Mis. Pekerja, Mahasiswa, Ibu rumah tangga.">
                 <Text value={ubah.segment ?? ""} onChange={(v) => setUbah({ ...ubah, segment: v })} />
+              </Field>
+
+              <Field label="Jabatan" hint="Tampil publik di halaman Pengajar.">
+                <Text
+                  value={ubah.title ?? ""}
+                  onChange={(v) => setUbah({ ...ubah, title: v })}
+                  placeholder="Mis. Pengampu Bahasa Arab 01"
+                />
+              </Field>
+
+              <Field label="Profil singkat" span hint="Tampil publik — bukan tempat catatan internal.">
+                <Area value={ubah.bio ?? ""} onChange={(v) => setUbah({ ...ubah, bio: v })} />
               </Field>
             </FormPanel>
           )}

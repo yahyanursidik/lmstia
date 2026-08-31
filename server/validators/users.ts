@@ -41,6 +41,8 @@ export const userPatchBody = z.object({
   province: teksOpsional(80),
   city: teksOpsional(120),
   segment: teksOpsional(80),
+  title: teksOpsional(160),
+  bio: teksOpsional(2000),
 });
 
 export const userListQuery = z.object({

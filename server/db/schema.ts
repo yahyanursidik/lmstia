@@ -158,6 +158,10 @@ export const users = pgTable(
     isDemo: boolean("is_demo").notNull().default(false),
     avatarUrl: text("avatar_url"),
     segment: text("segment"),
+    /** Jabatan/gelar yang tampil di halaman pengajar publik. */
+    title: text("title"),
+    /** Profil singkat pengajar; tampil publik, jadi bukan tempat catatan internal. */
+    bio: text("bio"),
     /* --- Kontak & Domisili ---------------------------------------- */
     /** Nomor WhatsApp, disimpan apa adanya seperti yang diisi admin. */
     phone: text("phone"),

@@ -66,7 +66,22 @@ app.get("/tahapan/:slug", async (c) => {
   if (!p.success) return badRequest(c, p.error);
   const t = await academic.findTahapanBySlug(p.data.slug);
   if (!t || !t.isPublic) return notFound(c, "Tahapan tidak ditemukan.");
-  return c.json({ data: { ...t, subjects: await academic.listSubjects(t.id) } });
+
+  /*
+   * Pertemuan ikut disertakan supaya halaman caturwulan publik dapat
+   * menampilkan bentuk kurikulumnya. Hanya judul dan nomor — tanpa materi,
+   * tautan kelas, maupun apa pun yang seharusnya dibayar dengan mendaftar.
+   */
+  const subjects = await academic.listSubjects(t.id);
+  const withMeetings = await Promise.all(
+    subjects.map(async (sub) => ({
+      ...sub,
+      meetings: (await academic.listMeetings(sub.id))
+        .filter((m) => m.publishStatus === "published")
+        .map((m) => ({ id: m.id, number: m.number, title: m.title, type: m.type })),
+    })),
+  );
+  return c.json({ data: { ...t, subjects: withMeetings } });
 });
 
 app.get("/subjects/:slug", async (c) => {
@@ -78,6 +93,25 @@ app.get("/subjects/:slug", async (c) => {
 /* --- Jadwal (pertemuan terjadwal) -------------------------------- */
 
 app.get("/jadwal", async (c) => c.json({ data: await academic.listScheduledMeetings() }));
+
+/**
+ * Data untuk beranda, dalam satu permintaan.
+ *
+ * Landing page memerlukan caturwulan berjalan, mata pelajarannya, dan daftar
+ * pengajar. Digabung supaya halaman pertama yang dilihat pengunjung tidak
+ * membayar tiga perjalanan jaringan berturut-turut.
+ */
+app.get("/beranda", async (c) => {
+  const tahapan = (await academic.listTahapan(undefined, true))[0] ?? null;
+  const [subjects, pengajar] = await Promise.all([
+    tahapan ? academic.listSubjects(tahapan.id) : Promise.resolve([]),
+    learner.listInstructorsPublic(),
+  ]);
+  return c.json({ data: { tahapan, subjects, pengajar } });
+});
+
+/** Pengajar untuk halaman publik — tanpa data pribadi apa pun. */
+app.get("/pengajar", async (c) => c.json({ data: await learner.listInstructorsPublic() }));
 
 /* --- Peserta (/me) ------------------------------------------------ */
 

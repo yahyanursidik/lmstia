@@ -1,7 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useState } from "react";
 import { Link, useParams } from "react-router";
-import * as repo from "../../domain/repository";
-import { WEEK_TYPE_LABEL } from "../../domain/types";
+import { useResource } from "../../lib/useApi";
 import { Card, Eyebrow, EmptyState, mono, serif } from "../../components/ui";
 
 function PageShell({
@@ -94,14 +93,41 @@ export function Program() {
 
 /* --- /caturwulan ----------------------------------------------- */
 
+type TahapanPublik = {
+  id: string;
+  slug: string;
+  code: string;
+  name: string;
+  title: string | null;
+  subtitle: string | null;
+  durationWeeks: number;
+  status: string;
+};
+
 export function CaturwulanList() {
-  const terms = repo.publicTerms();
+  const t = useResource<TahapanPublik[]>("/tahapan");
+  const terms = t.data ?? [];
+
+  if (t.loading) {
+    return (
+      <PageShell eyebrow="Caturwulan" title="Setiap caturwulan adalah unit belajar yang utuh.">
+        <div style={{ color: "var(--color-faint)" }}>Memuat caturwulan…</div>
+      </PageShell>
+    );
+  }
+
   return (
     <PageShell
       eyebrow="Caturwulan"
       title="Setiap caturwulan adalah unit belajar yang utuh."
       lead="Satu caturwulan berlangsung 12 pekan dan memuat satu mata pelajaran intensif, satu fondasi, dan satu pendamping mandiri."
     >
+      {terms.length === 0 && (
+        <EmptyState
+          title="Belum ada caturwulan yang dibuka"
+          hint="Informasi caturwulan berikutnya akan muncul di sini."
+        />
+      )}
       <div style={{ display: "grid", gap: 16 }}>
         {terms.map((t) => (
           <Link
@@ -146,11 +172,46 @@ export function CaturwulanList() {
 
 /* --- /caturwulan/:slug ----------------------------------------- */
 
+type MapelPublik = {
+  id: string;
+  name: string;
+  role: string;
+  description: string | null;
+  deliveryModel: string | null;
+  weeklyLoad: string | null;
+  meetings: { id: string; number: number; title: string; type: string }[];
+};
+
+type TahapanDetail = TahapanPublik & { subjects: MapelPublik[] };
+
+const PERAN_MAPEL_PUBLIK: Record<string, string> = {
+  INTENSIVE: "INTENSIF",
+  FOUNDATION: "FONDASI",
+  COMPANION: "PENDAMPING",
+};
+
+const TIPE_PERTEMUAN_PUBLIK: Record<string, string> = {
+  ORIENTATION: "Orientasi",
+  REGULAR: "Pembelajaran",
+  REVIEW: "Murojaah",
+  ASSESSMENT: "Evaluasi",
+  PRACTICE: "Latihan",
+  BREAK: "Jeda",
+};
+
 export function CaturwulanDetail() {
   const { slug } = useParams();
-  const term = slug ? repo.termBySlug(slug) : undefined;
+  const detail = useResource<TahapanDetail>(slug ? `/tahapan/${slug}` : null);
 
-  if (!term) {
+  if (detail.loading) {
+    return (
+      <div className="shell" style={{ paddingBlock: "80px", color: "var(--color-faint)" }}>
+        Memuat caturwulan…
+      </div>
+    );
+  }
+
+  if (detail.error || !detail.data) {
     return (
       <div className="shell" style={{ paddingBlock: "80px" }}>
         <EmptyState
@@ -166,71 +227,113 @@ export function CaturwulanDetail() {
     );
   }
 
-  const isActive = term.id === repo.activeTerm.id;
-  const courses = isActive ? repo.allCourses() : [];
-  const weeks = isActive ? repo.weeksOf("co-arab") : [];
+  const term = detail.data;
+
+  /*
+   * Timeline diambil dari mata pelajaran intensif caturwulan ini, bukan slug
+   * yang ditulis keras, agar tetap benar ketika kurikulumnya berganti.
+   */
+  const inti = term.subjects.find((s) => s.role === "INTENSIVE") ?? term.subjects[0];
+  const pertemuan = inti?.meetings ?? [];
 
   return (
-    <PageShell eyebrow={`${term.name} · Marhalah I'dad`} title={term.title} lead={term.subtitle}>
-      {!isActive && (
+    <PageShell
+      eyebrow={`${term.name} · ${term.code}`}
+      title={term.title ?? term.name}
+      lead={term.subtitle ?? undefined}
+    >
+      {term.subjects.length === 0 ? (
         <Card tone="sand" padding={22} style={{ marginBottom: 24 }}>
           <div style={{ fontSize: 16, lineHeight: 1.6, color: "var(--color-body)" }}>
-            Rincian pertemuan untuk {term.name} akan dibuka menjelang pendaftaran. Anda dapat menyelesaikan{" "}
-            {repo.activeTerm.name} terlebih dahulu.
+            Rincian pertemuan untuk {term.name} akan dibuka menjelang pendaftaran.
           </div>
         </Card>
-      )}
-
-      {isActive && (
+      ) : (
         <>
           <h2 style={{ fontSize: 26, marginBottom: 18 }}>Mata pelajaran</h2>
           <div style={{ display: "grid", gap: 14, marginBottom: 44 }}>
-            {courses.map((c) => (
+            {term.subjects.map((c) => (
               <Card key={c.id} padding={24}>
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 16,
+                    flexWrap: "wrap",
+                  }}
+                >
                   <div style={{ fontSize: 17, fontWeight: 700 }}>{c.name}</div>
-                  <div style={{ fontFamily: mono, fontSize: 12, color: "var(--color-forest)", letterSpacing: ".06em" }}>
-                    {c.role}
+                  <div
+                    style={{
+                      fontFamily: mono,
+                      fontSize: 12,
+                      color: "var(--color-forest)",
+                      letterSpacing: ".06em",
+                    }}
+                  >
+                    {PERAN_MAPEL_PUBLIK[c.role] ?? c.role}
                   </div>
                 </div>
-                <div style={{ fontSize: 16, lineHeight: 1.6, color: "var(--color-body)", marginTop: 10 }}>
-                  {c.description}
-                </div>
-                <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 12 }}>
-                  {c.deliveryModel} · {c.weeklyLoad}
-                </div>
+                {c.description && (
+                  <div
+                    style={{
+                      fontSize: 16,
+                      lineHeight: 1.6,
+                      color: "var(--color-body)",
+                      marginTop: 10,
+                    }}
+                  >
+                    {c.description}
+                  </div>
+                )}
+                {(c.deliveryModel || c.weeklyLoad) && (
+                  <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 12 }}>
+                    {[c.deliveryModel, c.weeklyLoad].filter(Boolean).join(" · ")}
+                  </div>
+                )}
               </Card>
             ))}
           </div>
 
-          <h2 style={{ fontSize: 26, marginBottom: 18 }}>Timeline 12 pekan</h2>
-          <div style={{ display: "grid", gap: 8 }}>
-            {weeks.map((w) => (
-              <div
-                key={w.id}
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "90px 1fr 130px",
-                  gap: 16,
-                  alignItems: "center",
-                  padding: "13px 18px",
-                  background: "var(--color-surface)",
-                  border: "1px solid var(--color-line)",
-                  borderRadius: 8,
-                  fontSize: 16,
-                }}
-                className="split"
-              >
-                <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-faint)" }}>
-                  {w.number === 0 ? "PERTEMUAN 0" : `PERTEMUAN ${w.number}`}
-                </div>
-                <div>{w.title}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-forest)" }}>
-                  {WEEK_TYPE_LABEL[w.type]}
-                </div>
+          {pertemuan.length > 0 && (
+            <>
+              <h2 style={{ fontSize: 26, marginBottom: 18 }}>
+                Timeline {pertemuan.length} pertemuan
+                <span
+                  style={{ fontSize: 15, color: "var(--color-faint)", fontWeight: 400, marginLeft: 10 }}
+                >
+                  {inti?.name}
+                </span>
+              </h2>
+              <div style={{ display: "grid", gap: 8 }}>
+                {pertemuan.map((w) => (
+                  <div
+                    key={w.id}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "120px 1fr 130px",
+                      gap: 16,
+                      alignItems: "center",
+                      padding: "13px 18px",
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-line)",
+                      borderRadius: 8,
+                      fontSize: 16,
+                    }}
+                    className="split"
+                  >
+                    <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-faint)" }}>
+                      PERTEMUAN {w.number}
+                    </div>
+                    <div>{w.title}</div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "var(--color-forest)" }}>
+                      {TIPE_PERTEMUAN_PUBLIK[w.type] ?? w.type}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </>
+          )}
         </>
       )}
 
@@ -308,14 +411,38 @@ export function CaraBelajar() {
 
 /* --- /pengajar -------------------------------------------------- */
 
+type PengajarPublikRow = {
+  id: string;
+  name: string;
+  title: string | null;
+  bio: string | null;
+  avatarUrl: string | null;
+};
+
+/** Inisial dari nama, karena avatar belum tentu ada. */
+const inisial = (nama: string) =>
+  nama
+    .replace(/[^p{L}s]/gu, " ")
+    .trim()
+    .split(/s+/)
+    .filter((w) => w.length > 2)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("") || "?";
+
 export function PengajarPublik() {
-  const list = repo.allInstructors();
+  const pengajar = useResource<PengajarPublikRow[]>("/pengajar");
+  const list = pengajar.data ?? [];
   return (
     <PageShell
       eyebrow="Pengajar"
       title="Pendampingan, bukan sekadar penyampaian materi."
       lead="Setiap mata pelajaran diampu pengajar yang mendampingi latihan, memberi umpan balik, dan memantau perkembangan peserta."
     >
+      {pengajar.loading && <div style={{ color: "var(--color-faint)" }}>Memuat pengajar…</div>}
+      {!pengajar.loading && list.length === 0 && (
+        <EmptyState title="Belum ada pengajar yang ditampilkan" />
+      )}
       <div style={{ display: "grid", gap: 16 }}>
         {list.map((p) => (
           <Card key={p.id} padding={26}>
@@ -335,12 +462,12 @@ export function PengajarPublik() {
                   fontSize: 20,
                 }}
               >
-                {p.initials}
+                {inisial(p.name)}
               </div>
               <div>
                 <div style={{ fontFamily: serif, fontSize: 22 }}>{p.name}</div>
                 <div style={{ fontFamily: mono, fontSize: 12, letterSpacing: ".1em", color: "var(--color-faint)", marginTop: 5 }}>
-                  {p.title.toUpperCase()}
+                  {(p.title ?? "Pengajar").toUpperCase()}
                 </div>
                 <div style={{ fontSize: 16.5, lineHeight: 1.65, color: "var(--color-body)", marginTop: 12 }}>{p.bio}</div>
               </div>
@@ -352,10 +479,23 @@ export function PengajarPublik() {
   );
 }
 
+/*
+ * FAQ tetap di kode: naskah editorial, bukan data yang dikelola admin.
+ * Tanpa penyunting FAQ di portal, memindahkannya ke basis data hanya
+ * membuatnya lebih sulit diubah.
+ */
+const FAQ_HALAMAN: { q: string; a: string }[] = [
+  { q: "Apakah program ini untuk pemula?", a: "Ya. Caturwulan 1 dirancang untuk yang belum pernah belajar Bahasa Arab maupun ilmu syar'i secara terstruktur." },
+  { q: "Berapa beban belajar per pekan?", a: "Sekitar 4–6 jam per pekan, sudah termasuk kelas, latihan, worksheet, dan murojaah." },
+  { q: "Apakah harus mengikuti seluruh tahapan?", a: "Tidak. Pendaftaran dilakukan per caturwulan, dan setiap caturwulan adalah unit belajar yang utuh." },
+  { q: "Bagaimana bila saya tertinggal?", a: "Tersedia Jalur Mengejar Ketertinggalan berisi materi esensial, agar yang tertinggal tidak menumpuk." },
+  { q: "Apakah ada evaluasi dan sertifikat?", a: "Ada. Setiap caturwulan diakhiri dengan pertemuan murojaah dan evaluasi akhir." },
+];
+
 /* --- /faq ------------------------------------------------------- */
 
 export function Faq() {
-  const items = repo.faq();
+  const items = FAQ_HALAMAN;
   const [open, setOpen] = useState<number | null>(0);
   return (
     <PageShell eyebrow="FAQ" title="Pertanyaan yang sering diajukan">
@@ -398,134 +538,3 @@ export function Faq() {
     </PageShell>
   );
 }
-
-/* --- /daftar ---------------------------------------------------- */
-
-export function Daftar() {
-  const [sent, setSent] = useState(false);
-  const term = repo.activeTerm;
-
-  function submit(e: FormEvent) {
-    e.preventDefault();
-    // Phase 11 wires this to POST /api/v1/registrations. Enrollment is always
-    // per caturwulan — never an auto-enrol into the next one.
-    setSent(true);
-  }
-
-  if (sent) {
-    return (
-      <PageShell eyebrow="Pendaftaran" title="Pendaftaran Anda tercatat.">
-        <Card tone="mist" padding={28}>
-          <div style={{ fontSize: 18, lineHeight: 1.7, color: "#2f4a3f" }}>
-            Tim akademik akan meninjau pendaftaran Anda untuk <strong>{term.name}</strong>. Setelah disetujui, Anda akan
-            menerima akses orientasi dan dapat memulai Pertemuan 0.
-          </div>
-        </Card>
-        <div style={{ marginTop: 20 }}>
-          <Link to="/" className="btn-sm">
-            Kembali ke beranda
-          </Link>
-        </div>
-      </PageShell>
-    );
-  }
-
-  return (
-    <PageShell
-      eyebrow="Pendaftaran"
-      title={`Daftar ${term.name}`}
-      lead="Pendaftaran dilakukan per caturwulan. Anda tidak sedang mendaftar program bertahun-tahun."
-    >
-      <div className="split" style={{ display: "grid", gridTemplateColumns: "1.1fr .9fr", gap: 32, alignItems: "start" }}>
-        <Card padding={28}>
-          <form onSubmit={submit} style={{ display: "grid", gap: 18 }}>
-            <Field label="Nama lengkap" name="nama" required />
-            <Field label="Email" name="email" type="email" required />
-            <Field label="Nomor WhatsApp" name="wa" required />
-            <div>
-              <label htmlFor="segmen" style={labelStyle}>
-                Latar belakang
-              </label>
-              <select id="segmen" name="segmen" style={inputStyle} defaultValue="Profesional">
-                <option>Profesional Muslim</option>
-                <option>Mahasiswa Muslim</option>
-                <option>Ibu Rumah Tangga / Orang Tua</option>
-                <option>Returning Learner</option>
-              </select>
-            </div>
-            <div>
-              <label htmlFor="motivasi" style={labelStyle}>
-                Apa yang ingin Anda capai di caturwulan ini?
-              </label>
-              <textarea id="motivasi" name="motivasi" rows={4} style={{ ...inputStyle, resize: "vertical" }} />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ justifyContent: "center" }}>
-              Kirim pendaftaran
-            </button>
-            <div style={{ fontSize: 14.5, color: "var(--color-muted)", lineHeight: 1.55 }}>
-              Dengan mendaftar, Anda berkomitmen untuk satu caturwulan. Tidak ada pendaftaran otomatis ke caturwulan
-              berikutnya.
-            </div>
-          </form>
-        </Card>
-
-        <Card tone="sand" padding={0} style={{ overflow: "hidden" }}>
-          <div style={{ padding: "14px 22px", fontFamily: mono, fontSize: 11.5, letterSpacing: ".11em", color: "var(--color-soft)" }}>
-            YANG ANDA DAPATKAN
-          </div>
-          {[
-            "Akses LMS selama caturwulan berjalan",
-            "2 kelas online + 1 tatap muka pekanan",
-            "Worksheet dan umpan balik pengajar",
-            "Majlis Ta'sil bulanan",
-            "Laporan capaian akhir caturwulan",
-            "Syahadah Penyelesaian bila memenuhi syarat",
-          ].map((x) => (
-            <div
-              key={x}
-              style={{
-                padding: "13px 22px",
-                borderTop: "1px solid var(--color-line-soft)",
-                fontSize: 15.5,
-                color: "var(--color-body)",
-              }}
-            >
-              {x}
-            </div>
-          ))}
-        </Card>
-      </div>
-    </PageShell>
-  );
-}
-
-const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 14.5,
-  fontWeight: 600,
-  color: "var(--color-muted)",
-  marginBottom: 7,
-};
-
-const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "11px 13px",
-  border: "1px solid var(--color-line-strong)",
-  borderRadius: 6,
-  background: "var(--color-paper)",
-  fontFamily: "var(--font-sans)",
-  fontSize: 16.5,
-  color: "var(--color-ink)",
-};
-
-function Field({ label, name, type = "text", required }: { label: string; name: string; type?: string; required?: boolean }) {
-  return (
-    <div>
-      <label htmlFor={name} style={labelStyle}>
-        {label}
-      </label>
-      <input id={name} name={name} type={type} required={required} style={inputStyle} />
-    </div>
-  );
-}
-

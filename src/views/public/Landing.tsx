@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router";
-import * as repo from "../../domain/repository";
+import { useResource } from "../../lib/useApi";
 import { roadmap, segmen } from "../../data/tia";
 
 /**
@@ -58,10 +58,44 @@ function SectionHead({
   );
 }
 
+type MapelBeranda = {
+  id: string;
+  name: string;
+  code: string;
+  role: string;
+  description: string | null;
+  deliveryModel: string | null;
+  weeklyLoad: string | null;
+  instructorId: string | null;
+};
+
+type PengajarBeranda = {
+  id: string;
+  name: string;
+  title: string | null;
+  bio: string | null;
+};
+
+type Beranda = {
+  tahapan: { id: string; name: string; title: string | null } | null;
+  subjects: MapelBeranda[];
+  pengajar: PengajarBeranda[];
+};
+
+/** Inisial dari nama, karena avatar belum tentu ada. */
+const inisialNama = (nama: string) =>
+  nama
+    .replace(/[^p{L}s]/gu, " ")
+    .trim()
+    .split(/s+/)
+    .filter((w) => w.length > 2)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join("") || "?";
+
 /* --- 1. Hero ---------------------------------------------------- */
 
-function Hero() {
-  const mapel = repo.allCourses();
+function Hero({ mapel }: { mapel: MapelBeranda[] }) {
   return (
     <section
       className="shell split"
@@ -396,8 +430,7 @@ function MengapaCaturwulan() {
 
 /* --- 3. Fokus Caturwulan 1 --------------------------------------- */
 
-function FokusCawu1() {
-  const mapel = repo.allCourses();
+function FokusCawu1({ mapel, pengajar }: { mapel: MapelBeranda[]; pengajar: PengajarBeranda[] }) {
   const struktur = [
     { p: "PERTEMUAN 0", t: "Orientasi", d: "Mengenal ritme belajar, menyiapkan target, dan memilih pengingat." },
     { p: "PERTEMUAN 1–10", t: "Pembelajaran inti", d: "Materi, latihan, worksheet, dan murojaah setiap pekan." },
@@ -416,7 +449,7 @@ function FokusCawu1() {
       {/* Tiga mata pelajaran sebagai baris bernomor, bukan tiga kartu seragam. */}
       <div style={{ border: "1px solid var(--color-line)", borderRadius: 12, overflow: "hidden", background: "var(--color-surface)" }}>
         {mapel.map((m, i) => {
-          const pengajar = repo.instructorById(m.instructorId);
+          const guru = pengajar.find((g) => g.id === m.instructorId);
           return (
             <div
               key={m.id}
@@ -452,7 +485,7 @@ function FokusCawu1() {
               <div style={{ fontSize: 14.5, color: "var(--color-muted)", lineHeight: 1.6 }}>
                 <div>{m.deliveryModel}</div>
                 <div style={{ marginTop: 8, color: "var(--color-faint)" }}>{m.weeklyLoad}</div>
-                {pengajar && <div style={{ marginTop: 8 }}>{pengajar.name}</div>}
+                {guru && <div style={{ marginTop: 8 }}>{guru.name}</div>}
               </div>
             </div>
           );
@@ -790,8 +823,7 @@ function UntukSiapa() {
 
 /* --- 9. Pengajar --------------------------------------------------- */
 
-function Pengajar() {
-  const list = repo.allInstructors();
+function Pengajar({ list }: { list: PengajarBeranda[] }) {
   return (
     <section style={{ borderTop: "1px solid var(--color-line)", background: "var(--color-surface)" }}>
       <div className="shell" style={{ paddingBlock: 76 }}>
@@ -820,11 +852,11 @@ function Pengajar() {
                   fontSize: 17,
                 }}
               >
-                {p.initials}
+                {inisialNama(p.name)}
               </div>
               <div style={{ fontSize: 16.5, fontWeight: 700, marginTop: 16 }}>{p.name}</div>
               <div style={{ fontFamily: mono, fontSize: 11.5, letterSpacing: ".1em", color: "var(--color-faint)", marginTop: 6 }}>
-                {p.title.toUpperCase()}
+                {(p.title ?? "Pengajar").toUpperCase()}
               </div>
               <div style={{ fontSize: 15.5, lineHeight: 1.6, color: "var(--color-body)", marginTop: 14 }}>{p.bio}</div>
             </div>
@@ -837,8 +869,27 @@ function Pengajar() {
 
 /* --- 10. FAQ ------------------------------------------------------- */
 
+const FAQ_BERANDA: { q: string; a: string }[] = [
+  {
+    q: "Apakah program ini untuk pemula?",
+    a: "Ya. Caturwulan 1 dirancang untuk yang belum pernah belajar Bahasa Arab maupun ilmu syar'i secara terstruktur.",
+  },
+  {
+    q: "Berapa beban belajar per pekan?",
+    a: "Sekitar 4–6 jam per pekan, sudah termasuk kelas, latihan, worksheet, dan murojaah. Beban ini dirancang realistis bagi orang dewasa yang bekerja atau kuliah.",
+  },
+  {
+    q: "Apakah harus mengikuti seluruh tahapan?",
+    a: "Tidak. Pendaftaran dilakukan per caturwulan, dan setiap caturwulan adalah unit belajar yang utuh.",
+  },
+  {
+    q: "Apakah ada evaluasi dan sertifikat?",
+    a: "Ada. Setiap caturwulan diakhiri dengan pertemuan murojaah dan evaluasi akhir. Peserta yang memenuhi syarat menerima laporan capaian dan Syahadah Penyelesaian.",
+  },
+];
+
 function FaqSection() {
-  const items = repo.faq();
+  const items = FAQ_BERANDA;
   const [open, setOpen] = useState<number | null>(0);
   return (
     <section className="shell" style={{ paddingBlock: 80 }}>
@@ -964,18 +1015,22 @@ function CtaPendaftaran() {
 /* --- page --------------------------------------------------------- */
 
 export default function Landing() {
+  const b = useResource<Beranda>("/beranda");
+  const mapel = b.data?.subjects ?? [];
+  const pengajar = b.data?.pengajar ?? [];
+
   return (
     <>
-      <Hero />
+      <Hero mapel={mapel} />
       <MengapaCaturwulan />
-      <FokusCawu1 />
+      <FokusCawu1 mapel={mapel} pengajar={pengajar} />
       <CaraBelajar />
       <BahasaArabHybrid />
       <AqidahMajlis />
       <MateriLMS />
       <RitmeSatuPekan />
       <UntukSiapa />
-      <Pengajar />
+      <Pengajar list={pengajar} />
       <FaqSection />
       <CtaPendaftaran />
     </>

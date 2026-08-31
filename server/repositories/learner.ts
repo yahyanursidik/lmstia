@@ -10,6 +10,33 @@ export const findUserByEmail = (email: string) =>
 export const listInstructors = () =>
   db.select().from(s.users).where(eq(s.users.role, "instructor"));
 
+/**
+ * Pengajar untuk halaman publik.
+ *
+ * Kolom dipilih eksplisit dan sengaja TIDAK memuat email, nomor WhatsApp,
+ * domisili, atau apa pun yang bersifat pribadi — endpoint ini terbuka tanpa
+ * autentikasi, jadi apa pun yang masuk ke sini terbaca siapa saja.
+ */
+export const listInstructorsPublic = () =>
+  db
+    .select({
+      id: s.users.id,
+      name: s.users.name,
+      title: s.users.title,
+      bio: s.users.bio,
+      avatarUrl: s.users.avatarUrl,
+    })
+    .from(s.users)
+    .where(
+      and(
+        eq(s.users.role, "instructor"),
+        eq(s.users.accountStatus, "aktif"),
+        /* Akun demo tidak pantas tampil sebagai pengajar di halaman publik. */
+        eq(s.users.isDemo, false),
+      ),
+    )
+    .orderBy(asc(s.users.name));
+
 export const findEnrollment = (userId: string, tahapanId: string) =>
   db.query.enrollments.findFirst({
     where: and(eq(s.enrollments.userId, userId), eq(s.enrollments.tahapanId, tahapanId)),
@@ -200,6 +227,8 @@ const kolomPengguna = {
   education: s.users.education,
   accountStatus: s.users.accountStatus,
   segment: s.users.segment,
+  title: s.users.title,
+  bio: s.users.bio,
   avatarUrl: s.users.avatarUrl,
   isDemo: s.users.isDemo,
   lastLoginAt: s.users.lastLoginAt,
