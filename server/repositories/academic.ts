@@ -71,6 +71,31 @@ export const listSubjects = (tahapanId: string) =>
     .where(eq(s.subjects.tahapanId, tahapanId))
     .orderBy(asc(s.subjects.sequence));
 
+/**
+ * Mata pelajaran seluruh tahapan dalam satu program, beserta nama tahapan dan
+ * pengajarnya. Dipakai halaman penugasan pengajar, yang bekerja pada tingkat
+ * program dan bukan satu tahapan saja.
+ */
+export const listSubjectsByProgram = (programId: string) =>
+  db
+    .select({
+      id: s.subjects.id,
+      tahapanId: s.subjects.tahapanId,
+      tahapanName: s.tahapan.name,
+      code: s.subjects.code,
+      name: s.subjects.name,
+      slug: s.subjects.slug,
+      role: s.subjects.role,
+      sequence: s.subjects.sequence,
+      instructorId: s.subjects.instructorId,
+      instructorName: s.users.name,
+    })
+    .from(s.subjects)
+    .innerJoin(s.tahapan, eq(s.tahapan.id, s.subjects.tahapanId))
+    .leftJoin(s.users, eq(s.users.id, s.subjects.instructorId))
+    .where(eq(s.tahapan.programId, programId))
+    .orderBy(asc(s.tahapan.sequence), asc(s.subjects.sequence));
+
 export const findSubject = (id: string) => db.query.subjects.findFirst({ where: eq(s.subjects.id, id) });
 
 export const findSubjectBySlug = (slug: string) =>

@@ -726,15 +726,22 @@ export const registrations = pgTable(
 );
 
 /**
- * Pembatas laju percobaan masuk.
+* Pembatas laju untuk jalur publik: percobaan masuk dan kiriman pendaftaran.
+ *
+ * Nama tabelnya `login_attempts` karena mulanya hanya melayani halaman masuk.
+ * Namanya kini terlalu sempit, tetapi mengganti nama tabel lewat drizzle-kit
+ * menuntut jawaban interaktif rename-atau-buat-ulang; menyunting snapshot
+ * secara manual berisiko merusak rantai migrasi demi perbaikan kosmetik.
+ * Awalan pada `key` yang memisahkan embernya, bukan nama tabel.
  *
  * Sebelumnya disimpan di memori proses, yang tidak berarti apa-apa di
  * lingkungan serverless: tiap permintaan dapat mendarat pada instance baru
  * dengan hitungan kosong. Disimpan di basis data, hitungannya dibagi oleh
  * seluruh instance.
  *
- * `key` memuat dua bentuk: `ip:<alamat>` membatasi satu sumber yang mencoba
- * banyak email, dan `akun:<alamat>:<email>` membatasi tebakan pada satu akun.
+ * `key` diawali nama ember lalu kuncinya, mis. `masuk:ip:<alamat>` atau
+ * `daftar:ip:<alamat>`, sehingga satu tabel melayani beberapa jalur tanpa
+ * penghitungnya saling bercampur.
  */
 export const loginAttempts = pgTable("login_attempts", {
   key: text("key").primaryKey(),

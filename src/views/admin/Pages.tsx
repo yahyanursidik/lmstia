@@ -14,6 +14,9 @@ import {
   type Column,
 } from "../../components/ui";
 import { Area, Field, FormPanel, Select, Text } from "../../components/form";
+import { Combobox } from "../../components/Combobox";
+import { useAuth } from "../../lib/auth";
+import SoalEditor from "./SoalEditor";
 
 /**
  * Halaman admin pendukung: worksheet, kehadiran, nilai, pengajar,
@@ -57,8 +60,6 @@ type BarisHadir = {
 
 type Pengajar = { id: string; name: string; email: string; title: string | null; bio: string | null };
 
-type Mapel = { id: string; name: string; code: string; role: string; instructorId: string | null };
-
 type PengumumanRow = {
   id: string;
   tahapanId: string | null;
@@ -68,16 +69,6 @@ type PengumumanRow = {
   status: "draft" | "review" | "published";
   publishedAt: string | null;
   createdAt: string;
-};
-
-type Asesmen = {
-  id: string;
-  title: string;
-  kind: string;
-  kkm: number;
-  publishStatus: string;
-  meetingId: string | null;
-  subjectId: string | null;
 };
 
 const ENGAGEMENT_LABEL: Record<string, string> = {
@@ -103,65 +94,368 @@ function Shell({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-/* --- Worksheet & Kuis (daftar asesmen) ----------------------------- */
+/* --- Worksheet & Latihan -------------------------------------------- */
 
+type AsesmenRow = {
+  id: string;
+  kind: string;
+  title: string;
+  description: string | null;
+  kkm: number;
+  durationMinutes: number;
+  publishStatus: string;
+  programId: string | null;
+  tahapanId: string | null;
+  subjectId: string | null;
+  meetingId: string | null;
+  meetingNumber: number | null;
+  meetingTitle: string | null;
+  subjectName: string | null;
+  tahapanName: string | null;
+  programName: string | null;
+  /* Rantai leluhur yang sudah diselesaikan server — dipakai menyaring latihan
+     yang menempel di pertemuan, bukan langsung di mata pelajaran. */
+  resolvedSubjectId: string | null;
+};
+
+type TahapanRow = { id: string; name: string; programId: string; status: string };
+type MapelRow = { id: string; name: string; code: string };
+type PertemuanRow = { id: string; number: number; title: string };
+
+/**
+ * Worksheet & Latihan.
+ *
+ * Penelusurannya selalu mulai dari Program, lalu Caturwulan, lalu Mata
+ * Pelajaran dan Pertemuan — sama seperti Kuis & Ujian. Tanpa itu, begitu
+ * programnya banyak, daftar asesmen menjadi tidak mungkin ditelusuri.
+ */
 export function Worksheet() {
-  const asesmen = useResource<Asesmen[]>("/admin/assessments");
+  const { user } = useAuth();
+  const canWrite = user?.role === "academic_admin" || user?.role === "super_admin";
 
-  const rows = (asesmen.data ?? []).filter((a) => a.kind === "latihan" || a.kind === "kuis");
+  const programs = useResource<{ id: string; name: string; status: string }[]>("/admin/programs");
+  const semuaTahapan = useResource<TahapanRow[]>("/admin/tahapan");
 
-  const kolom: Column<Asesmen>[] = [
-    {
-      key: "judul",
-      head: "ASESMEN",
-      width: "2fr",
-      render: (a) => (
-        <div>
-          <div style={{ fontWeight: 700 }}>{a.title}</div>
-          <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
-            KKM {a.kkm}
-          </div>
-        </div>
-      ),
-    },
-    {
-      key: "jenis",
-      head: "JENIS",
-      width: "1fr",
-      render: (a) => <span style={{ fontSize: 14.5 }}>{a.kind}</span>,
-    },
-    {
-      key: "status",
-      head: "STATUS",
-      width: "1fr",
-      render: (a) => (
-        <Badge
-          bg={a.publishStatus === "published" ? "#e4ede4" : "#ece9e3"}
-          fg={a.publishStatus === "published" ? "#2f5638" : "#6b6459"}
-        >
-          {STATUS_TERBIT[a.publishStatus] ?? a.publishStatus}
-        </Badge>
-      ),
-    },
-  ];
+  const [programId, setProgramId] = useState("");
+  const [tahapanId, setTahapanId] = useState("");
+  const [subjectId, setSubjectId] = useState("");
+  const [meetingId, setMeetingId] = useState("");
+  const [soalUntuk, setSoalUntuk] = useState<string | null>(null);
+  const [draf, setDraf] = useState<Partial<AsesmenRow> | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  /* Program aktif dan caturwulan berjalan dipilih otomatis sebagai titik awal. */
+  const programAktif =
+    programId || programs.data?.find((p) => p.status === "active")?.id || programs.data?.[0]?.id || "";
+  const tahapanProgram = (semuaTahapan.data ?? []).filter((t) => t.programId === programAktif);
+  const tahapanAktif =
+    tahapanId && tahapanProgram.some((t) => t.id === tahapanId)
+      ? tahapanId
+      : tahapanProgram.find((t) => t.status === "running")?.id || tahapanProgram[0]?.id || "";
+
+  const mapel = useResource<MapelRow[]>(tahapanAktif ? `/admin/subjects?tahapanId=${tahapanAktif}` : null);
+  const pertemuan = useResource<PertemuanRow[]>(
+    subjectId ? `/admin/meetings?subjectId=${subjectId}` : null,
+  );
+  const asesmen = useResource<AsesmenRow[]>(
+    tahapanAktif ? `/admin/assessments?tahapanId=${tahapanAktif}` : null,
+  );
+
+  /* Halaman ini khusus latihan; kuis dan ujian punya halamannya sendiri. */
+  const rows = (asesmen.data ?? [])
+    .filter((a) => a.kind === "latihan")
+    .filter((a) => !subjectId || a.subjectId === subjectId || a.resolvedSubjectId === subjectId)
+    .filter((a) => !meetingId || a.meetingId === meetingId);
+
+  async function simpan() {
+    if (!draf) return;
+    setBusy(true);
+    const body: Record<string, unknown> = {
+      kind: "latihan",
+      title: draf.title,
+      description: draf.description || null,
+      kkm: draf.kkm ?? 70,
+      durationMinutes: draf.durationMinutes ?? 0,
+      publishStatus: draf.publishStatus ?? "draft",
+    };
+    /* Tepat satu induk — dijaga Zod dan CHECK di basis data. */
+    if (meetingId) body.meetingId = meetingId;
+    else if (subjectId) body.subjectId = subjectId;
+    else body.tahapanId = tahapanAktif;
+
+    const m = await mutate(() =>
+      draf.id
+        ? api.patch(`/admin/assessments/${draf.id}`, {
+            title: body.title,
+            description: body.description,
+            kkm: body.kkm,
+            durationMinutes: body.durationMinutes,
+            publishStatus: body.publishStatus,
+          })
+        : api.post("/admin/assessments", body),
+    );
+    setBusy(false);
+    if (m) return setErr(m);
+    setErr(null);
+    setDraf(null);
+    asesmen.reload();
+  }
+
+  async function hapus(id: string) {
+    const m = await mutate(() => api.del(`/admin/assessments/${id}`));
+    if (m) return setErr(m);
+    setErr(null);
+    asesmen.reload();
+  }
 
   return (
     <Shell>
       <PageHeader
         eyebrow="Penilaian"
         title="Worksheet & Latihan"
-        lead="Seluruh latihan dan kuis yang terpasang pada kurikulum."
+        lead="Latihan yang menempel pada caturwulan, mata pelajaran, atau pertemuan tertentu."
         actions={
-          <Link to="/admin/kuis" className="btn-solid-sm">
-            Kelola di Kuis &amp; Ujian →
-          </Link>
+          canWrite && !draf ? (
+            <button
+              type="button"
+              className="btn-solid-sm"
+              onClick={() =>
+                setDraf({ title: "", description: "", kkm: 70, durationMinutes: 0, publishStatus: "draft" })
+              }
+              disabled={!tahapanAktif}
+            >
+              + Latihan baru
+            </button>
+          ) : undefined
         }
       />
+
+      {/* --- rantai penelusuran --- */}
+      <Card padding={18} style={{ marginBottom: 20 }}>
+        <div
+          style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))", gap: 14 }}
+        >
+          <div>
+            <label className="eyebrow" style={{ display: "block", marginBottom: 7 }}>
+              Program
+            </label>
+            <Combobox
+              value={programAktif}
+              onChange={(v) => {
+                setProgramId(v);
+                setTahapanId("");
+                setSubjectId("");
+                setMeetingId("");
+              }}
+              options={(programs.data ?? []).map((p) => ({ value: p.id, label: p.name }))}
+              loading={programs.loading}
+              ariaLabel="Program"
+            />
+          </div>
+          <div>
+            <label className="eyebrow" style={{ display: "block", marginBottom: 7 }}>
+              Caturwulan
+            </label>
+            <Combobox
+              value={tahapanAktif}
+              onChange={(v) => {
+                setTahapanId(v);
+                setSubjectId("");
+                setMeetingId("");
+              }}
+              options={tahapanProgram.map((t) => ({
+                value: t.id,
+                label: t.name,
+                hint: t.status === "running" ? "berjalan" : t.status,
+              }))}
+              emptyText="Program ini belum punya caturwulan"
+              ariaLabel="Caturwulan"
+            />
+          </div>
+          <div>
+            <label className="eyebrow" style={{ display: "block", marginBottom: 7 }}>
+              Mata pelajaran
+            </label>
+            <Combobox
+              value={subjectId}
+              onChange={(v) => {
+                setSubjectId(v);
+                setMeetingId("");
+              }}
+              options={[
+                { value: "", label: "Semua mata pelajaran" },
+                ...(mapel.data ?? []).map((m) => ({ value: m.id, label: m.name, hint: m.code })),
+              ]}
+              loading={mapel.loading}
+              ariaLabel="Mata pelajaran"
+            />
+          </div>
+          <div>
+            <label className="eyebrow" style={{ display: "block", marginBottom: 7 }}>
+              Pertemuan
+            </label>
+            <Combobox
+              value={meetingId}
+              onChange={setMeetingId}
+              options={[
+                { value: "", label: "Semua pertemuan" },
+                ...(pertemuan.data ?? []).map((m) => ({
+                  value: m.id,
+                  label: `Pertemuan ${m.number}: ${m.title}`,
+                })),
+              ]}
+              disabled={!subjectId}
+              emptyText="Pilih mata pelajaran lebih dulu"
+              ariaLabel="Pertemuan"
+            />
+          </div>
+        </div>
+        <div style={{ fontSize: 13.5, color: "var(--color-faint)", marginTop: 12, lineHeight: 1.6 }}>
+          Latihan baru menempel pada tingkat terdalam yang Anda pilih: pertemuan bila dipilih, bila
+          tidak mata pelajaran, bila tidak caturwulan.
+        </div>
+      </Card>
+
+      {err && !draf && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 16,
+            padding: "12px 14px",
+            background: "#f7e6e0",
+            border: "1px solid #e8cdc3",
+            borderRadius: 8,
+            fontSize: 15,
+            color: "#8d4632",
+          }}
+        >
+          {err}
+        </div>
+      )}
+
+      {draf && (
+        <FormPanel
+          title={draf.id ? `Ubah — ${draf.title}` : "Latihan baru"}
+          error={err}
+          busy={busy}
+          onSubmit={simpan}
+          onCancel={() => {
+            setDraf(null);
+            setErr(null);
+          }}
+        >
+          <Field label="Judul" span>
+            <Text value={draf.title ?? ""} onChange={(v) => setDraf({ ...draf, title: v })} />
+          </Field>
+          <Field label="Keterangan" span>
+            <Area
+              value={draf.description ?? ""}
+              onChange={(v) => setDraf({ ...draf, description: v })}
+            />
+          </Field>
+          <Field label="KKM" hint="Nilai minimal 0–100.">
+            <Text
+              value={String(draf.kkm ?? 70)}
+              onChange={(v) => setDraf({ ...draf, kkm: Number(v.replace(/\D/g, "")) || 0 })}
+            />
+          </Field>
+          <Field label="Durasi (menit)" hint="0 berarti tanpa batas waktu.">
+            <Text
+              value={String(draf.durationMinutes ?? 0)}
+              onChange={(v) => setDraf({ ...draf, durationMinutes: Number(v.replace(/\D/g, "")) || 0 })}
+            />
+          </Field>
+          <Field label="Status">
+            <Select
+              value={draf.publishStatus ?? "draft"}
+              onChange={(v) => setDraf({ ...draf, publishStatus: v })}
+              options={Object.entries(STATUS_TERBIT).map(([value, label]) => ({ value, label }))}
+            />
+          </Field>
+        </FormPanel>
+      )}
+
       <Card padding={20}>
-        {asesmen.loading && <div style={{ color: "var(--color-faint)" }}>Memuat…</div>}
+        {asesmen.loading && <div style={{ color: "var(--color-faint)" }}>Memuat latihan…</div>}
         {asesmen.error && <div role="alert">{asesmen.error}</div>}
-        {asesmen.data && (
-          <DataTable columns={kolom} rows={rows} empty="Belum ada worksheet atau latihan" />
+        {!tahapanAktif && !asesmen.loading && (
+          <EmptyState title="Pilih program dan caturwulan lebih dulu" />
+        )}
+        {tahapanAktif && asesmen.data && rows.length === 0 && (
+          <EmptyState
+            title="Belum ada latihan pada pilihan ini"
+            hint={canWrite ? "Buat latihan baru lewat tombol di atas." : undefined}
+          />
+        )}
+
+        {rows.length > 0 && (
+          <div style={{ display: "grid", gap: 12 }}>
+            {rows.map((a) => (
+              <div
+                key={a.id}
+                style={{ border: "1px solid var(--color-line)", borderRadius: 10, padding: 16 }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 14,
+                    flexWrap: "wrap",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div className="eyebrow" style={{ marginBottom: 5 }}>
+                      {[a.subjectName, a.meetingNumber !== null ? `Pertemuan ${a.meetingNumber}` : null]
+                        .filter(Boolean)
+                        .join(" · ") || a.tahapanName}
+                    </div>
+                    <div style={{ fontFamily: serif, fontSize: 19 }}>{a.title}</div>
+                    <div
+                      style={{
+                        fontFamily: mono,
+                        fontSize: 12.5,
+                        color: "var(--color-faint)",
+                        marginTop: 6,
+                      }}
+                    >
+                      KKM {a.kkm}
+                      {a.durationMinutes ? ` · ${a.durationMinutes} menit` : " · tanpa batas waktu"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+                    <Badge
+                      bg={a.publishStatus === "published" ? "#e4ede4" : "#ece9e3"}
+                      fg={a.publishStatus === "published" ? "#2f5638" : "#6b6459"}
+                    >
+                      {STATUS_TERBIT[a.publishStatus] ?? a.publishStatus}
+                    </Badge>
+                    <button
+                      type="button"
+                      className="btn-sm"
+                      onClick={() => setSoalUntuk(soalUntuk === a.id ? null : a.id)}
+                    >
+                      {soalUntuk === a.id ? "Tutup soal" : "Soal"}
+                    </button>
+                    {canWrite && (
+                      <>
+                        <button type="button" className="btn-sm" onClick={() => setDraf({ ...a })}>
+                          Ubah
+                        </button>
+                        <HapusDuaLangkah onConfirm={() => hapus(a.id)} />
+                      </>
+                    )}
+                  </div>
+                </div>
+                {soalUntuk === a.id && (
+                  <div style={{ marginTop: 16 }}>
+                    <SoalEditor assessmentId={a.id} canWrite={canWrite} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
       </Card>
     </Shell>
@@ -314,32 +608,174 @@ export function Nilai() {
 
 /* --- Pengajar ------------------------------------------------------- */
 
+type MapelProgram = {
+  id: string;
+  tahapanId: string;
+  tahapanName: string;
+  code: string;
+  name: string;
+  role: string;
+  instructorId: string | null;
+  instructorName: string | null;
+};
+
+const PERAN_MAPEL: Record<string, string> = {
+  INTENSIVE: "Intensif",
+  FOUNDATION: "Fondasi",
+  COMPANION: "Pendamping",
+};
+
 export function PengajarAdmin() {
+  const programs = useResource<{ id: string; name: string; status: string }[]>("/admin/programs");
   const pengajar = useResource<Pengajar[]>("/admin/instructors");
-  const mapel = useResource<Mapel[]>("/admin/subjects");
+  const [programId, setProgramId] = useState("");
+  const [sibuk, setSibuk] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+
+  /* Program aktif dipilih otomatis; penugasan hampir selalu soal yang berjalan. */
+  const aktif = programId || programs.data?.find((p) => p.status === "active")?.id || programs.data?.[0]?.id || "";
+  const mapel = useResource<MapelProgram[]>(aktif ? `/admin/subjects?programId=${aktif}` : null);
+
+  async function tugaskan(subjectId: string, instructorId: string) {
+    setSibuk(subjectId);
+    const pesan = await mutate(() =>
+      api.patch(`/admin/subjects/${subjectId}`, { instructorId: instructorId || null }),
+    );
+    setSibuk(null);
+    if (pesan) return setErr(pesan);
+    setErr(null);
+    mapel.reload();
+    pengajar.reload();
+  }
+
+  const opsiPengajar = [
+    { value: "", label: "— belum ditugaskan —" },
+    ...(pengajar.data ?? []).map((p) => ({ value: p.id, label: p.name, hint: p.title ?? undefined })),
+  ];
+
+  const belumDitugaskan = (mapel.data ?? []).filter((m) => !m.instructorId).length;
 
   return (
     <Shell>
       <PageHeader
         eyebrow="Orang"
         title="Pengajar"
-        lead="Pengampu mata pelajaran. Profil dan jabatan disunting di Manajemen Pengguna."
+        lead="Tugaskan pengajar ke mata pelajaran dalam satu program. Profil dan jabatan disunting di Manajemen Pengguna."
         actions={
-          <Link to="/admin/pengguna?role=instructor" className="btn-sm">
+          <Link to="/admin/pengguna" className="btn-sm">
             Kelola pengguna →
           </Link>
         }
       />
 
-      {pengajar.loading && <div style={{ color: "var(--color-faint)" }}>Memuat pengajar…</div>}
-      {pengajar.error && <div role="alert">{pengajar.error}</div>}
+      {err && (
+        <div
+          role="alert"
+          style={{
+            marginBottom: 16,
+            padding: "12px 14px",
+            background: "#f7e6e0",
+            border: "1px solid #e8cdc3",
+            borderRadius: 8,
+            fontSize: 15,
+            color: "#8d4632",
+          }}
+        >
+          {err}
+        </div>
+      )}
 
+      <Card padding={18} style={{ marginBottom: 20 }}>
+        <label className="eyebrow" style={{ display: "block", marginBottom: 7 }}>
+          Program
+        </label>
+        <div style={{ maxWidth: 420 }}>
+          <Combobox
+            value={aktif}
+            onChange={setProgramId}
+            options={(programs.data ?? []).map((p) => ({
+              value: p.id,
+              label: p.name,
+              hint: p.status === "active" ? "aktif" : p.status,
+            }))}
+            loading={programs.loading}
+            ariaLabel="Program"
+          />
+        </div>
+        {belumDitugaskan > 0 && (
+          <div style={{ fontSize: 14.5, color: "#8a6a25", marginTop: 12 }}>
+            {belumDitugaskan} mata pelajaran belum punya pengajar.
+          </div>
+        )}
+      </Card>
+
+      {/* --- penugasan per mata pelajaran --- */}
+      <Card padding={20} style={{ marginBottom: 22 }}>
+        <CardTitle aside={`${(mapel.data ?? []).length} mata pelajaran`}>
+          Penugasan mata pelajaran
+        </CardTitle>
+
+        {mapel.loading && (
+          <div style={{ color: "var(--color-faint)", marginTop: 12 }}>Memuat mata pelajaran…</div>
+        )}
+        {mapel.error && <div role="alert">{mapel.error}</div>}
+        {mapel.data && mapel.data.length === 0 && (
+          <EmptyState
+            title="Program ini belum punya mata pelajaran"
+            hint="Tambahkan tahapan dan mata pelajaran di Portofolio Kurikulum."
+          />
+        )}
+
+        {mapel.data && mapel.data.length > 0 && (
+          <div style={{ display: "grid", gap: 12, marginTop: 14 }}>
+            {mapel.data.map((m) => (
+              <div
+                key={m.id}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1.4fr 1fr",
+                  gap: 16,
+                  alignItems: "center",
+                  border: "1px solid var(--color-line)",
+                  borderRadius: 9,
+                  padding: "13px 15px",
+                }}
+                className="split"
+              >
+                <div style={{ minWidth: 0 }}>
+                  <div className="eyebrow" style={{ marginBottom: 4 }}>
+                    {m.tahapanName} · {PERAN_MAPEL[m.role] ?? m.role}
+                  </div>
+                  <div style={{ fontWeight: 600 }}>
+                    {m.name}{" "}
+                    <span style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
+                      {m.code}
+                    </span>
+                  </div>
+                </div>
+                <div style={{ opacity: sibuk === m.id ? 0.55 : 1 }}>
+                  <Combobox
+                    value={m.instructorId ?? ""}
+                    onChange={(v) => tugaskan(m.id, v)}
+                    options={opsiPengajar}
+                    disabled={sibuk === m.id}
+                    ariaLabel={`Pengajar untuk ${m.name}`}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* --- ringkasan per pengajar --- */}
+      <CardTitle>Pengajar</CardTitle>
+      {pengajar.loading && <div style={{ color: "var(--color-faint)" }}>Memuat pengajar…</div>}
       {pengajar.data && pengajar.data.length === 0 && (
         <EmptyState title="Belum ada pengajar" hint="Tambahkan pengguna berperan Pengajar." />
       )}
-
       {pengajar.data && pengajar.data.length > 0 && (
-        <div style={{ display: "grid", gap: 14 }}>
+        <div style={{ display: "grid", gap: 14, marginTop: 14 }}>
           {pengajar.data.map((p) => {
             const diampu = (mapel.data ?? []).filter((m) => m.instructorId === p.id);
             return (

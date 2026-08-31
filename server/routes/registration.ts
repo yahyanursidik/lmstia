@@ -4,6 +4,7 @@ import { ADMIN, requireRole } from "../middleware/auth";
 import * as reg from "../repositories/registration";
 import * as learner from "../repositories/learner";
 import { uuidParam } from "../validators/schemas";
+import { alamatPemanggil, catatPercobaanDaftar, sapuBerkala } from "../services/ratelimit";
 import {
   formBody,
   formPatchBody,
@@ -68,6 +69,26 @@ daftarRoutes.post("/:slug", async (c) => {
 
   const keadaan = sedangDibuka(form);
   if (!keadaan.buka) return tutup(c, keadaan.alasan);
+
+  /*
+   * Dibatasi setelah formulir terbukti ada dan sedang dibuka, supaya penghitung
+   * tidak terisi oleh permintaan yang memang akan ditolak karena alasan lain.
+   */
+  const ip = alamatPemanggil((n) => c.req.header(n));
+  await sapuBerkala();
+  const batas = await catatPercobaanDaftar(ip, c.req.param("slug"));
+  if (batas.ditolak) {
+    return c.json(
+      {
+        error: {
+          code: "RATE_LIMITED",
+          message: "Terlalu banyak pendaftaran dari perangkat ini. Coba lagi beberapa saat lagi.",
+        },
+      },
+      429,
+      { "Retry-After": String(batas.sisaDetik) },
+    );
+  }
 
   const p = registrationBody.safeParse(await c.req.json().catch(() => ({})));
   if (!p.success) return badRequest(c, p.error);

@@ -184,9 +184,9 @@ Rate limit login disimpan di tabel `login_attempts`, bukan di memori proses,
 sehingga hitungannya dibagi seluruh instance serverless. Ada dua penghitung:
 per alamat IP (30 percobaan / 5 menit) dan per akun dari alamat itu (8).
 
-Formulir pendaftaran publik belum punya pembatas laju. Indeks unik mencegah
-satu email mendaftar dua kali, tetapi tidak mencegah pengiriman massal dengan
-email berbeda.
+Formulir pendaftaran publik memakai pembatas yang sama: 12 kiriman per jam
+per alamat IP, dan 5 per formulir. Jendelanya lebih panjang daripada halaman
+masuk karena mendaftar adalah tindakan yang jarang.
 
 ## Perintah lain
 

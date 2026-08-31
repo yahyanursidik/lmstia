@@ -126,8 +126,18 @@ contentRoutes.get("/tahapan/:id/tree", async (c) => {
 
 contentRoutes.get("/subjects", async (c) => {
   const tahapanId = c.req.query("tahapanId");
-  if (!tahapanId) return c.json({ data: [] });
-  return c.json({ data: await academic.listSubjects(tahapanId) });
+  if (tahapanId) return c.json({ data: await academic.listSubjects(tahapanId) });
+
+  /*
+   * Penyaring per program dilayani terpisah karena penugasan pengajar bekerja
+   * pada tingkat program, bukan satu tahapan. Tanpa penyaring apa pun,
+   * jawabannya kosong — daftar tanpa konteks tidak berguna dan mudah
+   * disalahartikan sebagai "belum ada mata pelajaran".
+   */
+  const programId = c.req.query("programId");
+  if (programId) return c.json({ data: await academic.listSubjectsByProgram(programId) });
+
+  return c.json({ data: [] });
 });
 
 contentRoutes.post("/subjects", canWrite, async (c) => {
