@@ -220,6 +220,25 @@ Dua keputusan yang memengaruhi angkanya:
 Halaman ini juga mengunduh CSV berisi seluruh baris, dengan BOM UTF-8 agar
 Excel membacanya dengan benar.
 
+
+### Merotasi kredensial basis data
+
+Rotasi dilakukan di Neon Console lebih dulu:
+**Roles → neondb_owner → Reset password**. Salin connection string barunya,
+lalu:
+
+```bash
+DATABASE_URL_BARU='postgresql://...' npm run db:rotate
+```
+
+Nilainya dibaca dari environment, bukan argumen, supaya tidak masuk riwayat
+shell. Skrip menguji koneksi **sebelum** menimpa `.env`, menyimpan cadangan
+ke `.env.bak`, dan tidak pernah mencetak kata sandinya kembali.
+
+Setelah itu perbarui `DATABASE_URL` di **Netlify → Environment variables**
+lalu deploy ulang. Sampai langkah itu selesai, situs produksi gagal
+menyambung — kredensial lama sudah tidak berlaku begitu direset di Neon.
+
 ### Batasan yang perlu diketahui
 
 Rate limit login disimpan di tabel `login_attempts`, bukan di memori proses,

@@ -18,7 +18,8 @@
     "db:reset": "tsx server/db/reset.ts",
     "db:admin": "tsx server/db/create-admin.ts",
     "db:purge-demo": "tsx server/db/purge-demo.ts",
-    "db:rename-pekan": "tsx server/db/rename-pekan.ts"
+    "db:rename-pekan": "tsx server/db/rename-pekan.ts",
+    "db:rotate": "tsx server/db/rotate-credential.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
