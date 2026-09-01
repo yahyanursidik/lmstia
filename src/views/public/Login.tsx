@@ -3,19 +3,6 @@ import { Link, useLocation, useNavigate } from "react-router";
 import { ApiError } from "../../lib/api";
 import { homeFor, useAuth } from "../../lib/auth";
 
-const mono = "var(--font-mono)";
-const serif = "var(--font-serif)";
-
-/** Password shared by every demo account; seeded by `npm run db:accounts`. */
-const DEMO_PASSWORD = "TiaDemo#2026";
-
-const DEMO_ACCOUNTS = [
-  { email: "peserta@tia.id", label: "Peserta", who: "Abdurrahman", desc: "Dasbor belajar, unit pekanan, murojaah." },
-  { email: "pengajar@tia.id", label: "Pengajar", who: "Ustadz M. Hilman Al-Fiqhy, M.A.", desc: "Kelas yang diampu, kehadiran, penilaian." },
-  { email: "admin@tia.id", label: "Admin Akademik", who: "Tim Akademik", desc: "Kurikulum, peserta, pendaftaran, laporan." },
-  { email: "super@tia.id", label: "Super Admin", who: "Akses penuh", desc: "Seluruh sumber daya tanpa batasan." },
-];
-
 const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 14.5,
@@ -64,17 +51,11 @@ export default function Login() {
     }
   }
 
-  function fill(demoEmail: string) {
-    setEmail(demoEmail);
-    setPassword(DEMO_PASSWORD);
-    setError(null);
-  }
-
   return (
     <div className="shell" style={{ paddingBlock: "56px 90px" }}>
       <div
         className="split"
-        style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 56, alignItems: "start" }}
+        style={{ maxWidth: 460, marginInline: "auto" }}
       >
         {/* --- form --- */}
         <div style={{ maxWidth: 460 }}>
@@ -178,92 +159,6 @@ export default function Login() {
           </div>
         </div>
 
-        {/* --- demo accounts --- */}
-        <div>
-          <div
-            style={{
-              border: "1px solid var(--color-line)",
-              borderRadius: 12,
-              overflow: "hidden",
-              background: "var(--color-surface)",
-            }}
-          >
-            <div
-              style={{
-                padding: "16px 22px",
-                background: "var(--color-sand)",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div style={{ fontFamily: mono, fontSize: 11.5, letterSpacing: ".11em", color: "var(--color-soft)" }}>
-                AKUN DEMO
-              </div>
-              <div style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-muted)" }}>{DEMO_PASSWORD}</div>
-            </div>
-
-            {DEMO_ACCOUNTS.map((a, i) => (
-              <div
-                key={a.email}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 16,
-                  padding: "16px 22px",
-                  borderTop: i === 0 ? undefined : "1px solid var(--color-line-soft)",
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 17.5, fontWeight: 700 }}>{a.label}</span>
-                    <span style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>{a.email}</span>
-                  </div>
-                  <div style={{ fontSize: 14.5, color: "var(--color-muted)", marginTop: 4, lineHeight: 1.5 }}>
-                    {a.who} — {a.desc}
-                  </div>
-                </div>
-                <button type="button" className="btn-sm" style={{ flex: "none" }} onClick={() => fill(a.email)}>
-                  Isikan
-                </button>
-              </div>
-            ))}
-
-            <div
-              style={{
-                padding: "16px 22px",
-                borderTop: "1px solid var(--color-line-soft)",
-                background: "var(--color-paper)",
-                fontSize: 14.5,
-                lineHeight: 1.6,
-                color: "#5c564d",
-              }}
-            >
-              Akun demo hanya untuk pengembangan — ditandai <code style={{ fontFamily: mono, fontSize: 13 }}>is_demo</code>{" "}
-              di basis data dan harus dihapus sebelum produksi. Jalankan{" "}
-              <code style={{ fontFamily: mono, fontSize: 13 }}>npm run db:accounts</code> untuk membuatnya.
-            </div>
-          </div>
-
-          <div
-            style={{
-              marginTop: 18,
-              padding: "16px 20px",
-              background: "var(--color-mist)",
-              borderRadius: 10,
-              fontSize: 15,
-              lineHeight: 1.6,
-              color: "#2f4a3f",
-            }}
-          >
-            <strong style={{ fontFamily: serif, fontSize: 17.5 }}>Butuh API berjalan.</strong>
-            <br />
-            Login diverifikasi di server, jadi jalankan <code style={{ fontFamily: mono, fontSize: 13 }}>npm run api</code>{" "}
-            di terminal terpisah sebelum masuk.
-          </div>
-        </div>
       </div>
     </div>
   );

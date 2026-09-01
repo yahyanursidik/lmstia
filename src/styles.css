@@ -177,11 +177,10 @@
     border-bottom: 1px solid var(--color-line);
   }
   .topbar-mark {
-    width: 26px; height: 26px; border-radius: 50%;
-    border: 1.5px solid var(--color-forest);
-    display: flex; align-items: center; justify-content: center;
-    font-family: var(--font-serif); font-size: 15px; font-weight: 500;
-    color: var(--color-forest); flex: none;
+    width: 30px; height: 30px; border-radius: 7px;
+    flex: none; display: block;
+    /* Latar logo sudah krem; garis tipis memisahkannya dari topbar sewarna. */
+    border: 1px solid var(--color-line);
   }
   .topbar-name {
     font-family: var(--font-mono); font-size: 12px;

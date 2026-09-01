@@ -8,9 +8,12 @@ import { mono, serif } from "./ui";
 function Wordmark({ to = "/" }: { to?: string }) {
   return (
     <Link to={to} style={{ display: "flex", alignItems: "center", gap: 11, minWidth: 0 }}>
-      <div className="topbar-mark" aria-hidden="true">
-        ت
-      </div>
+      {/*
+        Logo dimuat sebagai <img> dari /logo.svg, bukan disisipkan sebagai SVG
+        sebaris: berkasnya di-cache sekali dan dipakai ulang di setiap halaman,
+        sekaligus menjadi sumber tunggal bersama favicon.
+      */}
+      <img src="/logo.svg" alt="" aria-hidden="true" className="topbar-mark" />
       <div className="topbar-name">Tarbiyah Sunnah Islamic Academy</div>
     </Link>
   );

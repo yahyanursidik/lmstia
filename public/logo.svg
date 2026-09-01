@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Tarbiyah Sunnah Islamic Academy">
+  <title>Tarbiyah Sunnah Islamic Academy</title>
+  <!--
+    Tiga bidang menanjak yang bertemu di satu titik: tahapan belajar yang
+    bertingkat namun menuju arah yang sama. Dibuat sebagai vektor supaya
+    tetap tajam dari favicon 16px sampai header besar.
+  -->
+  <rect width="512" height="512" rx="116" fill="#f6f2ea"/>
+  <g>
+    <path d="M160 344 L392 344 L160 246 Z" fill="#4a6b35"/>
+    <path d="M186 240 L392 330 L186 178 Z" fill="#dd8322"/>
+    <path d="M248 196 L392 316 L248 122 Z" fill="#eeb111"/>
+  </g>
+</svg>
