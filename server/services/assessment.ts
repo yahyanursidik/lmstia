@@ -448,3 +448,117 @@ export async function studentScores(userId: string, tahapanId: string) {
     groupName: r.meetingIdCol || r.subjectIdCol ? r.subjectName : r.tahapanIdCol ? t.name : "Program",
   }));
 }
+
+/**
+ * Analisis butir soal satu asesmen.
+ *
+ * Menjawab pertanyaan yang tidak terlihat dari nilai akhir: soal mana yang
+ * paling banyak dijawab salah, dan pada pilihan ganda, pengecoh mana yang
+ * menarik peserta. Soal yang hampir semua orang salah biasanya bukan berarti
+ * pesertanya lemah — lebih sering berarti soalnya ambigu atau materinya belum
+ * tersampaikan.
+ *
+ * Hanya percobaan yang sudah dikumpulkan yang dihitung; percobaan yang masih
+ * berlangsung belum punya jawaban final.
+ */
+export async function analisisButir(assessmentId: string) {
+  const soal = await db
+    .select({
+      id: s.assessmentQuestions.id,
+      type: s.assessmentQuestions.type,
+      prompt: s.assessmentQuestions.prompt,
+      options: s.assessmentQuestions.options,
+      answerKey: s.assessmentQuestions.answerKey,
+      points: s.assessmentQuestions.points,
+      sequence: s.assessmentQuestions.sequence,
+    })
+    .from(s.assessmentQuestions)
+    .where(eq(s.assessmentQuestions.assessmentId, assessmentId))
+    .orderBy(asc(s.assessmentQuestions.sequence));
+
+  if (soal.length === 0) return [];
+
+  /* Satu query untuk seluruh soal, bukan satu per soal. */
+  const rekap = await db
+    .select({
+      questionId: s.assessmentAnswers.questionId,
+      dijawab: sql<number>`count(*)::int`,
+      benar: sql<number>`(count(*) filter (where ${s.assessmentAnswers.isCorrect} = true))::int`,
+      belumDinilai: sql<number>`(count(*) filter (where ${s.assessmentAnswers.earnedPoints} is null))::int`,
+      rataPoin: sql<number | null>`round(avg(${s.assessmentAnswers.earnedPoints})::numeric, 2)::float8`,
+    })
+    .from(s.assessmentAnswers)
+    .innerJoin(s.assessmentAttempts, eq(s.assessmentAttempts.id, s.assessmentAnswers.attemptId))
+    .where(
+      and(
+        eq(s.assessmentAttempts.assessmentId, assessmentId),
+        sql`${s.assessmentAttempts.submittedAt} is not null`,
+      ),
+    )
+    .groupBy(s.assessmentAnswers.questionId);
+
+  /* Sebaran jawaban, untuk melihat pengecoh mana yang bekerja. */
+  const sebaran = await db
+    .select({
+      questionId: s.assessmentAnswers.questionId,
+      response: s.assessmentAnswers.response,
+      n: sql<number>`count(*)::int`,
+    })
+    .from(s.assessmentAnswers)
+    .innerJoin(s.assessmentAttempts, eq(s.assessmentAttempts.id, s.assessmentAnswers.attemptId))
+    .where(
+      and(
+        eq(s.assessmentAttempts.assessmentId, assessmentId),
+        sql`${s.assessmentAttempts.submittedAt} is not null`,
+      ),
+    )
+    .groupBy(s.assessmentAnswers.questionId, s.assessmentAnswers.response);
+
+  const petaRekap = new Map(rekap.map((r) => [r.questionId, r]));
+
+  return soal.map((q) => {
+    const r = petaRekap.get(q.id);
+    const dijawab = r?.dijawab ?? 0;
+    const benar = r?.benar ?? 0;
+    const pilihan = q.options ? (JSON.parse(q.options) as string[]) : null;
+
+    const sebaranSoal = sebaran
+      .filter((x) => x.questionId === q.id)
+      .map((x) => ({ response: x.response, n: x.n }));
+
+    return {
+      id: q.id,
+      sequence: q.sequence,
+      type: q.type,
+      prompt: q.prompt,
+      points: q.points,
+      options: pilihan,
+      answerKey: q.answerKey,
+      dijawab,
+      benar,
+      belumDinilai: r?.belumDinilai ?? 0,
+      rataPoin: r?.rataPoin ?? null,
+      /*
+       * Tingkat kesukaran = proporsi yang menjawab benar. Hanya bermakna untuk
+       * soal berkunci; esai dinilai manual sehingga "benar" tidak terdefinisi.
+       */
+      persenBenar:
+        q.type === "essay" || dijawab === 0 ? null : Math.round((benar / dijawab) * 100),
+      sebaran: pilihan
+        ? pilihan.map((teks, i) => ({
+            label: teks,
+            indeks: i,
+            kunci: String(q.answerKey) === String(i),
+            n: sebaranSoal.find((x) => String(x.response) === String(i))?.n ?? 0,
+          }))
+        : q.type === "true_false"
+          ? ["true", "false"].map((v) => ({
+              label: v === "true" ? "BENAR" : "SALAH",
+              indeks: v === "true" ? 0 : 1,
+              kunci: q.answerKey === v,
+              n: sebaranSoal.find((x) => x.response === v)?.n ?? 0,
+            }))
+          : [],
+    };
+  });
+}

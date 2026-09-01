@@ -563,6 +563,39 @@ export function Murojaah() {
   );
 }
 
+type KehadiranSaya = {
+  tahapan: string;
+  rows: {
+    meetingId: string;
+    number: number;
+    title: string;
+    mode: string;
+    startsAt: string | null;
+    subjectName: string;
+    subjectSlug: string;
+    status: "hadir" | "izin" | "sakit" | "alpa";
+    channel: "daring" | "luring" | null;
+    note: string | null;
+  }[];
+  ringkasan: {
+    tercatat: number;
+    hadir: number;
+    daring: number;
+    luring: number;
+    izin: number;
+    sakit: number;
+    alpa: number;
+    persen: number;
+  };
+};
+
+const STATUS_HADIR: Record<string, { label: string; bg: string; fg: string }> = {
+  hadir: { label: "Hadir", bg: "#e4ede4", fg: "#2f5638" },
+  izin: { label: "Izin", bg: "#f6eddb", fg: "#8a6a25" },
+  sakit: { label: "Sakit", bg: "#e6ecef", fg: "#38525e" },
+  alpa: { label: "Alpa", bg: "#f7e6e0", fg: "#8d4632" },
+};
+
 /* --- /belajar/progress ------------------------------------------ */
 
 export function Progress() {
@@ -631,6 +664,8 @@ export function Progress() {
         </Card>
       </div>
 
+      <KehadiranSayaKartu />
+
       <Card padding={24}>
         <div className="eyebrow" style={{ marginBottom: 16 }}>
           Per mata pelajaran
@@ -664,6 +699,95 @@ export function Progress() {
         )}
       </Card>
     </Shell>
+  );
+}
+
+/**
+ * Catatan kehadiran peserta sendiri.
+ *
+ * Kehadiran memengaruhi penilaian dan bisa keliru dicatat, jadi peserta perlu
+ * dapat memeriksanya. Kanal daring/tatap muka ikut ditampilkan karena pada
+ * pertemuan hybrid keduanya dicatat berbeda.
+ */
+function KehadiranSayaKartu() {
+  const k = useResource<KehadiranSaya>("/me/kehadiran");
+
+  if (k.loading || k.error) return null;
+  const d = k.data;
+  if (!d) return null;
+
+  return (
+    <Card padding={24} style={{ marginBottom: 20 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 14,
+          flexWrap: "wrap",
+          alignItems: "baseline",
+          marginBottom: 14,
+        }}
+      >
+        <div className="eyebrow">Kehadiran saya</div>
+        {d.ringkasan.tercatat > 0 && (
+          <div style={{ fontFamily: mono, fontSize: 13, color: "var(--color-faint)" }}>
+            {d.ringkasan.hadir}/{d.ringkasan.tercatat} hadir · {d.ringkasan.persen}%
+            {d.ringkasan.daring + d.ringkasan.luring > 0 &&
+              ` · daring ${d.ringkasan.daring}, tatap muka ${d.ringkasan.luring}`}
+          </div>
+        )}
+      </div>
+
+      {d.rows.length === 0 ? (
+        <div style={{ fontSize: 15, color: "var(--color-faint)", lineHeight: 1.6 }}>
+          Belum ada kehadiran yang tercatat. Kehadiran dicatat pengampu setelah kelas berlangsung —
+          kosong di sini bukan berarti Anda tidak hadir.
+        </div>
+      ) : (
+        <div style={{ display: "grid", gap: 9 }}>
+          {d.rows.map((r) => {
+            const st = STATUS_HADIR[r.status]!;
+            return (
+              <div
+                key={r.meetingId}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  gap: 12,
+                  flexWrap: "wrap",
+                  alignItems: "center",
+                  border: "1px solid var(--color-line)",
+                  borderRadius: 9,
+                  padding: "10px 13px",
+                }}
+              >
+                <div style={{ minWidth: 0 }}>
+                  <Link
+                    to={`/belajar/kelas/${r.subjectSlug}/pertemuan/${r.number}`}
+                    style={{ fontWeight: 600 }}
+                  >
+                    Pertemuan {r.number}: {r.title}
+                  </Link>
+                  <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
+                    {r.subjectName}
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  {r.channel && (
+                    <span style={{ fontFamily: mono, fontSize: 12.5, color: "var(--color-faint)" }}>
+                      {r.channel === "daring" ? "daring" : "tatap muka"}
+                    </span>
+                  )}
+                  <Badge bg={st.bg} fg={st.fg}>
+                    {st.label}
+                  </Badge>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
   );
 }
 

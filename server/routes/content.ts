@@ -4,6 +4,7 @@ import { ADMIN, STAFF, requireRole } from "../middleware/auth";
 import * as academic from "../repositories/academic";
 import * as learner from "../repositories/learner";
 import * as service from "../services/learning";
+import { mapelTerjangkau } from "../services/scope";
 import {
   assessmentBody,
   assessmentPatchBody,
@@ -125,8 +126,17 @@ contentRoutes.get("/tahapan/:id/tree", async (c) => {
 /* --- Mata Pelajaran ----------------------------------------------- */
 
 contentRoutes.get("/subjects", async (c) => {
+  /*
+   * Pengajar hanya melihat mata pelajaran yang diampunya. Disaring di sini
+   * karena daftar ini menjadi sumber seluruh rantai penelusuran — kehadiran,
+   * kuis, worksheet — sehingga membatasinya sekali menutup semuanya.
+   */
+  const izin = await mapelTerjangkau(c.get("user")!);
+  const saring = <T extends { id: string }>(rows: T[]) =>
+    izin === null ? rows : rows.filter((r) => izin.includes(r.id));
+
   const tahapanId = c.req.query("tahapanId");
-  if (tahapanId) return c.json({ data: await academic.listSubjects(tahapanId) });
+  if (tahapanId) return c.json({ data: saring(await academic.listSubjects(tahapanId)) });
 
   /*
    * Penyaring per program dilayani terpisah karena penugasan pengajar bekerja
@@ -135,7 +145,7 @@ contentRoutes.get("/subjects", async (c) => {
    * disalahartikan sebagai "belum ada mata pelajaran".
    */
   const programId = c.req.query("programId");
-  if (programId) return c.json({ data: await academic.listSubjectsByProgram(programId) });
+  if (programId) return c.json({ data: saring(await academic.listSubjectsByProgram(programId)) });
 
   return c.json({ data: [] });
 });
@@ -307,12 +317,6 @@ contentRoutes.get("/participants", async (c) => {
 contentRoutes.get("/nilai", async (c) => {
   const t = await service.getRunningTahapanOrThrow();
   return c.json({ data: { tahapan: t.name, rows: await learner.nilaiRekap(t.id) } });
-});
-
-/** Rekap kehadiran seluruh peserta tahapan berjalan. */
-contentRoutes.get("/kehadiran", async (c) => {
-  const t = await service.getRunningTahapanOrThrow();
-  return c.json({ data: { tahapan: t.name, rows: await learner.kehadiranRekap(t.id) } });
 });
 
 contentRoutes.get("/announcements", async (c) =>

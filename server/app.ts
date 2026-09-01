@@ -23,6 +23,8 @@ import { userRoutes } from "./routes/users";
 import { daftarRoutes, registrationAdminRoutes } from "./routes/registration";
 import { bankRoutes } from "./routes/bank";
 import { reportRoutes } from "./routes/report";
+import { attendanceRoutes } from "./routes/attendance";
+import * as att from "./repositories/attendance";
 import * as assess from "./services/assessment";
 import { bookmarkBody, noteBody, slugParam, uuidParam } from "./validators/schemas";
 
@@ -180,6 +182,33 @@ me.get("/nilai", async (c) => {
 });
 
 
+
+/**
+ * Kehadiran peserta sendiri. Berada di bawah `/me` karena hanya menyangkut
+ * pemanggil; tidak ada cara meminta kehadiran orang lain lewat jalur ini.
+ */
+me.get("/kehadiran", async (c) => {
+  const user = c.get("user")!;
+  const t = await service.getRunningTahapanOrThrow();
+  const rows = await att.kehadiranSaya(user.id, t.id);
+  const hadir = rows.filter((r) => r.status === "hadir").length;
+  return c.json({
+    data: {
+      tahapan: t.name,
+      rows,
+      ringkasan: {
+        tercatat: rows.length,
+        hadir,
+        daring: rows.filter((r) => r.channel === "daring").length,
+        luring: rows.filter((r) => r.channel === "luring").length,
+        izin: rows.filter((r) => r.status === "izin").length,
+        sakit: rows.filter((r) => r.status === "sakit").length,
+        alpa: rows.filter((r) => r.status === "alpa").length,
+        persen: rows.length ? Math.round((hadir / rows.length) * 100) : 0,
+      },
+    },
+  });
+});
 /** Daftar pertemuan satu mata pelajaran beserta progres pemanggil. */
 me.get("/kelas/:slug", async (c) =>
   c.json({ data: await service.getKelas(c.get("user")!.id, c.req.param("slug")) }),
@@ -230,6 +259,7 @@ app.route("/daftar", daftarRoutes);
 app.route("/admin/registrations", registrationAdminRoutes);
 app.route("/admin/bank-soal", bankRoutes);
 app.route("/admin/laporan", reportRoutes);
+app.route("/admin/kehadiran", attendanceRoutes);
 app.route("/admin/users", userRoutes);
 app.route("/admin/assessments", assessmentAdminRoutes);
 app.route("/admin", contentRoutes);

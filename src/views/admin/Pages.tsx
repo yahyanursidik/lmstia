@@ -41,17 +41,6 @@ type BarisNilai = {
   rataRata: number | null;
 };
 
-type BarisHadir = {
-  userId: string;
-  name: string;
-  className: string | null;
-  hadir: number;
-  izin: number;
-  sakit: number;
-  alpa: number;
-  tercatat: number;
-};
-
 type Pengajar = { id: string; name: string; email: string; title: string | null; bio: string | null };
 
 type PengumumanRow = {
@@ -457,69 +446,6 @@ export function Worksheet() {
   );
 }
 
-/* --- Kehadiran ------------------------------------------------------ */
-
-export function Kehadiran() {
-  const d = useResource<{ tahapan: string; rows: BarisHadir[] }>("/admin/kehadiran");
-
-  const kolom: Column<BarisHadir>[] = [
-    {
-      key: "nama",
-      head: "PESERTA",
-      width: "1.6fr",
-      render: (r) => (
-        <div>
-          <div style={{ fontWeight: 700 }}>{r.name}</div>
-          {r.className && (
-            <div style={{ fontSize: 13, color: "var(--color-faint)", marginTop: 2 }}>
-              {r.className}
-            </div>
-          )}
-        </div>
-      ),
-    },
-    { key: "hadir", head: "HADIR", width: ".7fr", render: (r) => <span style={{ fontFamily: mono }}>{r.hadir}</span> },
-    { key: "izin", head: "IZIN", width: ".7fr", secondary: true, render: (r) => <span style={{ fontFamily: mono }}>{r.izin}</span> },
-    { key: "sakit", head: "SAKIT", width: ".7fr", secondary: true, render: (r) => <span style={{ fontFamily: mono }}>{r.sakit}</span> },
-    { key: "alpa", head: "ALPA", width: ".7fr", render: (r) => <span style={{ fontFamily: mono }}>{r.alpa}</span> },
-    {
-      key: "persen",
-      head: "PERSENTASE",
-      width: "1.1fr",
-      render: (r) => (
-        <span style={{ fontFamily: mono }}>
-          {r.tercatat ? Math.round((r.hadir / r.tercatat) * 100) + "%" : "—"}
-        </span>
-      ),
-    },
-  ];
-
-  return (
-    <Shell>
-      <PageHeader
-        eyebrow={d.data?.tahapan ?? "Kehadiran"}
-        title="Kehadiran"
-        lead="Rekap kehadiran peserta pada caturwulan berjalan."
-      />
-      <Card padding={20}>
-        {d.loading && <div style={{ color: "var(--color-faint)" }}>Memuat kehadiran…</div>}
-        {d.error && <div role="alert">{d.error}</div>}
-        {d.data && (
-          <>
-            <DataTable columns={kolom} rows={d.data.rows} empty="Belum ada peserta" />
-            {d.data.rows.every((r) => r.tercatat === 0) && (
-              <div style={{ fontSize: 14.5, color: "var(--color-faint)", marginTop: 14, lineHeight: 1.6 }}>
-                Belum ada kehadiran yang tercatat. Baris kehadiran muncul setelah pengampu
-                mencatatnya pada pertemuan yang mewajibkan kehadiran.
-              </div>
-            )}
-          </>
-        )}
-      </Card>
-    </Shell>
-  );
-}
-
 /* --- Nilai ---------------------------------------------------------- */
 
 export function Nilai() {
@@ -621,6 +547,9 @@ const PERAN_MAPEL: Record<string, string> = {
 };
 
 export function PengajarAdmin() {
+  const { user } = useAuth();
+  /* Menugaskan pengampu mengubah kurikulum — itu wewenang admin akademik. */
+  const canWrite = user?.role === "academic_admin" || user?.role === "super_admin";
   const programs = useResource<{ id: string; name: string; status: string }[]>("/admin/programs");
   const pengajar = useResource<Pengajar[]>("/admin/instructors");
   const [programId, setProgramId] = useState("");
@@ -749,13 +678,19 @@ export function PengajarAdmin() {
                   </div>
                 </div>
                 <div style={{ opacity: sibuk === m.id ? 0.55 : 1 }}>
-                  <Combobox
-                    value={m.instructorId ?? ""}
-                    onChange={(v) => tugaskan(m.id, v)}
-                    options={opsiPengajar}
-                    disabled={sibuk === m.id}
-                    ariaLabel={`Pengajar untuk ${m.name}`}
-                  />
+                  {canWrite ? (
+                    <Combobox
+                      value={m.instructorId ?? ""}
+                      onChange={(v) => tugaskan(m.id, v)}
+                      options={opsiPengajar}
+                      disabled={sibuk === m.id}
+                      ariaLabel={`Pengajar untuk ${m.name}`}
+                    />
+                  ) : (
+                    <div style={{ fontSize: 15, color: "var(--color-muted)", textAlign: "right" }}>
+                      {m.instructorName ?? "Belum ditugaskan"}
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -826,6 +761,9 @@ export function PengajarAdmin() {
 /* --- Pengumuman ----------------------------------------------------- */
 
 export function Pengumuman() {
+  const { user } = useAuth();
+  /* Pengajar boleh membaca pengumuman, tetapi menulisnya urusan admin. */
+  const canWrite = user?.role === "academic_admin" || user?.role === "super_admin";
   const list = useResource<PengumumanRow[]>("/admin/announcements");
   const [draf, setDraf] = useState<Partial<PengumumanRow> | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -866,7 +804,7 @@ export function Pengumuman() {
         title="Pengumuman"
         lead="Pengumuman terbit tampil pada dasbor peserta."
         actions={
-          !draf && (
+          canWrite && !draf ? (
             <button
               type="button"
               className="btn-solid-sm"
@@ -874,7 +812,7 @@ export function Pengumuman() {
             >
               + Pengumuman baru
             </button>
-          )
+          ) : undefined
         }
       />
 
@@ -972,10 +910,14 @@ export function Pengumuman() {
                   >
                     {STATUS_TERBIT[a.status]}
                   </Badge>
-                  <button type="button" className="btn-sm" onClick={() => setDraf({ ...a })}>
-                    Ubah
-                  </button>
-                  <HapusDuaLangkah onConfirm={() => hapus(a.id)} />
+                  {canWrite && (
+                    <>
+                      <button type="button" className="btn-sm" onClick={() => setDraf({ ...a })}>
+                        Ubah
+                      </button>
+                      <HapusDuaLangkah onConfirm={() => hapus(a.id)} />
+                    </>
+                  )}
                 </div>
               </div>
             </Card>

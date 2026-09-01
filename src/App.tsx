@@ -29,8 +29,8 @@ import KuisUjian from "./views/admin/KuisUjian";
 import Pengguna from "./views/admin/Pengguna";
 import PendaftaranAdmin from "./views/admin/Pendaftaran";
 import BankSoal from "./views/admin/BankSoal";
+import Kehadiran from "./views/admin/Kehadiran";
 import {
-  Kehadiran,
   Laporan,
   Nilai,
   PengajarAdmin,

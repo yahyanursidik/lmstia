@@ -43,6 +43,13 @@
       "when": 1788139866072,
       "tag": "0005_mysterious_ultron",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788160722162,
+      "tag": "0006_panoramic_sway",
+      "breakpoints": true
     }
   ]
 }

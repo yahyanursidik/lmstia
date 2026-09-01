@@ -131,6 +131,15 @@ export const progressStatusEnum = pgEnum("progress_status", [
 
 export const attendanceStatusEnum = pgEnum("attendance_status", ["hadir", "izin", "sakit", "alpa"]);
 
+/**
+ * Kanal kehadiran untuk pertemuan hybrid.
+ *
+ * Pada pertemuan hybrid, "hadir" saja tidak cukup: pengampu perlu tahu siapa
+ * yang datang ke tempat dan siapa yang bergabung daring, karena keduanya
+ * menuntut penanganan yang berbeda.
+ */
+export const attendanceChannelEnum = pgEnum("attendance_channel", ["daring", "luring"]);
+
 export const engagementStatusEnum = pgEnum("engagement_status", [
   "on_track",
   "needs_attention",
@@ -538,8 +547,16 @@ export const attendance = pgTable(
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
     status: attendanceStatusEnum("status").notNull().default("alpa"),
+    /**
+     * Hanya bermakna saat status "hadir". Izin, sakit, dan alpa tidak punya
+     * kanal — dijaga CHECK di migrasi.
+     */
+    channel: attendanceChannelEnum("channel"),
     note: text("note"),
+    /** Siapa yang mencatat; kehadiran adalah catatan yang bisa disengketakan. */
+    recordedBy: uuid("recorded_by").references(() => users.id, { onDelete: "set null" }),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [uniqueIndex("attendance_meeting_user_idx").on(t.meetingId, t.userId)],
 );

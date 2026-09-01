@@ -239,7 +239,7 @@ const ADMIN_GROUPS: {
       { to: "/admin/worksheet", label: "Worksheet" },
       { to: "/admin/kuis", label: "Kuis & Ujian" },
       { to: "/admin/bank-soal", label: "Bank Soal" },
-      { to: "/admin/penilaian", label: "Penilaian Esai" },
+      { to: "/admin/penilaian", label: "Penilaian" },
       { to: "/admin/kehadiran", label: "Kehadiran" },
       { to: "/admin/nilai", label: "Nilai" },
     ],
@@ -248,7 +248,7 @@ const ADMIN_GROUPS: {
     label: "Orang",
     items: [
       { to: "/admin/pengguna", label: "Pengguna", adminOnly: true },
-      { to: "/admin/pendaftaran", label: "Pendaftaran" },
+      { to: "/admin/pendaftaran", label: "Pendaftaran", adminOnly: true },
       { to: "/admin/pengajar", label: "Pengajar" },
       { to: "/admin/pengumuman", label: "Pengumuman" },
     ],

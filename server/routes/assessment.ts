@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { badRequest, notFound } from "../lib/errors";
 import { ADMIN, STAFF, requireAuth, requireRole } from "../middleware/auth";
+import { mapelTerjangkau, tanpaBatas } from "../services/scope";
 import * as learner from "../repositories/learner";
 import * as svc from "../services/assessment";
 import { assessmentBody, assessmentPatchBody, gradeBody, questionBody, submitAttemptBody, uuidParam } from "../validators/schemas";
@@ -202,9 +203,28 @@ assessmentAdminRoutes.delete("/questions/:id", canWrite, async (c) => {
 });
 
 /** Antrean esai yang menunggu penilaian. */
-assessmentAdminRoutes.get("/grading/queue", async (c) =>
-  c.json({ data: await svc.pendingGrading() }),
-);
+assessmentAdminRoutes.get("/grading/queue", async (c) => {
+  const user = c.get("user")!;
+  const antrean = await svc.pendingGrading();
+  if (tanpaBatas(user)) return c.json({ data: antrean });
+
+  /*
+   * Pengajar hanya menilai pekerjaan pada mata pelajaran ampuannya. Disaring
+   * setelah antrean disusun agar aturan kepemilikan hanya ada di satu tempat.
+   */
+  const izin = await mapelTerjangkau(user);
+  if (!izin || izin.length === 0) return c.json({ data: [] });
+
+  const milik = await db
+    .select({ id: s.assessments.id })
+    .from(s.assessments)
+    .leftJoin(s.meetings, eq(s.meetings.id, s.assessments.meetingId))
+    .where(
+      sql`coalesce(${s.assessments.subjectId}, ${s.meetings.subjectId}) = any(${izin})`,
+    );
+  const set = new Set(milik.map((m) => m.id));
+  return c.json({ data: antrean.filter((a) => set.has(a.assessmentId)) });
+});
 
 /** Detail satu percobaan, lengkap dengan kunci — untuk pengajar. */
 assessmentAdminRoutes.get("/attempts/:id", async (c) => {
@@ -359,8 +379,24 @@ assessmentAdminRoutes.get("/", async (c) => {
   const qc = new Map(counts.map((x) => [x.assessmentId, x]));
   const ac = new Map(attempts.map((x) => [x.assessmentId, x]));
 
+  /*
+   * Pengajar hanya melihat kuis pada mata pelajaran ampuannya. Kuis yang
+   * menempel di tingkat program atau tahapan tetap tampil — itu milik
+   * bersama, bukan satu kelas.
+   */
+  const user = c.get("user")!;
+  const izin = tanpaBatas(user) ? null : ((await mapelTerjangkau(user)) ?? []);
+  const terlihat =
+    izin === null
+      ? rows
+      : rows.filter((r) =>
+          r.subjectId === null && r.meetingId === null
+            ? true
+            : izin.includes(r.resolvedSubjectId ?? ""),
+        );
+
   return c.json({
-    data: rows.map((r) => ({
+    data: terlihat.map((r) => ({
       ...r,
       // Tingkat penempelan, dipakai UI untuk melabeli cakupan asesmen.
       scope: r.meetingId ? "meeting" : r.subjectId ? "subject" : r.tahapanId ? "tahapan" : "program",
@@ -403,4 +439,18 @@ assessmentAdminRoutes.delete("/:id", canWrite, async (c) => {
   if (!row) return notFound(c, "Kuis tidak ditemukan.");
   await learner.writeAudit(c.get("user")!.id, "assessment.delete", "assessment", id.data.id);
   return c.body(null, 204);
+});
+
+/** Analisis butir soal — soal mana yang paling banyak dijawab salah. */
+assessmentAdminRoutes.get("/:id/analisis", async (c) => {
+  const id = readId(c.req.param("id"));
+  if (!id.success) return badRequest(c, id.error);
+  const a = await svc.findAssessment(id.data.id);
+  if (!a) return notFound(c, "Kuis tidak ditemukan.");
+  return c.json({
+    data: {
+      assessment: { id: a.id, title: a.title, kkm: a.kkm, kind: a.kind },
+      butir: await svc.analisisButir(id.data.id),
+    },
+  });
 });
