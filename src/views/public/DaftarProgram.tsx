@@ -31,7 +31,13 @@ type Form = {
   alasan: string;
 };
 
-type Hasil = { gender: "ikhwan" | "akhwat"; programName: string; tautanGrup: string | null };
+type Hasil = {
+  gender: "ikhwan" | "akhwat";
+  programName: string;
+  tautanGrup: string | null;
+  email: string;
+  terdaftarKelas: boolean;
+};
 
 const tanggal = (v: string | null) =>
   v
@@ -93,6 +99,8 @@ export default function DaftarProgram() {
   const [d, setD] = useState({
     name: "",
     email: "",
+    password: "",
+    ulangi: "",
     phone: "",
     gender: "",
     country: "Indonesia",
@@ -126,13 +134,18 @@ export default function DaftarProgram() {
     e.preventDefault();
     setErr(null);
 
+    if (d.password.length < 12) return setErr("Kata sandi minimal 12 karakter.");
+    /* Diperiksa di sini, bukan di server: salah ketik kata sandi tidak akan
+       tertangkap setelah tersimpan — pemiliknya baru sadar saat gagal masuk. */
+    if (d.password !== d.ulangi) return setErr("Ulangan kata sandi belum sama.");
     if (!d.gender) return setErr("Pilih ikhwan atau akhwat terlebih dahulu.");
     if (!setuju) return setErr("Pernyataan istiqomah harus disetujui sebelum mengirim.");
 
     setBusy(true);
     try {
+      const { ulangi: _ulangi, ...kirimkan } = d;
       const r = await api.post<Hasil>(`/daftar/${slug}`, {
-        ...d,
+        ...kirimkan,
         education: d.education || null,
         province: indonesia ? d.province || null : null,
         city: d.city || null,
@@ -186,9 +199,31 @@ export default function DaftarProgram() {
           Baarakallahu fiik, pendaftaran Anda sudah kami terima.
         </h1>
         <p style={{ fontSize: 17, lineHeight: 1.7, color: "var(--color-body)", maxWidth: 620, marginTop: 20 }}>
-          Tim akademik akan meninjau pendaftaran Anda untuk <strong>{hasil.programName}</strong>.
-          Langkah berikutnya diumumkan melalui grup WhatsApp di bawah ini.
+          Akun Anda sudah aktif dan{" "}
+          {hasil.terdaftarKelas ? (
+            <>
+              Anda telah terdaftar pada caturwulan yang sedang berjalan di{" "}
+              <strong>{hasil.programName}</strong>.
+            </>
+          ) : (
+            <>
+              pendaftaran Anda untuk <strong>{hasil.programName}</strong> tercatat. Caturwulan
+              berikutnya akan dibukakan oleh tim akademik.
+            </>
+          )}
         </p>
+
+        <Card padding={26} style={{ marginTop: 24, maxWidth: 620 }}>
+          <div className="eyebrow" style={{ marginBottom: 12 }}>
+            Masuk ke portal peserta
+          </div>
+          <p style={{ fontSize: 16, lineHeight: 1.65, color: "var(--color-body)", marginTop: 0 }}>
+            Gunakan email <strong>{hasil.email}</strong> dan kata sandi yang baru saja Anda buat.
+          </p>
+          <Link to="/login" className="btn-solid-sm" style={{ display: "inline-block", marginTop: 8 }}>
+            Masuk sekarang →
+          </Link>
+        </Card>
 
         <Card padding={26} style={{ marginTop: 28, maxWidth: 620 }}>
           <div className="eyebrow" style={{ marginBottom: 12 }}>
@@ -279,6 +314,33 @@ export default function DaftarProgram() {
                   style={kotak}
                   value={d.email}
                   onChange={(e) => set({ email: e.target.value })}
+                  required
+                />
+              </Isian>
+
+              <Isian
+                label="Kata sandi"
+                wajib
+                hint="Minimal 12 karakter. Dipakai untuk masuk ke portal peserta."
+              >
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  minLength={12}
+                  style={kotak}
+                  value={d.password}
+                  onChange={(e) => set({ password: e.target.value })}
+                  required
+                />
+              </Isian>
+
+              <Isian label="Ulangi kata sandi" wajib>
+                <input
+                  type="password"
+                  autoComplete="new-password"
+                  style={kotak}
+                  value={d.ulangi}
+                  onChange={(e) => set({ ulangi: e.target.value })}
                   required
                 />
               </Isian>

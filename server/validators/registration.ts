@@ -82,7 +82,20 @@ export const formBody = formBase.refine(rentangMasukAkal, pesanRentang);
 export const formPatchBody = formBase.partial().refine(rentangMasukAkal, pesanRentang);
 
 /** Kiriman dari halaman publik. */
+/**
+ * Kata sandi ditetapkan peserta sendiri saat mendaftar.
+ *
+ * Aturannya sama dengan pembuatan akun oleh admin — tidak ada jalur masuk
+ * yang lebih longgar dari yang lain hanya karena pintunya berbeda.
+ */
+const sandiPeserta = z
+  .string()
+  .min(12, "Kata sandi minimal 12 karakter")
+  .max(200)
+  .refine((x) => x !== "TiaDemo#2026", "Jangan memakai kata sandi contoh");
+
 export const registrationBody = z.object({
+  password: sandiPeserta,
   name: z.string().trim().min(2, "Nama lengkap wajib diisi").max(160),
   email: z.string().trim().toLowerCase().email("Alamat email tidak valid").max(200),
   phone: nomorWa,

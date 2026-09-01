@@ -96,3 +96,23 @@ export async function destroySession(token: string) {
 export async function purgeExpiredSessions() {
   await db.delete(s.authSessions).where(lt(s.authSessions.expiresAt, new Date()));
 }
+
+/**
+ * Kata sandi sementara untuk akun yang dibuatkan admin.
+ *
+ * Dipakai saat menyetujui pendaftaran lama yang belum punya akun: pendaftar
+ * tidak pernah memilih kata sandi, jadi harus ada yang dibangkitkan. Nilainya
+ * ditunjukkan satu kali kepada admin untuk diteruskan ke pendaftar, lalu
+ * hanya tersimpan dalam bentuk hash.
+ *
+ * Abjadnya sengaja tanpa 0/O dan 1/l/I: kata sandi ini akan dibacakan atau
+ * disalin lewat WhatsApp, dan huruf yang mirip menimbulkan kegagalan masuk
+ * yang menyusahkan untuk ditelusuri.
+ */
+export function sandiSementara(panjang = 14): string {
+  const abjad = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const acak = randomBytes(panjang);
+  let hasil = "";
+  for (let i = 0; i < panjang; i += 1) hasil += abjad[acak[i]! % abjad.length];
+  return hasil;
+}

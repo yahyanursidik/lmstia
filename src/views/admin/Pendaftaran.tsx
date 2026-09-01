@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router";
 import { api } from "../../lib/api";
 import { mutate, usePagedResource, useResource } from "../../lib/useApi";
 import {
@@ -76,6 +77,15 @@ const NADA_DAFTAR: Record<string, { bg: string; fg: string }> = {
 };
 
 const STATUS_FORM = { draf: "Draf", terbit: "Terbit", ditutup: "Ditutup" };
+/** Balasan persetujuan: apa yang benar-benar terjadi di balik tombol. */
+type HasilTinjau = {
+  userId: string;
+  akunBaru: boolean;
+  enrolBaru: boolean;
+  sandiSementara: string | null;
+  tanpaCaturwulan: boolean;
+};
+
 const STATUS_DAFTAR = { menunggu: "Menunggu", disetujui: "Disetujui", ditolak: "Ditolak" };
 const GENDER = { ikhwan: "Ikhwan", akhwat: "Akhwat" };
 
@@ -447,16 +457,28 @@ function TabPendaftar() {
   }, [page, formId, status, gender, q]);
 
   const daftar = usePagedResource<Pendaftar[]>(`/admin/registrations?${query}`);
+  const [hasil, setHasil] = useState<HasilTinjau | null>(null);
   const meta = daftar.meta;
 
   async function tinjau(id: string, s: "disetujui" | "ditolak") {
-    const m = await mutate(() =>
-      api.patch(`/admin/registrations/${id}`, { status: s, note: catatan || null }),
-    );
+    setHasil(null);
+    let balasan: HasilTinjau | null = null;
+    const m = await mutate(async () => {
+      balasan = await api.patch<HasilTinjau>(`/admin/registrations/${id}`, {
+        status: s,
+        note: catatan || null,
+      });
+    });
     if (m) return setErr(m);
     setErr(null);
-    setBuka(null);
     setCatatan("");
+    /*
+     * Panelnya sengaja dibiarkan terbuka. Menutupnya seketika membuat
+     * persetujuan terasa tidak berakibat apa pun — padahal di baliknya akun
+     * dibuat dan pendaftar didaftarkan ke caturwulan. Ringkasannya perlu
+     * terbaca, terlebih kata sandi sementara yang hanya muncul sekali.
+     */
+    if (s === "disetujui" && balasan) setHasil(balasan);
     daftar.reload();
   }
 
@@ -473,6 +495,7 @@ function TabPendaftar() {
           onClick={() => {
             setBuka(r.id);
             setCatatan(r.note ?? "");
+            setHasil(null);
           }}
           style={tombolPolos}
         >
@@ -598,6 +621,7 @@ function TabPendaftar() {
         onClose={() => {
           setBuka(null);
           setCatatan("");
+          setHasil(null);
         }}
         title={terpilih?.name ?? ""}
         subtitle={terpilih ? `${terpilih.email} · ${terpilih.phone}` : undefined}
@@ -621,6 +645,62 @@ function TabPendaftar() {
       >
         {terpilih && (
         <>
+          {hasil && (
+            <div
+              role="status"
+              style={{
+                border: "1px solid #cfe0cf",
+                background: "#eef5ee",
+                borderRadius: 10,
+                padding: "14px 16px",
+                marginBottom: 18,
+                fontSize: 15,
+                lineHeight: 1.6,
+              }}
+            >
+              <div className="eyebrow" style={{ marginBottom: 8 }}>
+                Pendaftaran disetujui
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                <li>{hasil.akunBaru ? "Akun peserta dibuat." : "Sudah punya akun — pendaftaran ini disambungkan ke akun tersebut."}</li>
+                <li>
+                  {hasil.tanpaCaturwulan
+                    ? "Belum ada caturwulan berjalan pada program ini, jadi enrolmen belum dibuat."
+                    : hasil.enrolBaru
+                      ? "Didaftarkan ke caturwulan yang sedang berjalan."
+                      : "Sudah terdaftar pada caturwulan berjalan."}
+                </li>
+              </ul>
+              {hasil.sandiSementara && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ marginBottom: 6 }}>
+                    Kata sandi sementara — <strong>hanya ditampilkan sekali</strong>. Kirimkan ke
+                    pendaftar, lalu minta ia menggantinya.
+                  </div>
+                  <code
+                    style={{
+                      display: "inline-block",
+                      fontFamily: mono,
+                      fontSize: 16,
+                      letterSpacing: ".06em",
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-line)",
+                      borderRadius: 7,
+                      padding: "8px 12px",
+                      userSelect: "all",
+                    }}
+                  >
+                    {hasil.sandiSementara}
+                  </code>
+                </div>
+              )}
+              <div style={{ marginTop: 12 }}>
+                <Link to="/admin/pengguna" className="btn-sm">
+                  Lihat di Manajemen Pengguna →
+                </Link>
+              </div>
+            </div>
+          )}
 
           <div
             style={{

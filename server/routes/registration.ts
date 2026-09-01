@@ -5,6 +5,7 @@ import * as reg from "../repositories/registration";
 import * as learner from "../repositories/learner";
 import { uuidParam } from "../validators/schemas";
 import { alamatPemanggil, catatPercobaanDaftar, sapuBerkala } from "../services/ratelimit";
+import { hashPassword, sandiSementara } from "../services/auth";
 import {
   formBody,
   formPatchBody,
@@ -70,19 +71,28 @@ daftarRoutes.post("/:slug", async (c) => {
   const keadaan = sedangDibuka(form);
   if (!keadaan.buka) return tutup(c, keadaan.alasan);
 
+  const p = registrationBody.safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+
   /*
-   * Dibatasi setelah formulir terbukti ada dan sedang dibuka, supaya penghitung
-   * tidak terisi oleh permintaan yang memang akan ditolak karena alasan lain.
+   * Penghitung baru dinaikkan setelah formulir terbukti dibuka DAN isiannya
+   * lolos validasi.
+   *
+   * Sebelumnya kiriman yang cacat ikut dihitung, sehingga pendaftar yang
+   * salah ketik kata sandi beberapa kali terkunci sebelum sempat mendaftar —
+   * padahal yang hendak dicegah pembatas ini adalah pendaftaran massal, bukan
+   * salah ketik.
    */
   const ip = alamatPemanggil((n) => c.req.header(n));
   await sapuBerkala();
   const batas = await catatPercobaanDaftar(ip, c.req.param("slug"));
   if (batas.ditolak) {
+    const menit = Math.ceil(batas.sisaDetik / 60);
     return c.json(
       {
         error: {
           code: "RATE_LIMITED",
-          message: "Terlalu banyak pendaftaran dari perangkat ini. Coba lagi beberapa saat lagi.",
+          message: `Terlalu banyak pendaftaran dari perangkat ini. Coba lagi dalam ${menit} menit.`,
         },
       },
       429,
@@ -90,13 +100,37 @@ daftarRoutes.post("/:slug", async (c) => {
     );
   }
 
-  const p = registrationBody.safeParse(await c.req.json().catch(() => ({})));
-  if (!p.success) return badRequest(c, p.error);
+  /*
+   * Email yang sudah punya akun tidak boleh menimpa akun itu lewat formulir
+   * publik — itu jalan mudah untuk mengambil alih akun orang lain. Yang
+   * bersangkutan diminta masuk memakai akunnya sendiri.
+   */
+  const sudahAda = await learner.findUserByEmail(p.data.email);
+  if (sudahAda) {
+    return conflict(
+      c,
+      "Email ini sudah memiliki akun. Silakan masuk, atau hubungi admin bila lupa kata sandi.",
+    );
+  }
+
+  const { password, ...isian } = p.data;
+
+  /* Enrol otomatis ke caturwulan yang sedang berjalan pada program ini. */
+  const tahapanId = await reg.tahapanBerjalan(form.programId);
 
   try {
-    await reg.createRegistration({
-      ...p.data,
+    await reg.daftarMandiri({
+      ...isian,
       formId: form.id,
+      tahapanId,
+      passwordHash: await hashPassword(password),
+      /* Kolom opsional diratakan ke null: undefined tidak punya arti di SQL. */
+      country: isian.country ?? null,
+      province: isian.province ?? null,
+      city: isian.city ?? null,
+      education: isian.education ?? null,
+      segment: isian.segment ?? null,
+      reason: isian.reason ?? null,
       /* Bunyi pernyataan disimpan apa adanya: teksnya bisa berubah nanti,
        * sedangkan yang disetujui pendaftar adalah versi hari ini. */
       commitmentSnapshot: form.commitmentText,
@@ -122,6 +156,9 @@ daftarRoutes.post("/:slug", async (c) => {
         gender: p.data.gender,
         programName: form.programName,
         tautanGrup: tautanGrup ?? null,
+        /* Dipakai halaman berhasil untuk mengarahkan pendaftar langsung masuk. */
+        email: p.data.email,
+        terdaftarKelas: tahapanId !== null,
       },
     },
     201,
@@ -218,6 +255,49 @@ registrationAdminRoutes.patch("/:id", async (c) => {
   if (!p.success) return badRequest(c, p.error);
 
   const aktor = c.get("user")!;
+
+  /*
+   * Menyetujui bukan sekadar membalik kolom status. Pendaftar harus benar-
+   * benar punya akun dan terdaftar pada caturwulan berjalan — kalau tidak,
+   * "disetujui" hanya label yang tidak berakibat apa pun.
+   */
+  if (p.data.status === "disetujui") {
+    const [pendaftaran] = await reg.findRegistration(id.data.id);
+    if (!pendaftaran) return notFound(c, "Pendaftaran tidak ditemukan.");
+
+    const form = await reg.findForm(pendaftaran.formId);
+    const tahapanId = form ? await reg.tahapanBerjalan(form.programId) : null;
+
+    /*
+     * Kata sandi dibangkitkan untuk pendaftar yang belum punya akun — mereka
+     * mendaftar sebelum formulir meminta kata sandi sendiri. Nilainya hanya
+     * dikembalikan bila akunnya memang baru dibuat.
+     */
+    const sandi = sandiSementara();
+    const hasil = await reg.setujuiPendaftaran(
+      id.data.id,
+      tahapanId,
+      aktor.id,
+      await hashPassword(sandi),
+      p.data.note ?? null,
+    );
+    if (!hasil) return notFound(c, "Pendaftaran tidak ditemukan.");
+
+    await learner.writeAudit(aktor.id, "registration.approve", "registration", id.data.id);
+    return c.json({
+      data: {
+        id: id.data.id,
+        status: "disetujui",
+        userId: hasil.userId,
+        akunBaru: hasil.akunBaru,
+        enrolBaru: hasil.enrolBaru,
+        /* Ditampilkan sekali kepada admin untuk diteruskan ke pendaftar. */
+        sandiSementara: hasil.akunBaru ? sandi : null,
+        tanpaCaturwulan: tahapanId === null,
+      },
+    });
+  }
+
   const [row] = await reg.updateRegistration(id.data.id, {
     ...p.data,
     ...(p.data.status ? { reviewedAt: new Date(), reviewedBy: aktor.id } : {}),

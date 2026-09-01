@@ -89,13 +89,14 @@ export const catatPercobaanMasuk = (ip: string, email: string) =>
  * tindakan yang jarang, dan satu keluarga di balik satu IP tetap harus bisa.
  */
 export const BATAS_DAFTAR_IP = 12;
+export const BATAS_DAFTAR_FORM = 8;
 export const JENDELA_DAFTAR_MENIT = 60;
 
 export const catatPercobaanDaftar = (ip: string, slug: string) =>
   catatPercobaan(
     [
       { kunci: `daftar:ip:${ip}`, batas: BATAS_DAFTAR_IP },
-      { kunci: `daftar:form:${ip}:${slug}`, batas: 5 },
+      { kunci: `daftar:form:${ip}:${slug}`, batas: BATAS_DAFTAR_FORM },
     ],
     JENDELA_DAFTAR_MENIT,
   );

@@ -194,3 +194,170 @@ export const registrationCounts = (formId?: string) =>
     .from(s.registrations)
     .where(formId ? eq(s.registrations.formId, formId) : undefined)
     .groupBy(s.registrations.status, s.registrations.gender);
+
+/* --- Pendaftaran mandiri: akun + pendaftaran + enrol sekaligus ------ */
+
+export type DaftarMandiri = {
+  formId: string;
+  tahapanId: string | null;
+  name: string;
+  email: string;
+  passwordHash: string;
+  phone: string;
+  gender: "ikhwan" | "akhwat";
+  country: string | null;
+  province: string | null;
+  city: string | null;
+  education: string | null;
+  segment: string | null;
+  reason: string | null;
+  commitmentSnapshot: string;
+};
+
+/**
+ * Membuat akun, mencatat pendaftaran, dan mendaftarkan peserta ke caturwulan
+ * berjalan — dalam SATU pernyataan.
+ *
+ * Driver Neon berbasis HTTP tidak mendukung transaksi antar-pernyataan, jadi
+ * menulisnya bertahap membuka kemungkinan keadaan separuh jadi: akun tanpa
+ * pendaftaran, atau pendaftaran tanpa enrol. Satu pernyataan dengan CTE
+ * atomik menurut definisinya, sehingga tidak ada keadaan antara yang perlu
+ * dibersihkan manual.
+ *
+ * Enrol dilewati bila program belum punya caturwulan berjalan; akun dan
+ * pendaftarannya tetap terbentuk, dan admin dapat mendaftarkannya kemudian.
+ */
+export async function daftarMandiri(d: DaftarMandiri) {
+  const enrol = d.tahapanId
+    ? sql`, enrol AS (
+        INSERT INTO enrollments (user_id, tahapan_id, status)
+        SELECT id, ${d.tahapanId}, 'registered' FROM pengguna
+        RETURNING id
+      )`
+    : sql``;
+
+  const hasil = await db.execute(sql`
+    WITH pengguna AS (
+      INSERT INTO users
+        (name, email, role, password_hash, phone, country, province, city,
+         education, segment, account_status, is_demo)
+      VALUES
+        (${d.name}, ${d.email}, 'student', ${d.passwordHash}, ${d.phone},
+         ${d.country}, ${d.province}, ${d.city},
+         ${d.education}::education_level, ${d.segment}, 'aktif', false)
+      RETURNING id
+    ),
+    pendaftaran AS (
+      INSERT INTO registrations
+        (form_id, name, email, phone, gender, country, province, city,
+         education, segment, reason, commitment_agreed, commitment_snapshot,
+         user_id, status)
+      SELECT ${d.formId}, ${d.name}, ${d.email}, ${d.phone}, ${d.gender}::gender,
+             ${d.country}, ${d.province}, ${d.city}, ${d.education}::education_level,
+             ${d.segment}, ${d.reason}, true, ${d.commitmentSnapshot},
+             id, 'disetujui'
+      FROM pengguna
+      RETURNING id
+    )${enrol}
+    SELECT id AS user_id FROM pengguna
+  `);
+
+  const baris = (hasil as unknown as { rows?: { user_id: string }[] }).rows ??
+    (hasil as unknown as { user_id: string }[]);
+  return baris[0]?.user_id ?? null;
+}
+
+/** Caturwulan berjalan pada satu program — tujuan enrol otomatis. */
+export const tahapanBerjalan = async (programId: string) => {
+  const [row] = await db
+    .select({ id: s.tahapan.id })
+    .from(s.tahapan)
+    .where(and(eq(s.tahapan.programId, programId), eq(s.tahapan.status, "running")))
+    .limit(1);
+  return row?.id ?? null;
+};
+
+/* --- Persetujuan oleh admin ---------------------------------------- */
+
+export type HasilPersetujuan = {
+  userId: string;
+  akunBaru: boolean;
+  enrolBaru: boolean;
+};
+
+/**
+ * Menyetujui satu pendaftaran: memastikan pendaftar punya akun dan terdaftar
+ * pada caturwulan berjalan.
+ *
+ * Sebelumnya persetujuan hanya membalik kolom status, sehingga pendaftar yang
+ * "disetujui" tetap tidak punya akun dan tidak muncul di mana pun. Di sini
+ * ketiganya — akun, enrolmen, dan status — ditulis dalam SATU pernyataan,
+ * karena driver Neon berbasis HTTP tidak mendukung transaksi.
+ *
+ * Aman dipanggil berulang: akun dibuat hanya bila emailnya belum terpakai,
+ * dan enrolmen memakai ON CONFLICT sehingga klik kedua tidak menggandakan
+ * apa pun.
+ */
+export async function setujuiPendaftaran(
+  registrationId: string,
+  tahapanId: string | null,
+  aktorId: string,
+  passwordHash: string,
+  catatan: string | null,
+): Promise<HasilPersetujuan | null> {
+  const hasil = await db.execute(sql`
+    WITH p AS (
+      SELECT * FROM registrations WHERE id = ${registrationId}
+    ),
+    /* Akun dibuat hanya bila email pendaftar belum dipakai siapa pun. Bila
+       sudah ada, pendaftaran ini disambungkan ke akun tersebut. */
+    akun_baru AS (
+      INSERT INTO users
+        (name, email, role, password_hash, phone, country, province, city,
+         education, segment, account_status, is_demo)
+      SELECT p.name, p.email, 'student', ${passwordHash}, p.phone,
+             p.country, p.province, p.city, p.education, p.segment, 'aktif', false
+      FROM p
+      WHERE NOT EXISTS (SELECT 1 FROM users u WHERE u.email = p.email)
+      RETURNING id
+    ),
+    /* Tepat satu baris: CTE membaca snapshot sebelum sisipan di atas, jadi
+       kedua cabang tidak pernah menghasilkan baris bersamaan. */
+    akun AS (
+      SELECT id FROM akun_baru
+      UNION ALL
+      SELECT u.id FROM users u JOIN p ON p.email = u.email
+    ),
+    enrol AS (
+      INSERT INTO enrollments (user_id, tahapan_id, status)
+      SELECT (SELECT id FROM akun), ${tahapanId}::uuid, 'registered'
+      WHERE ${tahapanId}::uuid IS NOT NULL
+      ON CONFLICT (user_id, tahapan_id) DO NOTHING
+      RETURNING id
+    ),
+    ubah AS (
+      UPDATE registrations SET
+        status = 'disetujui',
+        user_id = (SELECT id FROM akun),
+        note = ${catatan},
+        reviewed_at = now(),
+        reviewed_by = ${aktorId}
+      WHERE id = ${registrationId}
+      RETURNING id
+    )
+    SELECT (SELECT id FROM akun) AS user_id,
+           EXISTS (SELECT 1 FROM akun_baru) AS akun_baru,
+           EXISTS (SELECT 1 FROM enrol) AS enrol_baru,
+           EXISTS (SELECT 1 FROM ubah) AS ada
+  `);
+
+  const baris = (hasil as unknown as { rows?: Record<string, unknown>[] }).rows ??
+    (hasil as unknown as Record<string, unknown>[]);
+  const r = baris[0];
+  if (!r || !r.ada || !r.user_id) return null;
+  return {
+    userId: String(r.user_id),
+    akunBaru: r.akun_baru === true,
+    enrolBaru: r.enrol_baru === true,
+  };
+}
