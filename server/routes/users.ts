@@ -3,7 +3,8 @@ import { badRequest, notFound } from "../lib/errors";
 import { ADMIN, requireRole } from "../middleware/auth";
 import * as learner from "../repositories/learner";
 import { uuidParam } from "../validators/schemas";
-import { suggestQuery, userListQuery, userPatchBody } from "../validators/users";
+import { suggestQuery, userCreateBody, userListQuery, userPatchBody } from "../validators/users";
+import { hashPassword } from "../services/auth";
 
 /**
  * Manajemen pengguna.
@@ -50,6 +51,46 @@ userRoutes.get("/suggest", async (c) => {
   const p = suggestQuery.safeParse(c.req.query());
   if (!p.success) return badRequest(c, p.error);
   return c.json({ data: await learner.suggestUsers(p.data.q, p.data.limit) });
+});
+
+/**
+ * Membuat pengguna baru.
+ *
+ * Kata sandi awal ditetapkan admin dan langsung di-hash; nilai mentahnya
+ * tidak pernah disimpan maupun dikembalikan. Belum ada alur undangan lewat
+ * surel, jadi admin menyampaikan kata sandinya sendiri kepada yang
+ * bersangkutan.
+ */
+userRoutes.post("/", async (c) => {
+  const p = userCreateBody.safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+
+  const aktor = c.get("user")!;
+
+  /*
+   * Aturan yang sama dengan pengubahan peran: hanya super admin yang boleh
+   * mencetak super admin. Tanpa ini, seorang academic_admin dapat membuat
+   * akun baru berperan super admin dan memakainya untuk melewati batasannya
+   * sendiri.
+   */
+  if (aktor.role !== "super_admin" && p.data.role === "super_admin") {
+    return forbidden(c, "Hanya super admin yang dapat membuat akun super admin.");
+  }
+
+  const { password, ...sisa } = p.data;
+
+  try {
+    const [row] = await learner.createUser({
+      ...sisa,
+      passwordHash: await hashPassword(password),
+      isDemo: false,
+    });
+    await learner.writeAudit(aktor.id, "user.create", "user", row.id);
+    return c.json({ data: row }, 201);
+  } catch (e) {
+    if (emailBentrok(e)) return conflict(c, "Alamat email itu sudah dipakai pengguna lain.");
+    throw e;
+  }
 });
 
 userRoutes.get("/:id", async (c) => {
@@ -100,9 +141,21 @@ userRoutes.patch("/:id", async (c) => {
     return forbidden(c, "Anda tidak dapat menonaktifkan akun Anda sendiri.");
   }
 
+  const { password, ...ubah } = p.data;
+
   try {
-    const [row] = await learner.updateUser(id.data.id, p.data);
-    await learner.writeAudit(aktor.id, "user.update", "user", id.data.id);
+    const [row] = await learner.updateUser(id.data.id, {
+      ...ubah,
+      ...(password ? { passwordHash: await hashPassword(password) } : {}),
+    });
+    await learner.writeAudit(
+      aktor.id,
+      /* Penggantian kata sandi dicatat terpisah — bobotnya berbeda dari
+         sekadar menyunting profil. */
+      password ? "user.password_change" : "user.update",
+      "user",
+      id.data.id,
+    );
     return c.json({ data: row });
   } catch (e) {
     if (emailBentrok(e)) return conflict(c, "Alamat email itu sudah dipakai pengguna lain.");

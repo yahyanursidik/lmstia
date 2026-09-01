@@ -244,7 +244,8 @@ export default function Pengguna() {
   const [perPage, setPerPage] = useState(20);
 
   const [pilih, setPilih] = useState<string | null>(null);
-  const [ubah, setUbah] = useState<Partial<Pengguna> | null>(null);
+  const [tambah, setTambah] = useState<Partial<Pengguna> & { password?: string } | null>(null);
+  const [ubah, setUbah] = useState<(Partial<Pengguna> & { password?: string }) | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -283,6 +284,33 @@ export default function Pengguna() {
     [tahapan.data, programId],
   );
 
+  async function buat() {
+    if (!tambah) return;
+    setBusy(true);
+    const m = await mutate(() =>
+      api.post("/admin/users", {
+        name: tambah.name,
+        email: tambah.email,
+        password: tambah.password,
+        role: tambah.role ?? "student",
+        accountStatus: tambah.accountStatus ?? "aktif",
+        education: tambah.education || null,
+        phone: tambah.phone || null,
+        country: tambah.country || null,
+        province: tambah.province || null,
+        city: tambah.city || null,
+        segment: tambah.segment || null,
+        title: tambah.title || null,
+        bio: tambah.bio || null,
+      }),
+    );
+    setBusy(false);
+    if (m) return setErr(m);
+    setErr(null);
+    setTambah(null);
+    daftar.reload();
+  }
+
   async function simpan() {
     if (!ubah || !pilih) return;
     setBusy(true);
@@ -299,6 +327,12 @@ export default function Pengguna() {
       segment: ubah.segment || null,
       title: ubah.title || null,
       bio: ubah.bio || null,
+      /*
+       * Kolom kata sandi hanya ikut terkirim bila benar-benar diisi. Mengirim
+       * string kosong akan diartikan server sebagai kata sandi baru yang
+       * kosong — mengunci pemiliknya keluar tanpa ada yang meminta.
+       */
+      ...(ubah.password ? { password: ubah.password } : {}),
     };
     const m = await mutate(() => api.patch(`/admin/users/${pilih}`, body));
     setBusy(false);
@@ -414,6 +448,20 @@ export default function Pengguna() {
         eyebrow="Administrasi"
         title="Manajemen Pengguna"
         lead="Profil, kontak, domisili, peran, dan status akun seluruh pengguna portal."
+        actions={
+          !tambah ? (
+            <button
+              type="button"
+              className="btn-solid-sm"
+              onClick={() => {
+                setErr(null);
+                setTambah({ role: "student", accountStatus: "aktif", country: "Indonesia" });
+              }}
+            >
+              + Tambah pengguna
+            </button>
+          ) : undefined
+        }
       />
 
       {/* --- penyaring --- */}
@@ -518,6 +566,106 @@ export default function Pengguna() {
         >
           {err}
         </div>
+      )}
+
+      {/* --- formulir pengguna baru --- */}
+      {tambah && (
+        <FormPanel
+          title="Tambah pengguna"
+          error={err}
+          busy={busy}
+          submitLabel="Buat akun"
+          onSubmit={buat}
+          onCancel={() => {
+            setTambah(null);
+            setErr(null);
+          }}
+        >
+          <Field label="Nama lengkap">
+            <Text value={tambah.name ?? ""} onChange={(v) => setTambah({ ...tambah, name: v })} />
+          </Field>
+          <Field label="Email">
+            <Text
+              type="email"
+              value={tambah.email ?? ""}
+              onChange={(v) => setTambah({ ...tambah, email: v })}
+            />
+          </Field>
+
+          <Field
+            label="Kata sandi awal"
+            span
+            hint="Minimal 12 karakter. Sampaikan sendiri kepada yang bersangkutan — belum ada undangan lewat surel."
+          >
+            <Text
+              type="password"
+              value={tambah.password ?? ""}
+              onChange={(v) => setTambah({ ...tambah, password: v })}
+            />
+          </Field>
+
+          <Field label="Peran">
+            <Select
+              value={(tambah.role ?? "student") as string}
+              onChange={(v) => setTambah({ ...tambah, role: v as Pengguna["role"] })}
+              options={opsi(
+                aktor?.role === "super_admin"
+                  ? ROLE_LABEL
+                  : /* Hanya super admin yang boleh mencetak super admin. */
+                    Object.fromEntries(
+                      Object.entries(ROLE_LABEL).filter(([k]) => k !== "super_admin"),
+                    ),
+              )}
+            />
+          </Field>
+          <Field label="Status akun">
+            <Select
+              value={(tambah.accountStatus ?? "aktif") as string}
+              onChange={(v) => setTambah({ ...tambah, accountStatus: v as Pengguna["accountStatus"] })}
+              options={opsi(ACCOUNT_STATUS_LABEL)}
+            />
+          </Field>
+
+          <Field label="Nomor WhatsApp" hint="Boleh dikosongkan.">
+            <Text
+              value={tambah.phone ?? ""}
+              onChange={(v) => setTambah({ ...tambah, phone: v })}
+              placeholder="+62 812-3456-7890"
+            />
+          </Field>
+          <Field label="Pendidikan terakhir">
+            <Select
+              value={tambah.education ?? ""}
+              onChange={(v) => setTambah({ ...tambah, education: v })}
+              options={opsi(EDUCATION_LABEL, "— belum diisi —")}
+            />
+          </Field>
+
+          <Field label="Provinsi">
+            <Combobox
+              value={tambah.province ?? ""}
+              onChange={(v) => setTambah({ ...tambah, province: v, city: null })}
+              options={[
+                { value: "", label: "— belum diisi —" },
+                ...PROVINSI.map((x) => ({ value: x, label: x })),
+              ]}
+              ariaLabel="Provinsi"
+            />
+          </Field>
+          <Field label="Kabupaten/Kota" hint={tambah.province ? undefined : "Pilih provinsi lebih dulu."}>
+            <Combobox
+              value={tambah.city ?? ""}
+              onChange={(v) => setTambah({ ...tambah, city: v })}
+              options={[
+                { value: "", label: "— belum diisi —" },
+                ...kotaDi(tambah.province).map((k) => ({ value: k, label: k })),
+              ]}
+              disabled={!tambah.province}
+              emptyText="Pilih provinsi lebih dulu"
+              ariaLabel="Kabupaten/Kota"
+            />
+          </Field>
+        </FormPanel>
       )}
 
       {/* --- rincian: panel geser, supaya tabel tidak berpindah posisi --- */}
@@ -642,6 +790,18 @@ export default function Pengguna() {
                   value={(ubah.accountStatus ?? "aktif") as string}
                   onChange={(v) => setUbah({ ...ubah, accountStatus: v as Pengguna["accountStatus"] })}
                   options={opsi(ACCOUNT_STATUS_LABEL)}
+                />
+              </Field>
+
+              <Field
+                label="Kata sandi baru"
+                hint="Kosongkan bila kata sandi tidak diubah. Minimal 12 karakter."
+              >
+                <Text
+                  type="password"
+                  value={ubah.password ?? ""}
+                  onChange={(v) => setUbah({ ...ubah, password: v })}
+                  placeholder="••••••••••••"
                 />
               </Field>
 

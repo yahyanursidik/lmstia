@@ -30,11 +30,49 @@ const nomorWa = z
   .nullable()
   .transform((v) => (v === "" ? null : v));
 
+export const SANDI_DEMO_LAMA = "TiaDemo#2026";
+
+const sandiAwal = z
+  .string()
+  .min(12, "Kata sandi minimal 12 karakter")
+  .max(200)
+  .refine((v) => v !== SANDI_DEMO_LAMA, "Jangan memakai kata sandi demo lama");
+
 export const userPatchBody = z.object({
+  /*
+   * Opsional: dikirim hanya saat admin memang mengganti kata sandi. Nilai
+   * kosong berarti "jangan diubah", bukan "kosongkan" — kata sandi kosong
+   * akan mengunci pemiliknya keluar tanpa disadari.
+   */
+  password: sandiAwal.optional(),
   name: z.string().trim().min(2, "Nama wajib diisi").max(160).optional(),
   email: z.string().trim().toLowerCase().email("Alamat email tidak valid").max(200).optional(),
   role: roleSchema.optional(),
   accountStatus: accountStatusSchema.optional(),
+  education: educationSchema.optional().nullable(),
+  phone: nomorWa,
+  country: teksOpsional(80),
+  province: teksOpsional(80),
+  city: teksOpsional(120),
+  segment: teksOpsional(80),
+  title: teksOpsional(160),
+  bio: teksOpsional(2000),
+});
+
+/**
+ * Kata sandi awal untuk pengguna baru.
+ *
+ * Belum ada alur undangan lewat surel, jadi admin menetapkan kata sandi
+ * pertama dan menyampaikannya sendiri. Aturannya sama dengan pembuatan admin
+ * lewat baris perintah supaya tidak ada jalur yang lebih longgar dari yang
+ * lain.
+ */
+export const userCreateBody = z.object({
+  name: z.string().trim().min(2, "Nama wajib diisi").max(160),
+  email: z.string().trim().toLowerCase().email("Alamat email tidak valid").max(200),
+  password: sandiAwal,
+  role: roleSchema,
+  accountStatus: accountStatusSchema.optional().default("aktif"),
   education: educationSchema.optional().nullable(),
   phone: nomorWa,
   country: teksOpsional(80),

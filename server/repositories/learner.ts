@@ -413,3 +413,7 @@ export const nilaiRekap = (tahapanId: string) =>
     .groupBy(s.users.id, s.users.name, s.users.email, s.enrollments.className)
     .orderBy(asc(s.users.name));
 
+
+/** Membuat pengguna baru; mengembalikan kolom yang aman dibaca klien. */
+export const createUser = (v: typeof s.users.$inferInsert) =>
+  db.insert(s.users).values(v).returning(kolomPengguna);
