@@ -165,7 +165,11 @@ tanpa itu portal admin terkunci permanen, karena tidak ada pendaftaran admin
 maupun reset kata sandi.
 
 ```bash
-ADMIN_EMAIL=admin@domain-anda.id ADMIN_NAME="Nama Lengkap" ADMIN_PASSWORD='kata sandi panjang' npm run db:admin
+# PowerShell
+$env:ADMIN_EMAIL="admin@domain-anda.id"; $env:ADMIN_NAME="Nama Lengkap"; npm run db:admin
+
+# bash
+ADMIN_EMAIL=admin@domain-anda.id ADMIN_NAME="Nama Lengkap" npm run db:admin
 ```
 
 Kata sandi dibaca dari environment, bukan argumen, supaya tidak tersimpan di
