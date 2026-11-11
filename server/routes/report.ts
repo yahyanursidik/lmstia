@@ -104,7 +104,7 @@ reportRoutes.get("/peserta/:userId", async (c) => {
   const [mapel, asesmen, pendaftaran] = await Promise.all([
     report.rincianMapel(pid.data.id, id.data.id),
     report.rincianAsesmen(pid.data.id, id.data.id),
-    learner.listUserEnrollments(id.data.id),
+    learner.riwayatPeserta(id.data.id),
   ]);
 
   return c.json({

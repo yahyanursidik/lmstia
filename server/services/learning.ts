@@ -29,8 +29,33 @@ export async function tahapanMaterialsWithProgress(userId: string, tahapanId: st
  * pemanggil tidak menambah satu round-trip untuk tiap barisnya.
  */
 export async function subjectProgressMap(userId: string, tahapanId: string) {
+  const { perMapel } = await progresTahapan(userId, tahapanId);
+  return perMapel;
+}
+
+/**
+ * Progres satu tahapan: per mata pelajaran sekaligus keseluruhannya.
+ *
+ * Keduanya dari baris yang sama, jadi angka keseluruhan tidak menambah satu
+ * pun perjalanan jaringan — dan tidak mungkin berbeda dari penjumlahan
+ * bagian-bagiannya.
+ *
+ * Keseluruhan dihitung dari total materi, bukan rata-rata persentase mata
+ * pelajaran. Merata-ratakan persentase memberi bobot sama kepada mata
+ * pelajaran berisi dua materi dan yang berisi dua puluh.
+ */
+export async function progresTahapan(userId: string, tahapanId: string) {
   const rows = await learner.subjectProgressForTahapan(userId, tahapanId);
-  return new Map(rows.map((r) => [r.subjectId, r.total ? Math.round((r.done / r.total) * 100) : 0]));
+  const total = rows.reduce((n, r) => n + Number(r.total), 0);
+  const selesai = rows.reduce((n, r) => n + Number(r.done), 0);
+  return {
+    perMapel: new Map(
+      rows.map((r) => [r.subjectId, r.total ? Math.round((r.done / r.total) * 100) : 0]),
+    ),
+    total,
+    selesai,
+    keseluruhan: total ? Math.round((selesai / total) * 100) : 0,
+  };
 }
 
 export async function getDashboard(userId: string) {
@@ -44,7 +69,7 @@ export async function getDashboard(userId: string) {
   const [enrollment, subjects, persen, meetings, announcements, nextAction] = await Promise.all([
     learner.findEnrollment(userId, tahapan.id),
     academic.listSubjects(tahapan.id),
-    subjectProgressMap(userId, tahapan.id),
+    progresTahapan(userId, tahapan.id),
     academic.listScheduledMeetings(),
     academic.listAnnouncements(tahapan.id),
     getNextLearningAction(userId, tahapan),
@@ -58,7 +83,15 @@ export async function getDashboard(userId: string) {
       durationWeeks: tahapan.durationWeeks,
     },
     enrollment: enrollment
-      ? { status: enrollment.status, progress: enrollment.progress, className: enrollment.className }
+      ? {
+          status: enrollment.status,
+          /* Dari perhitungan, bukan dari `enrollments.progress` — kolom itu
+             tidak pernah diperbarui dan menampilkan angka penyemaian. */
+          progress: persen.keseluruhan,
+          materiSelesai: persen.selesai,
+          materiTotal: persen.total,
+          className: enrollment.className,
+        }
       : null,
     subjects: subjects.map((s) => ({
       id: s.id,
@@ -66,7 +99,7 @@ export async function getDashboard(userId: string) {
       name: s.name,
       role: s.role,
       deliveryModel: s.deliveryModel,
-      percent: persen.get(s.id) ?? 0,
+      percent: persen.perMapel.get(s.id) ?? 0,
     })),
     upcomingMeetings: meetings.slice(0, 3),
     announcements: announcements.slice(0, 3),

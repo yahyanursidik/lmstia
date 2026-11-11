@@ -100,7 +100,11 @@ userRoutes.get("/:id", async (c) => {
   const [user] = await learner.findUserDetail(id.data.id);
   if (!user) return notFound(c, "Pengguna tidak ditemukan.");
 
-  return c.json({ data: { ...user, enrollments: await learner.listUserEnrollments(user.id) } });
+  /*
+   * Riwayat menggantikan daftar pendaftaran yang lama: isinya sama ditambah
+   * tanggal dan progres terhitung, dalam satu kueri yang sama banyaknya.
+   */
+  return c.json({ data: { ...user, enrollments: await learner.riwayatPeserta(user.id) } });
 });
 
 userRoutes.patch("/:id", async (c) => {

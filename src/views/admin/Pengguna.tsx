@@ -14,6 +14,11 @@ import {
   ROLE_LABEL,
   kotaDi,
 } from "../../data/wilayah";
+import {
+  RingkasanRiwayat,
+  RiwayatBelajar,
+  type BarisRiwayat,
+} from "../../components/RiwayatBelajar";
 
 /**
  * Manajemen Pengguna.
@@ -43,19 +48,8 @@ type Pengguna = {
   createdAt: string;
 };
 
-type Pendaftaran = {
-  id: string;
-  status: string;
-  engagement: string;
-  competency: string | null;
-  progress: number;
-  className: string | null;
-  halaqohName: string | null;
-  tahapanName: string;
-  programName: string;
-};
 
-type Detail = Pengguna & { enrollments: Pendaftaran[] };
+type Detail = Pengguna & { enrollments: BarisRiwayat[] };
 type Program = { id: string; name: string };
 type Tahapan = { id: string; name: string; programId: string };
 
@@ -719,38 +713,26 @@ export default function Pengguna() {
                 />
               </div>
 
-              <div className="eyebrow" style={{ marginBottom: 10 }}>
-                Pendaftaran
-              </div>
-              {d.enrollments.length === 0 ? (
-                <EmptyState title="Belum terdaftar pada caturwulan mana pun" />
-              ) : (
-                <div style={{ display: "grid", gap: 10 }}>
-                  {d.enrollments.map((e) => (
-                    <div
-                      key={e.id}
-                      style={{
-                        border: "1px solid var(--color-line)",
-                        borderRadius: 9,
-                        padding: "12px 14px",
-                      }}
-                    >
-                      <div style={{ fontWeight: 600 }}>{e.tahapanName}</div>
-                      <div style={{ fontSize: 13.5, color: "var(--color-faint)", marginTop: 3 }}>
-                        {e.programName}
-                        {/* Halaqoh didahulukan dari `className`: yang kedua teks bebas
-                            warisan, sedangkan yang pertama rombel sungguhan. */}
-                        {e.halaqohName
-                          ? ` · ${e.halaqohName}`
-                          : e.className
-                            ? ` · ${e.className}`
-                            : ""}{" "}
-                        · {e.status} · progres {e.progress}%
-                      </div>
-                    </div>
-                  ))}
+              {/*
+                Riwayat menggantikan daftar pendaftaran yang lama. Isinya
+                bukan sekadar nama caturwulan: ada tanggal, progres materi
+                yang dihitung dari catatan belajar sungguhan, kehadiran, dan
+                nilai — itulah yang dicari ketika seseorang membuka profil
+                peserta.
+              */}
+              {d.enrollments.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <RingkasanRiwayat rows={d.enrollments} />
                 </div>
               )}
+
+              <div className="eyebrow" style={{ marginBottom: 10 }}>
+                Riwayat belajar
+              </div>
+              <RiwayatBelajar
+                rows={d.enrollments}
+                kosong="Belum terdaftar pada caturwulan mana pun."
+              />
 
               {aktor?.id !== d.id && (
                 <div style={{ marginTop: 20, paddingTop: 18, borderTop: "1px solid var(--color-line)" }}>

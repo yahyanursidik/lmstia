@@ -145,6 +145,16 @@ me.get("/progress", async (c) => {
   });
 });
 
+/**
+ * Riwayat belajar peserta sendiri — seluruh caturwulan yang pernah diikuti.
+ *
+ * Tidak menerima parameter id: peserta hanya boleh melihat riwayatnya
+ * sendiri, dan tanpa parameter tidak ada yang bisa ditebak.
+ */
+me.get("/riwayat", async (c) =>
+  c.json({ data: await learner.riwayatPeserta(c.get("user")!.id) }),
+);
+
 me.get("/catch-up", async (c) => c.json({ data: await service.getCatchUpPath(c.get("user")!.id) }));
 
 me.get("/bookmarks", async (c) => c.json({ data: await learner.listBookmarks(c.get("user")!.id) }));

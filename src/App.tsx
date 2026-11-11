@@ -22,6 +22,7 @@ import Kuis from "./views/student/Kuis";
 import NilaiPeserta from "./views/student/Nilai";
 import Pembayaran from "./views/student/Pembayaran";
 import PustakaPeserta from "./views/student/Pustaka";
+import Riwayat from "./views/student/Riwayat";
 import { Catatan, Caturwulan, Jadwal, Kelas, Murojaah, Profil, Progress } from "./views/student/Pages";
 
 import AdminDashboard from "./views/admin/Dashboard";
@@ -106,6 +107,7 @@ export default function App() {
           <Route path="/belajar/kuis/:id" element={<Kuis />} />
           <Route path="/belajar/nilai" element={<NilaiPeserta />} />
           <Route path="/belajar/progress" element={<Progress />} />
+          <Route path="/belajar/riwayat" element={<Riwayat />} />
           <Route path="/belajar/pustaka" element={<PustakaPeserta />} />
           <Route path="/belajar/pembayaran" element={<Pembayaran />} />
           <Route path="/belajar/catatan" element={<Catatan />} />

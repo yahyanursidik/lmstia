@@ -152,6 +152,7 @@ const STUDENT_NAV = [
   { to: "/belajar/murojaah", label: "Murojaah" },
   { to: "/belajar/nilai", label: "Nilai" },
   { to: "/belajar/progress", label: "Progress" },
+  { to: "/belajar/riwayat", label: "Riwayat" },
   { to: "/belajar/pustaka", label: "Pustaka" },
   { to: "/belajar/pembayaran", label: "Pembayaran" },
   { to: "/belajar/catatan", label: "Catatan" },

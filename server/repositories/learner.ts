@@ -1,4 +1,4 @@
-import { and, asc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, ilike, inArray, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import * as s from "../db/schema";
 
@@ -54,7 +54,23 @@ export const listEnrollments = (tahapanId: string) =>
       status: s.enrollments.status,
       engagement: s.enrollments.engagement,
       competency: s.enrollments.competency,
-      progress: s.enrollments.progress,
+      /*
+       * Dihitung, bukan dibaca dari `enrollments.progress`. Kolom itu terisi
+       * sekali saat penyemaian dan tidak pernah diperbarui oleh apa pun.
+       */
+      progress: sql<number>`(
+        SELECT CASE WHEN count(*) = 0 THEN 0
+               ELSE round(100.0 * count(*) filter (where ${s.materialProgress.status} = 'completed') / count(*))::int
+               END
+        FROM ${s.materials}
+        JOIN ${s.meetings} ON ${s.meetings.id} = ${s.materials.meetingId}
+        JOIN ${s.subjects} ON ${s.subjects.id} = ${s.meetings.subjectId}
+        LEFT JOIN ${s.materialProgress}
+          ON ${s.materialProgress.materialId} = ${s.materials.id}
+         AND ${s.materialProgress.userId} = ${s.enrollments.userId}
+        WHERE ${s.subjects.tahapanId} = ${s.enrollments.tahapanId}
+          AND ${s.materials.publishStatus} = 'published'
+      )`,
     })
     .from(s.enrollments)
     .innerJoin(s.users, eq(s.enrollments.userId, s.users.id))
@@ -100,7 +116,14 @@ export const subjectProgressForTahapan = (userId: string, tahapanId: string) =>
         eq(s.materialProgress.userId, userId),
       ),
     )
-    .where(eq(s.subjects.tahapanId, tahapanId))
+    /*
+     * Hanya materi terbit yang dihitung — definisi yang sama dipakai laporan
+     * program di `report.ts`. Materi draf tidak pernah ditawarkan kepada
+     * peserta, jadi memasukkannya ke penyebut membuat progres terlihat lebih
+     * buruk daripada kenyataan; dan bila dua layar memakai definisi berbeda,
+     * keduanya akan menampilkan angka yang saling bertentangan.
+     */
+    .where(and(eq(s.subjects.tahapanId, tahapanId), eq(s.materials.publishStatus, "published")))
     .groupBy(s.subjects.id);
 
 
@@ -324,34 +347,6 @@ export const suggestUsers = (q: string, limit = 8) =>
 export const findUserDetail = (id: string) =>
   db.select(kolomPengguna).from(s.users).where(eq(s.users.id, id));
 
-/** Pendaftaran seorang pengguna, lengkap dengan tahapan dan programnya. */
-export const listUserEnrollments = (userId: string) =>
-  db
-    .select({
-      id: s.enrollments.id,
-      status: s.enrollments.status,
-      engagement: s.enrollments.engagement,
-      competency: s.enrollments.competency,
-      progress: s.enrollments.progress,
-      className: s.enrollments.className,
-      /* Halaqoh ikut dibawa: layar admin perlu tahu rombel peserta saat ini,
-         dan tanpa kolom ini panel penempatan selalu berkata "belum
-         ditempatkan" meski datanya sudah benar. */
-      halaqohId: s.enrollments.halaqohId,
-      halaqohName: s.halaqoh.name,
-      halaqohCode: s.halaqoh.code,
-      tahapanId: s.tahapan.id,
-      tahapanName: s.tahapan.name,
-      programId: s.programs.id,
-      programName: s.programs.name,
-    })
-    .from(s.enrollments)
-    .innerJoin(s.tahapan, eq(s.tahapan.id, s.enrollments.tahapanId))
-    .innerJoin(s.programs, eq(s.programs.id, s.tahapan.programId))
-    /* LEFT: peserta yang belum punya rombel tetap harus muncul. */
-    .leftJoin(s.halaqoh, eq(s.halaqoh.id, s.enrollments.halaqohId))
-    .where(eq(s.enrollments.userId, userId));
-
 export const updateUser = (id: string, v: Partial<typeof s.users.$inferInsert>) =>
   db
     .update(s.users)
@@ -425,3 +420,115 @@ export const nilaiRekap = (tahapanId: string) =>
 /** Membuat pengguna baru; mengembalikan kolom yang aman dibaca klien. */
 export const createUser = (v: typeof s.users.$inferInsert) =>
   db.insert(s.users).values(v).returning(kolomPengguna);
+
+/* --- Riwayat & progres belajar peserta ------------------------------ */
+
+/**
+ * Progres belajar satu keikutsertaan, dihitung dari data sungguhan.
+ *
+ * `enrollments.progress` TIDAK dipakai. Kolom itu terisi sekali saat
+ * penyemaian dan tidak pernah diperbarui oleh apa pun, sehingga setiap
+ * peserta melihat angka yang sama selamanya — termasuk di dasbornya sendiri.
+ * Angka yang salah lebih buruk daripada tidak ada angka, jadi penyebut dan
+ * pembilangnya dihitung ulang di sini setiap kali diminta.
+ *
+ * Definisinya sengaja sama persis dengan laporan program di `report.ts`:
+ * hanya materi berstatus terbit yang masuk penyebut. Materi draf tidak
+ * pernah ditawarkan kepada peserta, jadi memasukkannya membuat progres
+ * terlihat lebih buruk daripada kenyataan — dan dua definisi berbeda untuk
+ * satu angka akan membuat dua layar saling bertentangan.
+ */
+const materiTerbit = sql<number>`(
+  SELECT count(*) FROM ${s.materials}
+  JOIN ${s.meetings} ON ${s.meetings.id} = ${s.materials.meetingId}
+  JOIN ${s.subjects} ON ${s.subjects.id} = ${s.meetings.subjectId}
+  WHERE ${s.subjects.tahapanId} = ${s.enrollments.tahapanId}
+    AND ${s.materials.publishStatus} = 'published'
+)::int`;
+
+const materiSelesai = sql<number>`(
+  SELECT count(*) FROM ${s.materialProgress}
+  JOIN ${s.materials} ON ${s.materials.id} = ${s.materialProgress.materialId}
+  JOIN ${s.meetings} ON ${s.meetings.id} = ${s.materials.meetingId}
+  JOIN ${s.subjects} ON ${s.subjects.id} = ${s.meetings.subjectId}
+  WHERE ${s.subjects.tahapanId} = ${s.enrollments.tahapanId}
+    AND ${s.materialProgress.userId} = ${s.enrollments.userId}
+    AND ${s.materialProgress.status} = 'completed'
+    AND ${s.materials.publishStatus} = 'published'
+)::int`;
+
+const hitungKehadiran = (status: string) => sql<number>`(
+  SELECT count(*) FROM ${s.attendance}
+  JOIN ${s.meetings} ON ${s.meetings.id} = ${s.attendance.meetingId}
+  JOIN ${s.subjects} ON ${s.subjects.id} = ${s.meetings.subjectId}
+  WHERE ${s.subjects.tahapanId} = ${s.enrollments.tahapanId}
+    AND ${s.attendance.userId} = ${s.enrollments.userId}
+    AND ${s.attendance.status} = ${sql.raw(`'${status}'`)}
+)::int`;
+
+/**
+ * Riwayat lengkap seorang peserta: setiap caturwulan yang pernah diikuti,
+ * beserta progres, kehadiran, dan nilainya.
+ *
+ * Seluruhnya satu pernyataan. Driver Neon berbasis HTTP membayar satu
+ * perjalanan jaringan per kueri ke Singapura, jadi mengambil rekap per baris
+ * riwayat akan mengubah satu halaman profil menjadi belasan perjalanan.
+ *
+ * Diurutkan dari yang terbaru: riwayat dibaca mundur, dan caturwulan yang
+ * sedang berjalan hampir selalu yang dicari lebih dulu.
+ */
+export const riwayatPeserta = (userId: string) =>
+  db
+    .select({
+      id: s.enrollments.id,
+      status: s.enrollments.status,
+      engagement: s.enrollments.engagement,
+      competency: s.enrollments.competency,
+      className: s.enrollments.className,
+      halaqohId: s.enrollments.halaqohId,
+      halaqohName: s.halaqoh.name,
+      halaqohCode: s.halaqoh.code,
+      tahapanId: s.tahapan.id,
+      tahapanName: s.tahapan.name,
+      tahapanStatus: s.tahapan.status,
+      tahapanSequence: s.tahapan.sequence,
+      programId: s.programs.id,
+      programName: s.programs.name,
+      /* Tanggal sudah lama ada di tabel tetapi tidak pernah ditampilkan.
+         Tanpa ini riwayat hanya daftar nama, bukan urutan waktu. */
+      registeredAt: s.enrollments.registeredAt,
+      approvedAt: s.enrollments.approvedAt,
+      startedAt: s.enrollments.startedAt,
+      completedAt: s.enrollments.completedAt,
+      lastActiveAt: s.enrollments.lastActiveAt,
+      materiTotal: materiTerbit,
+      materiSelesai,
+      hadir: hitungKehadiran("hadir"),
+      izin: hitungKehadiran("izin"),
+      sakit: hitungKehadiran("sakit"),
+      alpa: hitungKehadiran("alpa"),
+      asesmenSelesai: sql<number>`(
+        SELECT count(*) FROM ${s.assessmentAttempts}
+        JOIN ${s.assessments} ON ${s.assessments.id} = ${s.assessmentAttempts.assessmentId}
+        WHERE ${s.assessmentAttempts.userId} = ${s.enrollments.userId}
+          AND ${s.assessmentAttempts.status} = 'dinilai'
+          AND ${s.assessments.tahapanId} = ${s.enrollments.tahapanId}
+      )::int`,
+      /* Rata-rata hanya dari percobaan yang sudah dinilai; yang masih
+         menunggu penilaian esai bernilai null dan tidak boleh dianggap nol. */
+      nilaiRata: sql<number | null>`(
+        SELECT round(avg(${s.assessmentAttempts.score}))::int
+        FROM ${s.assessmentAttempts}
+        JOIN ${s.assessments} ON ${s.assessments.id} = ${s.assessmentAttempts.assessmentId}
+        WHERE ${s.assessmentAttempts.userId} = ${s.enrollments.userId}
+          AND ${s.assessmentAttempts.status} = 'dinilai'
+          AND ${s.assessmentAttempts.score} IS NOT NULL
+          AND ${s.assessments.tahapanId} = ${s.enrollments.tahapanId}
+      )`,
+    })
+    .from(s.enrollments)
+    .innerJoin(s.tahapan, eq(s.tahapan.id, s.enrollments.tahapanId))
+    .innerJoin(s.programs, eq(s.programs.id, s.tahapan.programId))
+    .leftJoin(s.halaqoh, eq(s.halaqoh.id, s.enrollments.halaqohId))
+    .where(eq(s.enrollments.userId, userId))
+    .orderBy(desc(s.enrollments.registeredAt), desc(s.tahapan.sequence));
