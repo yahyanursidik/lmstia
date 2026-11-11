@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import * as s from "../db/schema";
 
@@ -21,13 +21,37 @@ export type Pengguna = { id: string; role: string };
 export const tanpaBatas = (user: Pengguna) =>
   user.role === "academic_admin" || user.role === "super_admin";
 
-/** Id mata pelajaran yang boleh diakses pemanggil, atau null bila tak dibatasi. */
+/**
+ * Id mata pelajaran yang boleh diakses pemanggil, atau null bila tak dibatasi.
+ *
+ * Dua jalan kepemilikan, dan keduanya sah:
+ *
+ *   `subjects.instructor_id`  — pengampu bawaan mata pelajaran
+ *   `teaching_assignments`    — pengampu di satu halaqoh tertentu
+ *
+ * Sejak ada halaqoh, mata pelajaran yang sama dapat diampu ustadz berbeda di
+ * rombel berbeda. Memeriksa jalan pertama saja akan mengunci pengajar dari
+ * kelas yang justru ditugaskan kepadanya.
+ *
+ * Keduanya digabung dalam satu pernyataan: driver HTTP membayar satu
+ * perjalanan jaringan per kueri, dan dua kueri untuk satu jawaban itu
+ * pemborosan pada jalur yang dilewati hampir setiap permintaan pengajar.
+ */
 export async function mapelTerjangkau(user: Pengguna): Promise<string[] | null> {
   if (tanpaBatas(user)) return null;
   const rows = await db
     .select({ id: s.subjects.id })
     .from(s.subjects)
-    .where(eq(s.subjects.instructorId, user.id));
+    .where(
+      or(
+        eq(s.subjects.instructorId, user.id),
+        sql`EXISTS (
+          SELECT 1 FROM ${s.teachingAssignments}
+          WHERE ${s.teachingAssignments.subjectId} = ${s.subjects.id}
+            AND ${s.teachingAssignments.instructorId} = ${user.id}
+        )`,
+      ),
+    );
   return rows.map((r) => r.id);
 }
 

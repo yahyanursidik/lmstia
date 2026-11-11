@@ -20,7 +20,8 @@ import { authRoutes } from "./routes/auth";
 import { contentRoutes } from "./routes/content";
 import { assessmentAdminRoutes, quizRoutes } from "./routes/assessment";
 import { userRoutes } from "./routes/users";
-import { daftarRoutes, registrationAdminRoutes } from "./routes/registration";
+import { halaqohRoutes } from "./routes/halaqoh";
+import { daftarRoutes, pembayaranSayaRoutes, registrationAdminRoutes } from "./routes/registration";
 import { bankRoutes } from "./routes/bank";
 import { reportRoutes } from "./routes/report";
 import { attendanceRoutes } from "./routes/attendance";
@@ -230,6 +231,17 @@ app.route("/me", me);
 
 /* --- Materi (progres peserta) -------------------------------------- */
 
+/**
+ * Pustaka umum — materi yang diterima seluruh program.
+ *
+ * Terpisah dari `/admin/materials?scope=umum`: yang ini hanya menyajikan
+ * yang sudah terbit, dan terbuka untuk tiap peserta tanpa memandang program
+ * yang diikutinya. Itulah arti "umum".
+ */
+app.get("/pustaka", requireAuth(), async (c) =>
+  c.json({ data: await academic.listMateriUmum(true) }),
+);
+
 app.get("/materials/:id", requireAuth(), async (c) => {
   const p = uuidParam.safeParse({ id: c.req.param("id") });
   if (!p.success) return badRequest(c, p.error);
@@ -257,10 +269,12 @@ app.post("/materials/:id/complete", requireAuth(), async (c) => {
 app.route("/kuis", quizRoutes);
 app.route("/daftar", daftarRoutes);
 app.route("/admin/registrations", registrationAdminRoutes);
+app.route("/me/pembayaran", pembayaranSayaRoutes);
 app.route("/admin/bank-soal", bankRoutes);
 app.route("/admin/laporan", reportRoutes);
 app.route("/admin/kehadiran", attendanceRoutes);
 app.route("/admin/users", userRoutes);
+app.route("/admin/halaqoh", halaqohRoutes);
 app.route("/admin/assessments", assessmentAdminRoutes);
 app.route("/admin", contentRoutes);
 

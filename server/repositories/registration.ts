@@ -23,6 +23,12 @@ const kolomPublik = {
   status: s.registrationForms.status,
   programId: s.registrationForms.programId,
   programName: s.programs.name,
+  /* Harga ikut publik — itu yang dipakai pendaftar memutuskan. Nomor
+     rekening TIDAK, sama alasannya dengan tautan grup: ia diberikan setelah
+     pendaftaran tercatat, bukan dipajang untuk dipanen. */
+  isPaid: s.registrationForms.isPaid,
+  feeAmount: s.registrationForms.feeAmount,
+  paymentDueDays: s.registrationForms.paymentDueDays,
 };
 
 /* --- Formulir ------------------------------------------------------ */
@@ -212,6 +218,8 @@ export type DaftarMandiri = {
   segment: string | null;
   reason: string | null;
   commitmentSnapshot: string;
+  /** Disalin dari formulir saat mendaftar; null untuk program gratis. */
+  feeAmount: number | null;
 };
 
 /**
@@ -251,11 +259,15 @@ export async function daftarMandiri(d: DaftarMandiri) {
       INSERT INTO registrations
         (form_id, name, email, phone, gender, country, province, city,
          education, segment, reason, commitment_agreed, commitment_snapshot,
-         user_id, status)
+         user_id, status, fee_amount, payment_status)
       SELECT ${d.formId}, ${d.name}, ${d.email}, ${d.phone}, ${d.gender}::gender,
              ${d.country}, ${d.province}, ${d.city}, ${d.education}::education_level,
              ${d.segment}, ${d.reason}, true, ${d.commitmentSnapshot},
-             id, 'disetujui'
+             id, 'disetujui', ${d.feeAmount},
+             /* Program gratis langsung 'dibebaskan': tidak ada yang perlu
+                ditagih, dan membiarkannya 'belum_bayar' akan membuat rekap
+                menampilkan tunggakan yang tidak pernah ada. */
+             (CASE WHEN ${d.feeAmount}::int IS NULL THEN 'dibebaskan' ELSE 'belum_bayar' END)::payment_status
       FROM pengguna
       RETURNING id
     )${enrol}
@@ -338,6 +350,13 @@ export async function setujuiPendaftaran(
     ubah AS (
       UPDATE registrations SET
         status = 'disetujui',
+        /* Biaya disalin dari formulir hanya bila belum pernah terisi:
+           pendaftaran lama dibuat sebelum ada kolom ini, sedangkan yang baru
+           sudah membawa angka yang disepakati saat mendaftar. */
+        fee_amount = COALESCE(fee_amount, (
+          SELECT f.fee_amount FROM registration_forms f
+          WHERE f.id = (SELECT form_id FROM p) AND f.is_paid
+        )),
         user_id = (SELECT id FROM akun),
         note = ${catatan},
         reviewed_at = now(),
@@ -361,3 +380,139 @@ export async function setujuiPendaftaran(
     enrolBaru: r.enrol_baru === true,
   };
 }
+
+/* --- Pembayaran ----------------------------------------------------- */
+
+/** Bukti transfer terakhir satu pendaftaran, beserta data berkasnya. */
+export const buktiTerakhir = (registrationId: string) =>
+  db
+    .select({
+      id: s.paymentProofs.id,
+      fileName: s.paymentProofs.fileName,
+      contentType: s.paymentProofs.contentType,
+      sizeBytes: s.paymentProofs.sizeBytes,
+      storage: s.paymentProofs.storage,
+      dataBase64: s.paymentProofs.dataBase64,
+      objectKey: s.paymentProofs.objectKey,
+      uploadedAt: s.paymentProofs.uploadedAt,
+    })
+    .from(s.paymentProofs)
+    .where(eq(s.paymentProofs.registrationId, registrationId))
+    .orderBy(desc(s.paymentProofs.uploadedAt))
+    .limit(1);
+
+/**
+ * Mencatat bukti transfer dan menaikkan status pendaftaran sekaligus.
+ *
+ * Satu pernyataan: unggahan yang tercatat tanpa status yang ikut berubah
+ * akan terlihat seperti belum membayar, dan pendaftar tidak punya cara
+ * mengetahui bahwa berkasnya sudah sampai.
+ *
+ * Bukti lama dihapus, bukan ditumpuk. Yang berlaku selalu kiriman terakhir,
+ * dan menyimpan seluruh percobaan hanya membuat basis data membengkak oleh
+ * berkas yang tidak akan pernah dilihat siapa pun.
+ */
+export async function simpanBukti(v: {
+  registrationId: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  storage: string;
+  dataBase64: string | null;
+  objectKey: string | null;
+}) {
+  const hasil = await db.execute(sql`
+    WITH buang AS (
+      DELETE FROM payment_proofs WHERE registration_id = ${v.registrationId}
+    ),
+    simpan AS (
+      INSERT INTO payment_proofs
+        (registration_id, file_name, content_type, size_bytes, storage, data_base64, object_key)
+      VALUES (${v.registrationId}, ${v.fileName}, ${v.contentType}, ${v.sizeBytes},
+              ${v.storage}, ${v.dataBase64}, ${v.objectKey})
+      RETURNING id
+    ),
+    ubah AS (
+      UPDATE registrations
+      SET payment_status = 'menunggu_verifikasi', paid_at = now()
+      WHERE id = ${v.registrationId}
+      RETURNING id
+    )
+    SELECT (SELECT id FROM simpan) AS proof_id, EXISTS (SELECT 1 FROM ubah) AS ada
+  `);
+  const baris = (hasil as unknown as { rows?: Record<string, unknown>[] }).rows ??
+    (hasil as unknown as Record<string, unknown>[]);
+  const r = baris[0];
+  return r?.ada ? String(r.proof_id) : null;
+}
+
+/** Memperbarui keputusan pembayaran oleh admin. */
+export const putuskanPembayaran = (
+  id: string,
+  v: {
+    paymentStatus: "belum_bayar" | "menunggu_verifikasi" | "lunas" | "dibebaskan" | "ditolak";
+    paymentNote: string | null;
+    verifiedBy: string;
+  },
+) =>
+  db
+    .update(s.registrations)
+    .set({
+      paymentStatus: v.paymentStatus,
+      paymentNote: v.paymentNote,
+      paymentVerifiedAt: new Date(),
+      paymentVerifiedBy: v.verifiedBy,
+    })
+    .where(eq(s.registrations.id, id))
+    .returning({ id: s.registrations.id, paymentStatus: s.registrations.paymentStatus });
+
+/** Rekap pembayaran satu formulir: jumlah dan nilai per status. */
+export const rekapPembayaran = (formId?: string) =>
+  db
+    .select({
+      status: s.registrations.paymentStatus,
+      n: sql<number>`count(*)::int`,
+      total: sql<number>`coalesce(sum(${s.registrations.feeAmount}), 0)::int`,
+    })
+    .from(s.registrations)
+    .where(formId ? eq(s.registrations.formId, formId) : undefined)
+    .groupBy(s.registrations.paymentStatus);
+
+/**
+ * Tagihan milik satu pengguna.
+ *
+ * Dicari lewat `registrations.user_id`, bukan lewat email: email pada
+ * pendaftaran adalah salinan saat mendaftar dan boleh berbeda setelah
+ * penggunanya mengubah alamatnya, sedangkan tautan ke akun tidak berubah.
+ *
+ * Nomor rekening ikut di sini karena pemanggilnya sudah terbukti pemilik
+ * pendaftaran — berbeda dengan konfigurasi publik formulir, yang terbuka
+ * bagi siapa saja.
+ */
+export const tagihanPengguna = (userId: string) =>
+  db
+    .select({
+      id: s.registrations.id,
+      programName: s.programs.name,
+      formTitle: s.registrationForms.title,
+      feeAmount: s.registrations.feeAmount,
+      paymentStatus: s.registrations.paymentStatus,
+      paymentNote: s.registrations.paymentNote,
+      paidAt: s.registrations.paidAt,
+      paymentVerifiedAt: s.registrations.paymentVerifiedAt,
+      submittedAt: s.registrations.submittedAt,
+      dueDays: s.registrationForms.paymentDueDays,
+      bankName: s.registrationForms.bankName,
+      bankAccountNumber: s.registrationForms.bankAccountNumber,
+      bankAccountHolder: s.registrationForms.bankAccountHolder,
+      bankNote: s.registrationForms.paymentNote,
+      sudahAdaBukti: sql<boolean>`EXISTS (
+        SELECT 1 FROM ${s.paymentProofs}
+        WHERE ${s.paymentProofs.registrationId} = ${s.registrations.id}
+      )`,
+    })
+    .from(s.registrations)
+    .innerJoin(s.registrationForms, eq(s.registrationForms.id, s.registrations.formId))
+    .innerJoin(s.programs, eq(s.programs.id, s.registrationForms.programId))
+    .where(eq(s.registrations.userId, userId))
+    .orderBy(desc(s.registrations.submittedAt));

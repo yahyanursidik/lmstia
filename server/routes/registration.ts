@@ -1,17 +1,20 @@
 import { Hono } from "hono";
 import { badRequest, notFound } from "../lib/errors";
-import { ADMIN, requireRole } from "../middleware/auth";
+import { ADMIN, requireAuth, requireRole } from "../middleware/auth";
 import * as reg from "../repositories/registration";
 import * as learner from "../repositories/learner";
 import { uuidParam } from "../validators/schemas";
 import { alamatPemanggil, catatPercobaanDaftar, sapuBerkala } from "../services/ratelimit";
 import { hashPassword, sandiSementara } from "../services/auth";
+import { MAKS_BYTE, adapter, tautanBerkas, ukuranBase64 } from "../services/storage";
 import {
   formBody,
   formPatchBody,
   registrationBody,
   registrationListQuery,
   registrationPatchBody,
+  buktiBody,
+  pembayaranPatchBody,
 } from "../validators/registration";
 
 const conflict = (c: Parameters<typeof notFound>[0], message: string) =>
@@ -124,6 +127,9 @@ daftarRoutes.post("/:slug", async (c) => {
       formId: form.id,
       tahapanId,
       passwordHash: await hashPassword(password),
+      /* Biaya disalin apa adanya saat mendaftar. Formulir gratis memberi
+         null, dan itulah yang menandai pendaftaran sebagai dibebaskan. */
+      feeAmount: form.isPaid ? (form.feeAmount ?? null) : null,
       /* Kolom opsional diratakan ke null: undefined tidak punya arti di SQL. */
       country: isian.country ?? null,
       province: isian.province ?? null,
@@ -149,6 +155,24 @@ daftarRoutes.post("/:slug", async (c) => {
   const penuh = await reg.findForm(form.id);
   const tautanGrup = p.data.gender === "ikhwan" ? penuh?.waIkhwanUrl : penuh?.waAkhwatUrl;
 
+  /*
+   * Rincian rekening menyusul di sini, satu langkah dengan tautan grup, dan
+   * dengan alasan yang sama: keduanya hanya berguna bagi orang yang benar-
+   * benar mendaftar, dan memajangnya di konfigurasi publik berarti siapa pun
+   * dapat memanennya.
+   */
+  const pembayaran =
+    penuh?.isPaid && penuh.feeAmount
+      ? {
+          feeAmount: penuh.feeAmount,
+          bankName: penuh.bankName,
+          bankAccountNumber: penuh.bankAccountNumber,
+          bankAccountHolder: penuh.bankAccountHolder,
+          paymentNote: penuh.paymentNote,
+          dueDays: penuh.paymentDueDays,
+        }
+      : null;
+
   return c.json(
     {
       data: {
@@ -159,6 +183,7 @@ daftarRoutes.post("/:slug", async (c) => {
         /* Dipakai halaman berhasil untuk mengarahkan pendaftar langsung masuk. */
         email: p.data.email,
         terdaftarKelas: tahapanId !== null,
+        pembayaran,
       },
     },
     201,
@@ -314,4 +339,109 @@ registrationAdminRoutes.delete("/:id", async (c) => {
   if (!row) return notFound(c, "Pendaftaran tidak ditemukan.");
   await learner.writeAudit(c.get("user")!.id, "registration.delete", "registration", id.data.id);
   return c.body(null, 204);
+});
+
+/* --- Pembayaran: peserta ------------------------------------------- */
+
+/**
+ * Jalur pembayaran milik peserta yang sedang masuk.
+ *
+ * Sengaja berada di balik autentikasi, bukan di jalur publik bersama
+ * formulir. Pendaftaran mandiri sudah membuatkan akun, jadi pendaftar selalu
+ * punya cara masuk — sementara titik unggah tanpa autentikasi berarti siapa
+ * pun dapat menitipkan berkas ke server ini.
+ */
+export const pembayaranSayaRoutes = new Hono().use("*", requireAuth());
+
+/** Tagihan peserta beserta rincian rekening dan bukti yang sudah dikirim. */
+pembayaranSayaRoutes.get("/", async (c) => {
+  const aktor = c.get("user")!;
+  const baris = await reg.tagihanPengguna(aktor.id);
+  return c.json({ data: baris });
+});
+
+pembayaranSayaRoutes.post("/:id/bukti", async (c) => {
+  const id = uuidParam.safeParse({ id: c.req.param("id") });
+  if (!id.success) return badRequest(c, id.error);
+
+  const p = buktiBody.safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+
+  /*
+   * Kepemilikan diperiksa lewat pendaftaran, bukan lewat id yang dikirim.
+   * Tanpa ini, siapa pun yang sudah masuk dapat menempelkan bukti pada
+   * tagihan orang lain hanya dengan menebak id.
+   */
+  const aktor = c.get("user")!;
+  const milik = (await reg.tagihanPengguna(aktor.id)).find((t) => t.id === id.data.id);
+  if (!milik) return notFound(c, "Tagihan tidak ditemukan.");
+  if (milik.paymentStatus === "lunas" || milik.paymentStatus === "dibebaskan") {
+    return conflict(c, "Pembayaran ini sudah selesai; tidak perlu mengirim bukti lagi.");
+  }
+
+  const sizeBytes = ukuranBase64(p.data.base64);
+  if (sizeBytes > MAKS_BYTE) {
+    return badRequest(c, {
+      issues: [
+        {
+          path: ["base64"],
+          message: `Ukuran berkas ${(sizeBytes / 1024 / 1024).toFixed(1)} MB melebihi batas 2 MB`,
+        },
+      ],
+    } as never);
+  }
+
+  const lokasi = await adapter.simpan(p.data);
+  const proofId = await reg.simpanBukti({
+    registrationId: id.data.id,
+    fileName: p.data.fileName,
+    contentType: p.data.contentType,
+    ...lokasi,
+  });
+  if (!proofId) return notFound(c, "Tagihan tidak ditemukan.");
+
+  return c.json({ data: { id: proofId, status: "menunggu_verifikasi" } }, 201);
+});
+
+/* --- Pembayaran: admin --------------------------------------------- */
+
+registrationAdminRoutes.get("/:id/bukti", async (c) => {
+  const id = uuidParam.safeParse({ id: c.req.param("id") });
+  if (!id.success) return badRequest(c, id.error);
+  const [bukti] = await reg.buktiTerakhir(id.data.id);
+  if (!bukti) return notFound(c, "Belum ada bukti transfer untuk pendaftaran ini.");
+  return c.json({
+    data: {
+      id: bukti.id,
+      fileName: bukti.fileName,
+      contentType: bukti.contentType,
+      sizeBytes: bukti.sizeBytes,
+      uploadedAt: bukti.uploadedAt,
+      /* Dibentuk dari kolom `storage` baris itu sendiri, sehingga berkas
+         lama tetap terbaca setelah lapis penyimpanan ditukar. */
+      tautan: tautanBerkas(bukti),
+    },
+  });
+});
+
+registrationAdminRoutes.patch("/:id/pembayaran", async (c) => {
+  const id = uuidParam.safeParse({ id: c.req.param("id") });
+  if (!id.success) return badRequest(c, id.error);
+  const p = pembayaranPatchBody.safeParse(await c.req.json().catch(() => ({})));
+  if (!p.success) return badRequest(c, p.error);
+
+  const aktor = c.get("user")!;
+  const [row] = await reg.putuskanPembayaran(id.data.id, {
+    paymentStatus: p.data.paymentStatus,
+    paymentNote: p.data.paymentNote ?? null,
+    verifiedBy: aktor.id,
+  });
+  if (!row) return notFound(c, "Pendaftaran tidak ditemukan.");
+  await learner.writeAudit(aktor.id, "pembayaran.putuskan", "registration", row.id);
+  return c.json({ data: row });
+});
+
+registrationAdminRoutes.get("/pembayaran/rekap", async (c) => {
+  const formId = c.req.query("formId");
+  return c.json({ data: await reg.rekapPembayaran(formId || undefined) });
 });

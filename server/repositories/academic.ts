@@ -166,6 +166,25 @@ export const listMaterials = (meetingId: string) =>
     .where(eq(s.materials.meetingId, meetingId))
     .orderBy(asc(s.materials.sequence));
 
+/**
+ * Pustaka umum: materi yang diterima seluruh program tanpa kecuali.
+ *
+ * Dibuat sekali dan terbaca semua — adab menuntut ilmu, panduan teknis, dan
+ * sejenisnya tidak perlu disalin ke tiap pertemuan. Penyaringan terbit
+ * dilakukan di sini karena pemanggilnya ada dua: portal peserta, yang hanya
+ * boleh melihat yang sudah terbit, dan portal admin, yang perlu melihat draf.
+ */
+export const listMateriUmum = (hanyaTerbit: boolean) =>
+  db
+    .select()
+    .from(s.materials)
+    .where(
+      hanyaTerbit
+        ? and(eq(s.materials.scope, "umum"), eq(s.materials.publishStatus, "published"))
+        : eq(s.materials.scope, "umum"),
+    )
+    .orderBy(asc(s.materials.category), asc(s.materials.sequence));
+
 export const findMaterial = (id: string) =>
   db.query.materials.findFirst({ where: eq(s.materials.id, id) });
 

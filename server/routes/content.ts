@@ -231,6 +231,14 @@ contentRoutes.delete("/meetings/:id", canWrite, async (c) => {
 /* --- Materi ---------------------------------------------------------- */
 
 contentRoutes.get("/materials", async (c) => {
+  /*
+   * `?scope=umum` membaca pustaka lintas-program; tanpa itu perilakunya
+   * seperti semula dan `meetingId` wajib. Dipisahkan lewat parameter, bukan
+   * rute baru, supaya satu layar admin materi melayani keduanya.
+   */
+  if (c.req.query("scope") === "umum") {
+    return c.json({ data: await academic.listMateriUmum(false) });
+  }
   const meetingId = c.req.query("meetingId");
   if (!meetingId) return c.json({ data: [] });
   return c.json({ data: await academic.listMaterials(meetingId) });

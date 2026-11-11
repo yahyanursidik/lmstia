@@ -109,7 +109,16 @@ export const materialTypeSchema = z.enum([
  * bukan dari skema yang sudah ter-refine.
  */
 const materialBase = z.object({
-  meetingId: z.string().uuid("meetingId harus berupa UUID"),
+  /**
+   * `pertemuan` — materi milik satu pertemuan, dan `meetingId` wajib.
+   * `umum`      — pustaka yang diterima seluruh program; `meetingId` justru
+   *                harus kosong, sebab materi yang menunjuk satu pertemuan
+   *                bukan lagi materi umum.
+   */
+  scope: z.enum(["pertemuan", "umum"]).optional().default("pertemuan"),
+  meetingId: z.string().uuid("meetingId harus berupa UUID").optional().nullable(),
+  /** Pengelompokan pustaka umum, mis. "Adab" atau "Panduan Teknis". */
+  category: z.string().trim().max(80).optional().nullable(),
   title: z.string().min(2, "Judul materi wajib diisi").max(300),
   description: z.string().max(2000).optional().nullable(),
   type: materialTypeSchema,
@@ -133,8 +142,26 @@ const pesanMateri = {
   path: ["url"],
 };
 
-export const materialBody = materialBase.refine(aturanMateri, pesanMateri);
-export const materialPatchBody = materialBase.partial().refine(aturanMateri, pesanMateri);
+/** Cakupan dan pertemuan harus sebaris — dijaga juga oleh CHECK di basis data. */
+const cakupanSebaris = (v: { scope?: string; meetingId?: string | null }) =>
+  v.scope === undefined
+    ? true
+    : v.scope === "umum"
+      ? !v.meetingId
+      : v.meetingId !== undefined && v.meetingId !== null;
+
+const pesanCakupan = {
+  message: "Materi pertemuan wajib menyebut pertemuannya; materi umum tidak boleh menyebut satu pun.",
+  path: ["meetingId"],
+};
+
+export const materialBody = materialBase
+  .refine(aturanMateri, pesanMateri)
+  .refine(cakupanSebaris, pesanCakupan);
+export const materialPatchBody = materialBase
+  .partial()
+  .refine(aturanMateri, pesanMateri)
+  .refine(cakupanSebaris, pesanCakupan);
 
 /* --- lain-lain ------------------------------------------------------- */
 
