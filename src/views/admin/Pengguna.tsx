@@ -50,6 +50,7 @@ type Pendaftaran = {
   competency: string | null;
   progress: number;
   className: string | null;
+  halaqohName: string | null;
   tahapanName: string;
   programName: string;
 };
@@ -737,7 +738,14 @@ export default function Pengguna() {
                       <div style={{ fontWeight: 600 }}>{e.tahapanName}</div>
                       <div style={{ fontSize: 13.5, color: "var(--color-faint)", marginTop: 3 }}>
                         {e.programName}
-                        {e.className ? ` · ${e.className}` : ""} · {e.status} · progres {e.progress}%
+                        {/* Halaqoh didahulukan dari `className`: yang kedua teks bebas
+                            warisan, sedangkan yang pertama rombel sungguhan. */}
+                        {e.halaqohName
+                          ? ` · ${e.halaqohName}`
+                          : e.className
+                            ? ` · ${e.className}`
+                            : ""}{" "}
+                        · {e.status} · progres {e.progress}%
                       </div>
                     </div>
                   ))}

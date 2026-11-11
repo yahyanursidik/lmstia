@@ -68,8 +68,15 @@ halaqohRoutes.get("/:id", async (c) => {
     return forbidden(c, "Halaqoh ini bukan tanggung jawab Anda.");
   }
 
-  const peserta = (await hal.pesertaTahapan(row.tahapanId)).filter((p) => p.halaqohId === row.id);
-  return c.json({ data: { ...row, penugasan, peserta } });
+  /*
+   * Dinamai `pesertaDaftar`, bukan `peserta`: baris halaqoh sudah membawa
+   * `peserta` sebagai jumlah, dan memakai nama yang sama membuat lariknya
+   * menimpa angka itu diam-diam.
+   */
+  const pesertaDaftar = (await hal.pesertaTahapan(row.tahapanId)).filter(
+    (p) => p.halaqohId === row.id,
+  );
+  return c.json({ data: { ...row, penugasan, pesertaDaftar } });
 });
 
 halaqohRoutes.post("/", hanyaAdmin, async (c) => {

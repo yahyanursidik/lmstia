@@ -49,6 +49,13 @@ export const listForms = () =>
       opensAt: s.registrationForms.opensAt,
       closesAt: s.registrationForms.closesAt,
       status: s.registrationForms.status,
+      isPaid: s.registrationForms.isPaid,
+      feeAmount: s.registrationForms.feeAmount,
+      bankName: s.registrationForms.bankName,
+      bankAccountNumber: s.registrationForms.bankAccountNumber,
+      bankAccountHolder: s.registrationForms.bankAccountHolder,
+      paymentNote: s.registrationForms.paymentNote,
+      paymentDueDays: s.registrationForms.paymentDueDays,
       pendaftar: sql<number>`(
         select count(*) from ${s.registrations}
         where ${s.registrations.formId} = ${s.registrationForms.id}
@@ -147,6 +154,9 @@ const kolomPendaftar = {
   userId: s.registrations.userId,
   submittedAt: s.registrations.submittedAt,
   reviewedAt: s.registrations.reviewedAt,
+  paymentStatus: s.registrations.paymentStatus,
+  feeAmount: s.registrations.feeAmount,
+  paymentNote: s.registrations.paymentNote,
 };
 
 export async function listRegistrationsPaged(f: FilterPendaftaran, page: number, perPage: number) {

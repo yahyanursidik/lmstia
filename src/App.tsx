@@ -20,6 +20,8 @@ import StudentDashboard from "./views/student/Dashboard";
 import UnitBelajar from "./views/student/UnitBelajar";
 import Kuis from "./views/student/Kuis";
 import NilaiPeserta from "./views/student/Nilai";
+import Pembayaran from "./views/student/Pembayaran";
+import PustakaPeserta from "./views/student/Pustaka";
 import { Catatan, Caturwulan, Jadwal, Kelas, Murojaah, Profil, Progress } from "./views/student/Pages";
 
 import AdminDashboard from "./views/admin/Dashboard";
@@ -28,6 +30,10 @@ import Penilaian from "./views/admin/Penilaian";
 import KuisUjian from "./views/admin/KuisUjian";
 import Pengguna from "./views/admin/Pengguna";
 import PendaftaranAdmin from "./views/admin/Pendaftaran";
+import HalaqohAdmin from "./views/admin/Halaqoh";
+import Penempatan from "./views/admin/Penempatan";
+import JadwalPengajar from "./views/admin/JadwalPengajar";
+import Pustaka from "./views/admin/Pustaka";
 import BankSoal from "./views/admin/BankSoal";
 import Kehadiran from "./views/admin/Kehadiran";
 import {
@@ -100,6 +106,8 @@ export default function App() {
           <Route path="/belajar/kuis/:id" element={<Kuis />} />
           <Route path="/belajar/nilai" element={<NilaiPeserta />} />
           <Route path="/belajar/progress" element={<Progress />} />
+          <Route path="/belajar/pustaka" element={<PustakaPeserta />} />
+          <Route path="/belajar/pembayaran" element={<Pembayaran />} />
           <Route path="/belajar/catatan" element={<Catatan />} />
           <Route path="/belajar/profil" element={<Profil />} />
         </Route>
@@ -114,6 +122,10 @@ export default function App() {
         >
           <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/halaqoh" element={<HalaqohAdmin />} />
+          <Route path="/admin/penempatan" element={<Penempatan />} />
+          <Route path="/admin/jadwal-pengajar" element={<JadwalPengajar />} />
+          <Route path="/admin/pustaka" element={<Pustaka />} />
           <Route path="/admin/pengguna" element={<Pengguna />} />
           {/* Halaman peserta lama masih memakai data contoh; manajemen pengguna menggantikannya. */}
           <Route path="/admin/peserta" element={<Navigate to="/admin/pengguna" replace />} />

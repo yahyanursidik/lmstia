@@ -334,6 +334,12 @@ export const listUserEnrollments = (userId: string) =>
       competency: s.enrollments.competency,
       progress: s.enrollments.progress,
       className: s.enrollments.className,
+      /* Halaqoh ikut dibawa: layar admin perlu tahu rombel peserta saat ini,
+         dan tanpa kolom ini panel penempatan selalu berkata "belum
+         ditempatkan" meski datanya sudah benar. */
+      halaqohId: s.enrollments.halaqohId,
+      halaqohName: s.halaqoh.name,
+      halaqohCode: s.halaqoh.code,
       tahapanId: s.tahapan.id,
       tahapanName: s.tahapan.name,
       programId: s.programs.id,
@@ -342,6 +348,8 @@ export const listUserEnrollments = (userId: string) =>
     .from(s.enrollments)
     .innerJoin(s.tahapan, eq(s.tahapan.id, s.enrollments.tahapanId))
     .innerJoin(s.programs, eq(s.programs.id, s.tahapan.programId))
+    /* LEFT: peserta yang belum punya rombel tetap harus muncul. */
+    .leftJoin(s.halaqoh, eq(s.halaqoh.id, s.enrollments.halaqohId))
     .where(eq(s.enrollments.userId, userId));
 
 export const updateUser = (id: string, v: Partial<typeof s.users.$inferInsert>) =>

@@ -12,10 +12,11 @@ import {
   serif,
   type Column,
 } from "../../components/ui";
-import { Area, Field, FormPanel, Select, Text } from "../../components/form";
+import { Area, Check, Field, FormPanel, Select, Text } from "../../components/form";
 import { Combobox } from "../../components/Combobox";
 import { Drawer } from "../../components/Drawer";
 import { EDUCATION_LABEL } from "../../data/wilayah";
+import { BAYAR_LABEL, BAYAR_NADA, PanelPembayaran, PanelPenempatan } from "./PanelPendaftar";
 
 /**
  * Pengelolaan pendaftaran.
@@ -40,6 +41,13 @@ type FormRow = {
   closesAt: string | null;
   status: "draf" | "terbit" | "ditutup";
   pendaftar: number;
+  isPaid: boolean;
+  feeAmount: number | null;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  bankAccountHolder: string | null;
+  paymentNote: string | null;
+  paymentDueDays: number;
 };
 
 type Pendaftar = {
@@ -60,7 +68,13 @@ type Pendaftar = {
   status: "menunggu" | "disetujui" | "ditolak";
   note: string | null;
   submittedAt: string;
+  userId: string | null;
+  paymentStatus: "belum_bayar" | "menunggu_verifikasi" | "lunas" | "dibebaskan" | "ditolak";
+  feeAmount: number | null;
+  paymentNote: string | null;
 };
+
+
 
 type Program = { id: string; name: string };
 
@@ -174,6 +188,13 @@ function TabFormulir() {
     opensAt: null,
     closesAt: null,
     status: "draf",
+    isPaid: false,
+    feeAmount: null,
+    bankName: "",
+    bankAccountNumber: "",
+    bankAccountHolder: "",
+    paymentNote: "",
+    paymentDueDays: 7,
   });
 
   async function simpan() {
@@ -191,6 +212,16 @@ function TabFormulir() {
       opensAt: draf.opensAt ?? null,
       closesAt: draf.closesAt ?? null,
       status: draf.status,
+      isPaid: draf.isPaid ?? false,
+      /* Kolom rekening hanya ikut terkirim bila formulirnya memang berbayar.
+         Mengirim sisa ketikan pada formulir gratis akan menyimpan rekening
+         yang tidak pernah ditampilkan kepada siapa pun. */
+      feeAmount: draf.isPaid ? (draf.feeAmount ?? null) : null,
+      bankName: draf.isPaid ? draf.bankName || null : null,
+      bankAccountNumber: draf.isPaid ? draf.bankAccountNumber || null : null,
+      bankAccountHolder: draf.isPaid ? draf.bankAccountHolder || null : null,
+      paymentNote: draf.isPaid ? draf.paymentNote || null : null,
+      paymentDueDays: draf.paymentDueDays ?? 7,
     };
     const m = await mutate(() =>
       draf.id
@@ -333,6 +364,66 @@ function TabFormulir() {
               placeholder="https://chat.whatsapp.com/…"
             />
           </Field>
+
+          {/* --- pembayaran --- */}
+          <Field label="Program berbayar" span>
+            <Check
+              checked={draf.isPaid ?? false}
+              onChange={(v) => setDraf({ ...draf, isPaid: v })}
+              label="Pendaftaran program ini dipungut biaya"
+            />
+          </Field>
+
+          {draf.isPaid && (
+            <>
+              <Field label="Biaya (Rupiah)">
+                <Text
+                  type="number"
+                  value={draf.feeAmount === null || draf.feeAmount === undefined ? "" : String(draf.feeAmount)}
+                  onChange={(v) => setDraf({ ...draf, feeAmount: v === "" ? null : Number(v) })}
+                  placeholder="150000"
+                />
+              </Field>
+              <Field label="Tenggat bayar" hint="Hari sejak mendaftar.">
+                <Text
+                  type="number"
+                  value={String(draf.paymentDueDays ?? 7)}
+                  onChange={(v) => setDraf({ ...draf, paymentDueDays: Number(v) || 7 })}
+                />
+              </Field>
+
+              <Field label="Nama bank">
+                <Text
+                  value={draf.bankName ?? ""}
+                  onChange={(v) => setDraf({ ...draf, bankName: v })}
+                  placeholder="Bank Syariah Indonesia"
+                />
+              </Field>
+              <Field label="Nomor rekening">
+                <Text
+                  value={draf.bankAccountNumber ?? ""}
+                  onChange={(v) => setDraf({ ...draf, bankAccountNumber: v })}
+                />
+              </Field>
+
+              <Field
+                label="Atas nama"
+                hint="Rekening hanya ditampilkan kepada orang yang sudah mendaftar, tidak di halaman publik."
+              >
+                <Text
+                  value={draf.bankAccountHolder ?? ""}
+                  onChange={(v) => setDraf({ ...draf, bankAccountHolder: v })}
+                />
+              </Field>
+              <Field label="Petunjuk tambahan">
+                <Text
+                  value={draf.paymentNote ?? ""}
+                  onChange={(v) => setDraf({ ...draf, paymentNote: v })}
+                  placeholder="Cantumkan nama pada berita transfer."
+                />
+              </Field>
+            </>
+          )}
         </FormPanel>
       )}
 
@@ -538,6 +629,21 @@ function TabPendaftar() {
         </Badge>
       ),
     },
+    {
+      /* Pembayaran ikut di tabel supaya admin melihat siapa yang belum
+         melunasi tanpa membuka pendaftar satu per satu. */
+      key: "bayar",
+      head: "PEMBAYARAN",
+      width: "1.1fr",
+      render: (r) =>
+        r.feeAmount === null ? (
+          <span style={{ color: "var(--color-faint)", fontSize: 14 }}>gratis</span>
+        ) : (
+          <Badge bg={BAYAR_NADA[r.paymentStatus].bg} fg={BAYAR_NADA[r.paymentStatus].fg}>
+            {BAYAR_LABEL[r.paymentStatus]}
+          </Badge>
+        ),
+    },
   ];
 
   return (
@@ -732,6 +838,10 @@ function TabPendaftar() {
               </div>
             </div>
           )}
+
+          <PanelPembayaran pendaftar={terpilih} onBerubah={() => daftar.reload()} />
+
+          <PanelPenempatan pendaftar={terpilih} />
 
           <div style={{ marginBottom: 16 }}>
             <div className="eyebrow" style={{ marginBottom: 7 }}>

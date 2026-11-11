@@ -152,6 +152,8 @@ const STUDENT_NAV = [
   { to: "/belajar/murojaah", label: "Murojaah" },
   { to: "/belajar/nilai", label: "Nilai" },
   { to: "/belajar/progress", label: "Progress" },
+  { to: "/belajar/pustaka", label: "Pustaka" },
+  { to: "/belajar/pembayaran", label: "Pembayaran" },
   { to: "/belajar/catatan", label: "Catatan" },
   { to: "/belajar/profil", label: "Profil" },
 ];
@@ -234,7 +236,12 @@ const ADMIN_GROUPS: {
     // pertemuan, dan materi ditelusuri di dalam halaman ini — bukan lewat
     // menu terpisah per tingkat.
     label: "Akademik",
-    items: [{ to: "/admin/program", label: "Program Belajar" }],
+    items: [
+      { to: "/admin/program", label: "Program Belajar" },
+      { to: "/admin/halaqoh", label: "Halaqoh & Rombel" },
+      { to: "/admin/penempatan", label: "Penempatan Peserta", adminOnly: true },
+      { to: "/admin/pustaka", label: "Pustaka Umum" },
+    ],
   },
   {
     label: "Penilaian",
@@ -253,6 +260,7 @@ const ADMIN_GROUPS: {
       { to: "/admin/pengguna", label: "Pengguna", adminOnly: true },
       { to: "/admin/pendaftaran", label: "Pendaftaran", adminOnly: true },
       { to: "/admin/pengajar", label: "Pengajar" },
+      { to: "/admin/jadwal-pengajar", label: "Jadwal Pengajar" },
       { to: "/admin/pengumuman", label: "Pengumuman" },
     ],
   },
