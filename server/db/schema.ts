@@ -99,6 +99,24 @@ export const materialTypeEnum = pgEnum("material_type", [
   "link",
 ]);
 
+/**
+ * Status pembayaran satu pendaftaran.
+ *
+ * `dibebaskan` bukan sama dengan `lunas`: keduanya sama-sama membuka akses,
+ * tetapi hanya yang pertama berarti ada uang masuk. Menggabungkannya akan
+ * membuat rekap keuangan berbohong.
+ */
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "belum_bayar",
+  "menunggu_verifikasi",
+  "lunas",
+  "dibebaskan",
+  "ditolak",
+]);
+
+/** Materi milik satu pertemuan, atau pustaka yang diterima semua program. */
+export const materialScopeEnum = pgEnum("material_scope", ["pertemuan", "umum"]);
+
 export const assessmentKindEnum = pgEnum("assessment_kind", ["kuis", "ujian", "latihan"]);
 
 /** Tiga tipe soal yang didukung. Esai dinilai manual, dua lainnya otomatis. */
@@ -328,9 +346,21 @@ export const materials = pgTable(
   "materials",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-    meetingId: uuid("meeting_id")
-      .notNull()
-      .references(() => meetings.id, { onDelete: "cascade" }),
+    /**
+     * Terisi untuk materi pertemuan, kosong untuk materi umum.
+     *
+     * Pasangannya `scope`; keselarasan keduanya dijaga CHECK di migrasi,
+     * bukan hanya oleh kode yang menulis.
+     */
+    meetingId: uuid("meeting_id").references(() => meetings.id, { onDelete: "cascade" }),
+    /**
+     * `pertemuan` — materi milik satu pertemuan, seperti sebelumnya.
+     * `umum` — pustaka yang diterima seluruh program tanpa kecuali, mis.
+     * adab menuntut ilmu atau panduan teknis. Dibuat sekali, terbaca semua.
+     */
+    scope: materialScopeEnum("scope").notNull().default("pertemuan"),
+    /** Pengelompokan pustaka umum, mis. "Adab" atau "Panduan Teknis". */
+    category: text("category"),
     title: text("title").notNull(),
     description: text("description"),
     type: materialTypeEnum("type").notNull(),
@@ -504,6 +534,15 @@ export const enrollments = pgTable(
     status: enrollmentStatusEnum("status").notNull().default("registered"),
     engagement: engagementStatusEnum("engagement").notNull().default("on_track"),
     competency: competencyEnum("competency"),
+    /**
+     * Halaqoh tempat peserta ditempatkan. Kosong berarti caturwulan ini
+     * hanya punya satu kelas, atau peserta belum dipindahkan ke rombel.
+     *
+     * Dideklarasikan sebagai referensi longgar — `halaqoh` didefinisikan di
+     * bawah berkas ini, dan menautkannya langsung membuat lingkaran impor.
+     */
+    halaqohId: uuid("halaqoh_id"),
+    /** Nama kelas berupa teks bebas, warisan sebelum ada tabel halaqoh. */
     className: text("class_name"),
     registeredAt: timestamp("registered_at", { withTimezone: true }).defaultNow().notNull(),
     approvedAt: timestamp("approved_at", { withTimezone: true }),
@@ -698,6 +737,23 @@ export const registrationForms = pgTable(
      */
     waIkhwanUrl: text("wa_ikhwan_url"),
     waAkhwatUrl: text("wa_akhwat_url"),
+    /*
+     * Pembayaran.
+     *
+     * Ditaruh pada formulir, bukan program: satu program dapat punya lebih
+     * dari satu formulir — angkatan berbeda, atau harga awal dan harga biasa —
+     * dan masing-masing membawa biayanya sendiri. Nomor rekening ditampilkan
+     * hanya setelah kiriman diterima, satu langkah dengan tautan grup.
+     */
+    isPaid: boolean("is_paid").notNull().default(false),
+    /** Rupiah penuh, bukan sen. */
+    feeAmount: integer("fee_amount"),
+    bankName: text("bank_name"),
+    bankAccountNumber: text("bank_account_number"),
+    bankAccountHolder: text("bank_account_holder"),
+    paymentNote: text("payment_note"),
+    /** Tenggat unggah bukti, dihitung sejak mendaftar. */
+    paymentDueDays: integer("payment_due_days").notNull().default(7),
     opensAt: timestamp("opens_at", { withTimezone: true }),
     closesAt: timestamp("closes_at", { withTimezone: true }),
     status: formStatusEnum("status").notNull().default("draf"),
@@ -738,6 +794,17 @@ export const registrations = pgTable(
     commitmentSnapshot: text("commitment_snapshot"),
     status: registrationStatusEnum("status").notNull().default("menunggu"),
     note: text("note"),
+    /*
+     * Pembayaran. `feeAmount` disalin saat mendaftar, bukan dibaca ulang dari
+     * formulir: biaya boleh berubah, sedangkan yang disepakati pendaftar
+     * adalah angka hari itu.
+     */
+    paymentStatus: paymentStatusEnum("payment_status").notNull().default("belum_bayar"),
+    feeAmount: integer("fee_amount"),
+    paidAt: timestamp("paid_at", { withTimezone: true }),
+    paymentVerifiedAt: timestamp("payment_verified_at", { withTimezone: true }),
+    paymentVerifiedBy: uuid("payment_verified_by"),
+    paymentNote: text("payment_note"),
     /** Terisi bila pendaftaran sudah dikonversi menjadi akun pengguna. */
     userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
     submittedAt: timestamp("submitted_at", { withTimezone: true }).defaultNow().notNull(),
@@ -813,4 +880,136 @@ export const questionBank = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (t) => [index("question_bank_topic_idx").on(t.topic), index("question_bank_type_idx").on(t.type)],
+);
+
+/* ================================================================
+ * Halaqoh / rombel, penugasan pengajar, dan pembayaran pendaftaran
+ * ================================================================ */
+
+export const halaqohStatusEnum = pgEnum("halaqoh_status", ["draft", "aktif", "selesai"]);
+
+/**
+ * Halaqoh / rombel — satu rombongan belajar dalam satu caturwulan.
+ *
+ * Menempel pada tahapan, bukan program. Program berumur tahunan dan tidak
+ * punya jadwal; yang benar-benar berjalan, berisi peserta, dan punya ustadz
+ * adalah caturwulannya. Keikutsertaan (`enrollments`) juga sudah per tahapan,
+ * jadi menempelkan halaqoh di situ membuat keduanya sebaris.
+ *
+ * Satu caturwulan boleh punya satu halaqoh saja, boleh banyak. Caturwulan
+ * tanpa halaqoh sama sekali tetap sah — artinya satu kelas tunggal yang tidak
+ * perlu dinamai.
+ */
+export const halaqoh = pgTable(
+  "halaqoh",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tahapanId: uuid("tahapan_id")
+      .notNull()
+      .references(() => tahapan.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    /** Kosong berarti campuran; biasanya terisi karena halaqoh dipisah. */
+    gender: genderEnum("gender"),
+    /** Ustadz penanggung jawab halaqoh. Pengampu per mata pelajaran
+     *  ditentukan terpisah di `teaching_assignments`. */
+    instructorId: uuid("instructor_id").references(() => users.id, { onDelete: "set null" }),
+    /** Kosong berarti tanpa batas. */
+    capacity: integer("capacity"),
+    /** 1 = Senin … 7 = Ahad. Jadwal rutin halaqoh, bila ada. */
+    dayOfWeek: integer("day_of_week"),
+    /** "19:30" waktu setempat. Disimpan sebagai teks: ini jadwal berulang,
+     *  bukan satu titik waktu, sehingga timestamp justru menyesatkan. */
+    startTime: text("start_time"),
+    endTime: text("end_time"),
+    mode: meetingModeEnum("mode").notNull().default("online"),
+    location: text("location"),
+    liveUrl: text("live_url"),
+    waGroupUrl: text("wa_group_url"),
+    note: text("note"),
+    status: halaqohStatusEnum("status").notNull().default("draft"),
+    sequence: integer("sequence").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("halaqoh_tahapan_code_idx").on(t.tahapanId, t.code),
+    index("halaqoh_tahapan_seq_idx").on(t.tahapanId, t.sequence),
+    index("halaqoh_instructor_idx").on(t.instructorId),
+  ],
+);
+
+/**
+ * Penugasan pengajar: siapa mengampu mata pelajaran apa di halaqoh mana.
+ *
+ * `subjects.instructorId` tetap ada sebagai pengampu bawaan mata pelajaran.
+ * Baris di sini mengesampingkannya untuk satu halaqoh tertentu — itulah yang
+ * membuat satu mata pelajaran dapat diampu ustadz berbeda di tiap rombel.
+ *
+ * Jadwalnya menempel pada penugasan, bukan pada mata pelajaran, karena
+ * halaqoh yang berbeda belajar mata pelajaran yang sama pada jam berbeda.
+ * Dari tabel inilah "jadwal pengajar" dibaca: saring per `instructor_id`.
+ */
+export const teachingAssignments = pgTable(
+  "teaching_assignments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    halaqohId: uuid("halaqoh_id")
+      .notNull()
+      .references(() => halaqoh.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "cascade" }),
+    instructorId: uuid("instructor_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    /** 1 = Senin … 7 = Ahad. */
+    dayOfWeek: integer("day_of_week"),
+    startTime: text("start_time"),
+    endTime: text("end_time"),
+    mode: meetingModeEnum("mode").notNull().default("online"),
+    location: text("location"),
+    liveUrl: text("live_url"),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    /* Satu mata pelajaran hanya punya satu pengampu di satu halaqoh. */
+    uniqueIndex("teaching_halaqoh_subject_idx").on(t.halaqohId, t.subjectId),
+    index("teaching_instructor_idx").on(t.instructorId),
+    index("teaching_subject_idx").on(t.subjectId),
+  ],
+);
+
+/**
+ * Bukti transfer yang diunggah pendaftar.
+ *
+ * Berkasnya disimpan lewat satu lapis yang bisa ditukar. Untuk sekarang
+ * isinya ikut di basis data (`storage = 'postgres'`, base64 di `data_base64`),
+ * karena Netlify Functions tidak punya penyimpanan berkas sendiri dan
+ * penyimpanan objek belum dikonfigurasi. Ukurannya dibatasi di sisi aplikasi
+ * supaya basis data tidak membengkak.
+ *
+ * Saat penyimpanan objek nanti dipasang, baris baru cukup memakai
+ * `storage = 'objek'` dan mengisi `object_key`; baris lama tetap terbaca
+ * sebagaimana adanya. Tidak ada migrasi data yang dipaksakan.
+ */
+export const paymentProofs = pgTable(
+  "payment_proofs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    registrationId: uuid("registration_id")
+      .notNull()
+      .references(() => registrations.id, { onDelete: "cascade" }),
+    fileName: text("file_name").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    /** 'postgres' | 'objek' — menentukan kolom mana yang terisi. */
+    storage: text("storage").notNull().default("postgres"),
+    dataBase64: text("data_base64"),
+    objectKey: text("object_key"),
+    uploadedAt: timestamp("uploaded_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [index("payment_proofs_registration_idx").on(t.registrationId)],
 );
