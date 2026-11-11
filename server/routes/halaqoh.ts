@@ -41,10 +41,17 @@ halaqohRoutes.get("/", async (c) => {
    * server, bukan disembunyikan di tampilan — tanpa itu id rombel lain
    * tinggal ditebak.
    */
-  const semua = await hal.listHalaqoh(q.data);
-  if (tanpaBatas(aktor)) return c.json({ data: semua });
+  /*
+   * Untuk pengajar, daftar halaqoh dan penugasannya diambil bersamaan —
+   * penyaringannya terjadi setelah keduanya tiba, bukan di antaranya.
+   * Admin tidak membayar kueri kedua sama sekali.
+   */
+  if (tanpaBatas(aktor)) return c.json({ data: await hal.listHalaqoh(q.data) });
 
-  const penugasan = await hal.listPenugasan({ instructorId: aktor.id });
+  const [semua, penugasan] = await Promise.all([
+    hal.listHalaqoh(q.data),
+    hal.listPenugasan({ instructorId: aktor.id }),
+  ]);
   const miliknya = new Set(penugasan.map((p) => p.halaqohId));
   return c.json({
     data: semua.filter((h) => h.instructorId === aktor.id || miliknya.has(h.id)),
@@ -59,7 +66,19 @@ halaqohRoutes.get("/:id", async (c) => {
   if (!row) return notFound(c, "Halaqoh tidak ditemukan.");
 
   const aktor = c.get("user")!;
-  const penugasan = await hal.listPenugasan({ halaqohId: row.id });
+  /*
+   * Penugasan dan peserta tidak saling bergantung, jadi dijalankan
+   * bersamaan. Keduanya hanya butuh `row`, yang sudah ada.
+   *
+   * Ini bukan kerapian: fungsi berjalan jauh dari basis datanya, sehingga
+   * tiap kueri berbiaya sekitar sepertiga detik hanya untuk perjalanan
+   * jaringan. Menjalankannya berurutan membuat halaman ini menunggu dua kali
+   * lebih lama tanpa alasan.
+   */
+  const [penugasan, pesertaTahapan] = await Promise.all([
+    hal.listPenugasan({ halaqohId: row.id }),
+    hal.pesertaTahapan(row.tahapanId),
+  ]);
   if (
     !tanpaBatas(aktor) &&
     row.instructorId !== aktor.id &&
@@ -73,9 +92,7 @@ halaqohRoutes.get("/:id", async (c) => {
    * `peserta` sebagai jumlah, dan memakai nama yang sama membuat lariknya
    * menimpa angka itu diam-diam.
    */
-  const pesertaDaftar = (await hal.pesertaTahapan(row.tahapanId)).filter(
-    (p) => p.halaqohId === row.id,
-  );
+  const pesertaDaftar = pesertaTahapan.filter((p) => p.halaqohId === row.id);
   return c.json({ data: { ...row, penugasan, pesertaDaftar } });
 });
 

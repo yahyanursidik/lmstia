@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router";
 import { useResource } from "../../lib/useApi";
 import { roadmap, segmen } from "../../data/tia";
@@ -16,6 +16,178 @@ import { roadmap, segmen } from "../../data/tia";
 
 const mono = "var(--font-mono)";
 const serif = "var(--font-serif)";
+
+
+/* --- navigasi seksi --------------------------------------------- */
+
+/**
+ * Peta halaman: tiga babak, dua belas bagian.
+ *
+ * Halaman ini hampir delapan ribu piksel. Sebelumnya tidak ada penunjuk arah
+ * sama sekali — seluruh bagian berbobot sama, sehingga pengunjung hanya bisa
+ * menggulir dan berharap. Pengelompokannya mengikuti urutan pertanyaan orang
+ * yang sedang menimbang: ini apa, isinya apa, lalu cocok tidak untuk saya.
+ */
+const BABAK: { id: string; nama: string; bagian: { id: string; label: string }[] }[] = [
+  {
+    id: "bentuk",
+    nama: "Bentuk programnya",
+    bagian: [
+      { id: "mengapa", label: "Mengapa caturwulan" },
+      { id: "cawu1", label: "Yang dibuka sekarang" },
+    ],
+  },
+  {
+    id: "isi",
+    nama: "Yang dipelajari",
+    bagian: [
+      { id: "cara", label: "Cara belajar" },
+      { id: "arab", label: "Bahasa Arab" },
+      { id: "aqidah", label: "Aqidah" },
+      { id: "materi", label: "Materi" },
+    ],
+  },
+  {
+    id: "cocok",
+    nama: "Cocok untuk saya?",
+    bagian: [
+      { id: "ritme", label: "Ritme sepekan" },
+      { id: "siapa", label: "Untuk siapa" },
+      { id: "halaqoh", label: "Halaqoh" },
+      { id: "pengajar", label: "Pengajar" },
+      { id: "faq", label: "Pertanyaan" },
+    ],
+  },
+];
+
+const SEMUA_SEKSI = BABAK.flatMap((b) => b.bagian.map((x) => x.id));
+
+/**
+ * Navigasi seksi yang menempel di bawah topbar setelah hero terlewat.
+ *
+ * Dipasang mendatar, bukan sebagai rail kiri seperti portal admin: bagian
+ * halaman ini melebar penuh dengan latar berganti-ganti, dan rail kiri akan
+ * bertabrakan dengan pita-pita itu. Mendatar juga satu-satunya bentuk yang
+ * masih berguna di layar ponsel — tinggal digeser.
+ */
+function NavSeksi() {
+  const [aktif, setAktif] = useState<string | null>(null);
+  const [terlihat, setTerlihat] = useState(false);
+  const daftarRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    /*
+     * Ambang 'rootMargin' atas disetel setinggi topbar + navigasi ini,
+     * sehingga bagian dianggap aktif ketika benar-benar berada di bawah
+     * keduanya — bukan ketika tepinya menyentuh puncak jendela yang
+     * sebenarnya tertutup.
+     */
+    const pengamat = new IntersectionObserver(
+      (entri) => {
+        const masuk = entri
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (masuk) setAktif(masuk.target.id);
+      },
+      { rootMargin: "-110px 0px -65% 0px", threshold: 0 },
+    );
+    for (const id of SEMUA_SEKSI) {
+      const el = document.getElementById(id);
+      if (el) pengamat.observe(el);
+    }
+
+    const hero = document.getElementById("hero");
+    const pengamatHero = new IntersectionObserver(
+      ([e]) => setTerlihat(!e!.isIntersecting),
+      { rootMargin: "-56px 0px 0px 0px" },
+    );
+    if (hero) pengamatHero.observe(hero);
+
+    return () => {
+      pengamat.disconnect();
+      pengamatHero.disconnect();
+    };
+  }, []);
+
+  /*
+   * Tombol yang sedang aktif digeser ke tengah pada layar sempit.
+   *
+   * `scrollLeft` dihitung sendiri, bukan `scrollIntoView`: yang terakhir
+   * menggulir SELURUH leluhur yang bisa digulir — termasuk halamannya —
+   * sehingga setiap pergantian bagian menyentak pembaca kembali ke atas dan
+   * navigasi ini tidak pernah sempat menempel.
+   */
+  useEffect(() => {
+    const wadah = daftarRef.current;
+    if (!aktif || !wadah) return;
+    const tombol = wadah.querySelector<HTMLElement>(`[data-seksi="${aktif}"]`);
+    if (!tombol) return;
+    const tujuan = tombol.offsetLeft - wadah.clientWidth / 2 + tombol.offsetWidth / 2;
+    wadah.scrollTo({
+      left: Math.max(0, tujuan),
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth",
+    });
+  }, [aktif]);
+
+  const babakAktif = BABAK.find((b) => b.bagian.some((x) => x.id === aktif));
+
+  return (
+    <nav
+      className={terlihat ? "nav-seksi nav-seksi-tampak" : "nav-seksi"}
+      aria-label="Bagian halaman"
+    >
+      <div className="shell nav-seksi-isi">
+        <span className="nav-seksi-babak">{babakAktif?.nama ?? BABAK[0]!.nama}</span>
+        <div className="nav-seksi-daftar" ref={daftarRef}>
+          {BABAK.map((b) => (
+            <span key={b.id} className="nav-seksi-grup">
+              {b.bagian.map((x) => (
+                <a
+                  key={x.id}
+                  href={`#${x.id}`}
+                  data-seksi={x.id}
+                  aria-current={aktif === x.id ? "true" : undefined}
+                >
+                  {x.label}
+                </a>
+              ))}
+            </span>
+          ))}
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+/**
+ * Penanda pergantian babak.
+ *
+ * Dibutuhkan karena kedua belas bagian memakai perlakuan yang sama —
+ * eyebrow, judul, lead — sehingga tidak ada yang lebih penting dari yang
+ * lain. Pemisah ini menambahkan satu tingkat di atasnya, bukan melucuti
+ * tingkat yang sudah ada; eyebrow tetap dipertahankan karena itulah pola
+ * yang dipakai seluruh aplikasi.
+ */
+function Babak({ nomor, nama, kalimat }: { nomor: string; nama: string; kalimat: string }) {
+  return (
+    <div className="babak">
+      <div className="shell babak-isi">
+        <span className="babak-nomor">{nomor}</span>
+        <h2 className="babak-nama">{nama}</h2>
+        <p className="babak-kalimat">{kalimat}</p>
+      </div>
+    </div>
+  );
+}
+
+/** Pembungkus penanda posisi untuk navigasi seksi. */
+function Seksi({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <div id={id} className="seksi-jangkar">
+      {children}
+    </div>
+  );
+}
 
 /* --- shared bits ------------------------------------------------ */
 
@@ -934,7 +1106,70 @@ function FaqSection() {
   );
 }
 
-/* --- 11. CTA pendaftaran ------------------------------------------- */
+/* --- Halaqoh ---------------------------------------------------- */
+
+/**
+ * Halaqoh.
+ *
+ * Bagian baru. Aplikasinya kini menempatkan setiap peserta ke dalam halaqoh
+ * dengan ustadz yang bernama, tetapi halaman ini tidak menyebutnya sama
+ * sekali — padahal pertanyaan pertama orang yang menimbang kelas daring
+ * adalah apakah ia akan belajar sendirian di depan layar.
+ */
+function HalaqohSeksi() {
+  const sifat = [
+    {
+      t: "Kelompok kecil, bukan kelas massal",
+      d: "Setiap halaqoh dibatasi daya tampungnya, sehingga ustadz masih mengenali siapa yang tertinggal.",
+    },
+    {
+      t: "Satu ustadz penanggung jawab",
+      d: "Ada nama yang jelas untuk ditanya — bukan kotak pertanyaan yang entah dibaca siapa.",
+    },
+    {
+      t: "Ikhwan dan akhwat terpisah",
+      d: "Pembagiannya ditetapkan sejak penempatan, berikut grup pengingat masing-masing.",
+    },
+    {
+      t: "Jadwal tetap setiap pekan",
+      d: "Hari dan jamnya ditentukan di awal caturwulan, jadi bisa dititipkan ke kalender Anda.",
+    },
+  ];
+
+  return (
+    <section style={{ borderTop: "1px solid var(--color-line)", background: "var(--color-surface)" }}>
+      <div className="shell" style={{ paddingBlock: 80 }}>
+        <SectionHead
+          eyebrow="Halaqoh"
+          title="Anda tidak belajar sendirian di depan layar."
+          lead="Setelah mendaftar, Anda ditempatkan ke dalam satu halaqoh — rombongan belajar kecil dengan ustadz penanggung jawab, jadwal tetap, dan teman seangkatan yang menempuh caturwulan yang sama."
+          max={660}
+        />
+        <div
+          className="kartu-4"
+          style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 20 }}
+        >
+          {sifat.map((x) => (
+            <div
+              key={x.t}
+              style={{
+                paddingTop: 18,
+                borderTop: "2px solid var(--color-forest)",
+              }}
+            >
+              <div style={{ fontFamily: serif, fontSize: 18.5, lineHeight: 1.35, marginBottom: 9 }}>
+                {x.t}
+              </div>
+              <div style={{ fontSize: 15, lineHeight: 1.65, color: "var(--color-body)" }}>{x.d}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* --- 12. CTA pendaftaran ---------------------------------------- */
 
 function CtaPendaftaran() {
   const pesan = [
@@ -1021,17 +1256,68 @@ export default function Landing() {
 
   return (
     <>
-      <Hero mapel={mapel} />
-      <MengapaCaturwulan />
-      <FokusCawu1 mapel={mapel} pengajar={pengajar} />
-      <CaraBelajar />
-      <BahasaArabHybrid />
-      <AqidahMajlis />
-      <MateriLMS />
-      <RitmeSatuPekan />
-      <UntukSiapa />
-      <Pengajar list={pengajar} />
-      <FaqSection />
+      <div id="hero">
+        <Hero mapel={mapel} />
+      </div>
+
+      <NavSeksi />
+
+      {/*
+        Tiga babak mengikuti urutan pertanyaan orang yang sedang menimbang:
+        ini apa, isinya apa, lalu cocok tidak untuk saya. Sebelumnya kedua
+        belas bagian berbaris tanpa tingkatan apa pun.
+      */}
+      <Babak
+        nomor="Satu"
+        nama="Bentuk programnya"
+        kalimat="Berapa lama, seberapa besar komitmennya, dan apa yang sedang dibuka."
+      />
+      <Seksi id="mengapa">
+        <MengapaCaturwulan />
+      </Seksi>
+      <Seksi id="cawu1">
+        <FokusCawu1 mapel={mapel} pengajar={pengajar} />
+      </Seksi>
+
+      <Babak
+        nomor="Dua"
+        nama="Yang dipelajari"
+        kalimat="Alur belajarnya, mata pelajarannya, dan bentuk materinya."
+      />
+      <Seksi id="cara">
+        <CaraBelajar />
+      </Seksi>
+      <Seksi id="arab">
+        <BahasaArabHybrid />
+      </Seksi>
+      <Seksi id="aqidah">
+        <AqidahMajlis />
+      </Seksi>
+      <Seksi id="materi">
+        <MateriLMS />
+      </Seksi>
+
+      <Babak
+        nomor="Tiga"
+        nama="Cocok untuk saya?"
+        kalimat="Beban pekanannya, siapa yang dituju, dan siapa yang mendampingi."
+      />
+      <Seksi id="ritme">
+        <RitmeSatuPekan />
+      </Seksi>
+      <Seksi id="siapa">
+        <UntukSiapa />
+      </Seksi>
+      <Seksi id="halaqoh">
+        <HalaqohSeksi />
+      </Seksi>
+      <Seksi id="pengajar">
+        <Pengajar list={pengajar} />
+      </Seksi>
+      <Seksi id="faq">
+        <FaqSection />
+      </Seksi>
+
       <CtaPendaftaran />
     </>
   );

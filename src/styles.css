@@ -316,3 +316,145 @@
     .h2-lg { font-size: 30px !important; }
   }
 }
+
+/* ================================================================
+ * Navigasi seksi & babak pada halaman utama
+ * ================================================================ */
+
+@layer components {
+  /*
+   * Jangkar bagian. Topbar menempel setinggi 56px dan navigasi seksi 44px
+   * di bawahnya; tanpa `scroll-margin-top` lompatan ke #id akan menaruh
+   * judul bagian tepat di balik keduanya.
+   */
+  .seksi-jangkar { scroll-margin-top: 104px; }
+
+  .nav-seksi {
+    position: sticky;
+    top: 56px;
+    z-index: 40;
+    background: rgba(247, 244, 238, 0.94);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--color-line);
+    /*
+     * Disembunyikan selama hero masih terlihat: di puncak halaman belum ada
+     * yang perlu ditunjuk arahnya, dan menampilkannya hanya mempersempit
+     * tampilan pembuka.
+     */
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+    transition: opacity 0.18s ease, transform 0.18s ease, visibility 0.18s;
+  }
+  .nav-seksi-tampak { opacity: 1; visibility: visible; transform: none; }
+
+  .nav-seksi-isi {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 44px;
+  }
+
+  /* Nama babak yang sedang dibaca — konteks, bukan tautan. */
+  .nav-seksi-babak {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-forest);
+    padding-right: 18px;
+    border-right: 1px solid var(--color-line);
+  }
+
+  .nav-seksi-daftar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav-seksi-daftar::-webkit-scrollbar { display: none; }
+
+  /* Jarak antar-babak lebih lebar daripada antar-bagian di dalamnya —
+     pengelompokannya terbaca dari jarak, tanpa perlu garis tambahan. */
+  .nav-seksi-grup { display: flex; gap: 2px; }
+  .nav-seksi-grup + .nav-seksi-grup { margin-left: 22px; }
+
+  .nav-seksi-daftar a {
+    flex: none;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 14px;
+    color: var(--color-muted);
+    white-space: nowrap;
+    transition: color 0.12s ease, background 0.12s ease;
+  }
+  .nav-seksi-daftar a:hover { color: var(--color-ink); background: var(--color-sand); }
+  .nav-seksi-daftar a[aria-current="true"] {
+    color: var(--color-forest);
+    background: var(--color-mist);
+    font-weight: 600;
+  }
+
+  /* --- penanda babak --- */
+
+  .babak {
+    background: var(--color-paper);
+    border-top: 1px solid var(--color-line-strong);
+  }
+  .babak-isi {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    column-gap: 22px;
+    row-gap: 6px;
+    align-items: baseline;
+    padding-block: 46px 38px;
+  }
+  .babak-nomor {
+    grid-row: 1 / span 2;
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-size: 17px;
+    color: var(--color-ochre);
+    /* Garis bawah setipis rambut mengikat nomor ke judulnya tanpa kotak. */
+    border-bottom: 1px solid var(--color-ochre);
+    padding-bottom: 2px;
+  }
+  .babak-nama {
+    font-family: var(--font-serif);
+    font-size: 30px;
+    line-height: 1.15;
+    margin: 0;
+  }
+  .babak-kalimat {
+    grid-column: 2;
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.6;
+    color: var(--color-muted);
+    max-width: 560px;
+  }
+
+  @media (max-width: 860px) {
+    .nav-seksi-babak { display: none; }
+    .babak-isi { padding-block: 34px 28px; }
+    .babak-nama { font-size: 24px; }
+  }
+
+  /* Empat kolom sifat halaqoh melipat pada layar sempit. */
+  @media (max-width: 900px) {
+    .kartu-4 { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+  @media (max-width: 520px) {
+    .kartu-4 { grid-template-columns: 1fr !important; }
+  }
+
+  /* Gerak hanya dipakai untuk memunculkan navigasi; dihormati bila
+     pengguna memintanya ditiadakan. */
+  @media (prefers-reduced-motion: reduce) {
+    .nav-seksi { transition: none; }
+    .nav-seksi-daftar a { transition: none; }
+  }
+}

@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router";
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 
 import { AdminLayout, PublicLayout, StudentLayout } from "./components/layouts";
 import { RequireRole } from "./lib/auth";
@@ -16,34 +16,60 @@ import {
   Program,
 } from "./views/public/Pages";
 
-import StudentDashboard from "./views/student/Dashboard";
-import UnitBelajar from "./views/student/UnitBelajar";
-import Kuis from "./views/student/Kuis";
-import NilaiPeserta from "./views/student/Nilai";
-import Pembayaran from "./views/student/Pembayaran";
-import PustakaPeserta from "./views/student/Pustaka";
-import Riwayat from "./views/student/Riwayat";
-import { Catatan, Caturwulan, Jadwal, Kelas, Murojaah, Profil, Progress } from "./views/student/Pages";
+/*
+ * Portal peserta dan admin dimuat saat dibutuhkan, bukan di muka.
+ *
+ * Sebelumnya seluruh aplikasi berada dalam satu berkas 621 kB, sehingga
+ * pengunjung halaman utama — yang mungkin belum punya akun sama sekali —
+ * ikut mengunduh lima belas layar admin yang tidak akan pernah ia buka.
+ * Halaman publik tetap dimuat langsung karena itulah yang pertama digambar;
+ * menundanya justru menambah satu perjalanan sebelum apa pun tampak.
+ */
+const StudentDashboard = lazy(() => import("./views/student/Dashboard"));
+const UnitBelajar = lazy(() => import("./views/student/UnitBelajar"));
+const Kuis = lazy(() => import("./views/student/Kuis"));
+const NilaiPeserta = lazy(() => import("./views/student/Nilai"));
+const Pembayaran = lazy(() => import("./views/student/Pembayaran"));
+const PustakaPeserta = lazy(() => import("./views/student/Pustaka"));
+const Riwayat = lazy(() => import("./views/student/Riwayat"));
+const Catatan = lazy(() => halamanPeserta("Catatan"));
+const Caturwulan = lazy(() => halamanPeserta("Caturwulan"));
+const Jadwal = lazy(() => halamanPeserta("Jadwal"));
+const Kelas = lazy(() => halamanPeserta("Kelas"));
+const Murojaah = lazy(() => halamanPeserta("Murojaah"));
+const Profil = lazy(() => halamanPeserta("Profil"));
+const Progress = lazy(() => halamanPeserta("Progress"));
 
-import AdminDashboard from "./views/admin/Dashboard";
-import Portofolio from "./views/admin/Portofolio";
-import Penilaian from "./views/admin/Penilaian";
-import KuisUjian from "./views/admin/KuisUjian";
-import Pengguna from "./views/admin/Pengguna";
-import PendaftaranAdmin from "./views/admin/Pendaftaran";
-import HalaqohAdmin from "./views/admin/Halaqoh";
-import Penempatan from "./views/admin/Penempatan";
-import JadwalPengajar from "./views/admin/JadwalPengajar";
-import Pustaka from "./views/admin/Pustaka";
-import BankSoal from "./views/admin/BankSoal";
-import Kehadiran from "./views/admin/Kehadiran";
-import {
-  Laporan,
-  Nilai,
-  PengajarAdmin,
-  Pengumuman,
-  Worksheet,
-} from "./views/admin/Pages";
+const AdminDashboard = lazy(() => import("./views/admin/Dashboard"));
+const Portofolio = lazy(() => import("./views/admin/Portofolio"));
+const Penilaian = lazy(() => import("./views/admin/Penilaian"));
+const KuisUjian = lazy(() => import("./views/admin/KuisUjian"));
+const Pengguna = lazy(() => import("./views/admin/Pengguna"));
+const PendaftaranAdmin = lazy(() => import("./views/admin/Pendaftaran"));
+const HalaqohAdmin = lazy(() => import("./views/admin/Halaqoh"));
+const Penempatan = lazy(() => import("./views/admin/Penempatan"));
+const JadwalPengajar = lazy(() => import("./views/admin/JadwalPengajar"));
+const Pustaka = lazy(() => import("./views/admin/Pustaka"));
+const BankSoal = lazy(() => import("./views/admin/BankSoal"));
+const Kehadiran = lazy(() => import("./views/admin/Kehadiran"));
+const Laporan = lazy(() => halamanAdmin("Laporan"));
+const Nilai = lazy(() => halamanAdmin("Nilai"));
+const PengajarAdmin = lazy(() => halamanAdmin("PengajarAdmin"));
+const Pengumuman = lazy(() => halamanAdmin("Pengumuman"));
+const Worksheet = lazy(() => halamanAdmin("Worksheet"));
+
+/*
+ * `Pages.tsx` memuat beberapa layar sekaligus sebagai ekspor bernama.
+ * `lazy` menuntut modul dengan ekspor `default`, jadi tiap nama dibungkus
+ * menjadi modul kecil berisi satu layar. Berkasnya tetap satu potongan —
+ * yang dihindari hanyalah memuatnya bersama bundel utama.
+ */
+function halamanPeserta(nama: keyof typeof import("./views/student/Pages")) {
+  return import("./views/student/Pages").then((m) => ({ default: m[nama] }));
+}
+function halamanAdmin(nama: keyof typeof import("./views/admin/Pages")) {
+  return import("./views/admin/Pages").then((m) => ({ default: m[nama] }));
+}
 
 const STUDENT_ONLY = ["student"] as const;
 const STAFF = ["instructor", "academic_admin", "super_admin"] as const;
@@ -71,6 +97,7 @@ export default function App() {
   return (
     <>
       <ScrollToTop />
+      <Suspense fallback={<MemuatHalaman />}>
       <Routes>
         {/* --- Public (03-IA §Public Routes) --- */}
         <Route element={<PublicLayout />}>
@@ -151,6 +178,20 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </>
+  );
+}
+
+/** Penanda singkat selagi potongan halaman diunduh. */
+function MemuatHalaman() {
+  return (
+    <div
+      className="shell"
+      style={{ paddingBlock: 56, color: "var(--color-faint)", fontSize: 15.5 }}
+      role="status"
+    >
+      Memuat…
+    </div>
   );
 }
